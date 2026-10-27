@@ -14,78 +14,63 @@ const story = JSON.parse(
     await readFile(path.join(root, "glossary.json"), "utf8"),
   );
 const errors = [],
-  scenes = new Map(story.scenes.map((scene) => [scene.id, scene])),
+  chapters = new Map(story.chapters.map((chapter) => [chapter.id, chapter])),
+  extras = new Map(story.extras.map((extra) => [extra.id, extra])),
+  topics = new Set([...chapters.keys(), ...extras.keys()]),
   terms = new Map(glossary.terms.map((term) => [term.id, term]));
 const require = (ok, message) => {
   if (!ok) errors.push(message);
 };
-require(story.schemaVersion === 2, "Wrong story version");
-require(scenes.size === story.scenes.length, "Duplicate scene IDs");
+require(story.schemaVersion === 3, "Wrong story version");
+require(chapters.size === story.chapters.length, "Duplicate chapter IDs");
+require(extras.size === story.extras.length, "Duplicate optional IDs");
+require(topics.size === chapters.size + extras.size, "Duplicate topic IDs");
 require(terms.size === glossary.terms.length, "Duplicate glossary IDs");
-require(new Set(story.basics).size ===
-  story.basics.length, "Duplicate main scenes");
-for (const id of story.basics) {
-  const scene = scenes.get(id);
-  require(scene && !scene.optional && !scene.parent, "Invalid main scene " +
-    id);
+require(JSON.stringify(story.basics) ===
+  JSON.stringify([...chapters.keys()]), "Main order differs");
+require(JSON.stringify(story.groups.flatMap((group) => group.chapters)) ===
+  JSON.stringify(story.basics), "Skill map differs from main line");
+for (const chapter of story.chapters) {
+  const team = chapter.messages.find((m) => m.speaker === "team");
+  require(chapter.title &&
+    chapter.messages.some((m) => m.speaker === "sasha") &&
+    team, "Missing narrator " + chapter.id);
+  require(chapter.messages.every(
+    (m) =>
+      ["sasha", "team"].includes(m.speaker) &&
+      m.paragraphs.length &&
+      m.paragraphs.every((p) => typeof p === "string" && p.length > 20),
+  ), "Missing prose " + chapter.id);
+  require(chapter.decision.afterTeamParagraph > 0 &&
+    chapter.decision.afterTeamParagraph <
+      team.paragraphs.length, "Invalid narrative pause " + chapter.id);
+  require(chapter.decision.prompt &&
+    chapter.decision.options.length >= 2 &&
+    chapter.decision.options.every(
+      (o) => o.label && o.reply.length > 80,
+    ), "Incomplete choice branch " + chapter.id);
+  const prose = chapter.messages.flatMap((m) => m.paragraphs).join(" ");
+  require(!/\d|Python|dict\.|\bID\b/.test(
+    prose,
+  ), "Numeric or programming prerequisite " + chapter.id);
+  require(prose.split(/\s+/).length > 110, "Narrative too short " + chapter.id);
+  require(chapter.terms.every((id) => terms.has(id)), "Unknown term " +
+    chapter.id);
+  require(chapter.sources.length, "Missing sources " + chapter.id);
 }
-for (const scene of story.scenes) {
-  require(scene.scene &&
-    scene.problem &&
-    scene.solution &&
-    scene.takeaway &&
-    scene.nextQuestion, "Missing narrative " + scene.id);
-  require(scene.attempt?.text &&
-    scene.attempt?.outcome &&
-    scene.approaches?.length &&
-    scene.example?.before &&
-    scene.example?.after &&
-    scene.example?.why, "Missing worked example " + scene.id);
-  require(scene.visual?.kind &&
-    scene.sources?.length, "Missing visual or references " + scene.id);
-  require(scene.terms.every((id) => terms.has(id)), "Unknown term " + scene.id);
-  if (scene.optional) {
-    require(scene.title.startsWith("+ "), "Optional title lacks + " + scene.id);
-    require(scenes.has(scene.parent), "Missing optional parent " + scene.id);
-    const seen = new Set([scene.id]);
-    let parent = scene.parent;
-    while (parent) {
-      if (seen.has(parent)) {
-        errors.push("Parent cycle " + scene.id);
-        break;
-      }
-      seen.add(parent);
-      parent = scenes.get(parent)?.parent;
-    }
-  } else {
-    require(story.basics.includes(scene.id), "Main scene not ordered " +
-      scene.id);
-    require(scene.check?.choices?.some((choice) => choice.correct) &&
-      scene.check.choices.some(
-        (choice) => !choice.correct,
-      ), "Missing understanding check " + scene.id);
-    const prose = [
-      scene.title,
-      scene.scene,
-      scene.problem,
-      scene.solution,
-      scene.example.before,
-      scene.example.after,
-      scene.takeaway,
-    ].join(" ");
-    require(!/\d|Python|dict\.|\bID\b/.test(
-      prose,
-    ), "Main line contains numeric or programming prerequisite " + scene.id);
-  }
-  if (scene.visual.parts)
-    require(scene.visual.parts.join("") ===
-      scene.visual.text, "Token pieces do not reassemble " + scene.id);
+for (const extra of story.extras) {
+  require(extra.title.startsWith("+ ") &&
+    chapters.has(extra.parent), "Invalid optional parent " + extra.id);
+  require(extra.paragraphs.length &&
+    extra.sources.length &&
+    extra.terms.every((id) => terms.has(id)), "Incomplete optional text " +
+    extra.id);
 }
 for (const term of glossary.terms) {
   require(term.definition &&
     term.example &&
     term.source &&
-    scenes.has(term.topic), "Incomplete glossary " + term.id);
+    topics.has(term.topic), "Incomplete glossary " + term.id);
   require(![
     "id",
     "list",
@@ -106,22 +91,21 @@ require(markdown ===
     path.join(out, "llms-full.txt"),
     "utf8",
   )), "Plain-text exports differ");
-for (const scene of story.scenes) {
+for (const chapter of story.chapters) {
   const values = [
-    scene.scene,
-    scene.problem,
-    scene.solution,
-    scene.takeaway,
-    scene.attempt.text,
-    scene.attempt.outcome,
-    ...scene.approaches.flatMap((item) => [item.title, item.text]),
-    ...Object.values(scene.example),
-    ...scene.sources.map((item) => item.url),
+    ...chapter.messages.flatMap((m) => m.paragraphs),
+    chapter.decision.prompt,
+    ...chapter.decision.options.flatMap((o) => [o.label, o.reply]),
+    ...chapter.sources.map((s) => s.url),
   ];
   require(values.every((value) =>
     markdown.includes(value),
-  ), "Incomplete agent scene " + scene.id);
+  ), "Incomplete agent chapter " + chapter.id);
 }
+for (const extra of story.extras)
+  require(extra.paragraphs.every((p) =>
+    markdown.includes(p),
+  ), "Incomplete agent extra " + extra.id);
 let mdCount = 0,
   htmlCount = 0;
 async function walk(dir, visit) {
@@ -180,5 +164,5 @@ if (errors.length) {
   process.exitCode = 1;
 } else
   console.log(
-    `Checked linear story, optional branches, token assembly, non-code main line, glossary, complete agent exports, ${mdCount} Markdown files and ${htmlCount} HTML pages.`,
+    `Checked prose narrative, interactive pauses, skill map, optional branches, glossary, complete agent exports, ${mdCount} Markdown files and ${htmlCount} HTML pages.`,
   );
