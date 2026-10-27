@@ -176,7 +176,10 @@
           ],
           "correct": 1,
           "explanation": "Описание может касаться только того, что слышит владелец. Требуется проверка свойства, связанного с задачей Саши.",
-          "references": ["human-search-search", "human-search-distinction"],
+          "references": [
+            "human-search-search",
+            "human-search-distinction"
+          ],
           "track": null
         }
       ],
@@ -212,9 +215,16 @@
       "sentTime": "09:04",
       "replyTime": "09:05",
       "arc": {
-        "problem": ["human-search-search"],
-        "attempts": ["human-search-search"],
-        "resolution": ["human-search-distinction", "human-search-promise"]
+        "problem": [
+          "human-search-search"
+        ],
+        "attempts": [
+          "human-search-search"
+        ],
+        "resolution": [
+          "human-search-distinction",
+          "human-search-promise"
+        ]
       }
     },
     {
@@ -223,7 +233,9 @@
           "id": "team-search-ask",
           "type": "message",
           "speaker": "sasha",
-          "paragraphs": ["Удалось найти что-нибудь?"],
+          "paragraphs": [
+            "Удалось найти что-нибудь?"
+          ],
           "time": "09:22"
         },
         {
@@ -239,7 +251,9 @@
           "id": "team-search-who",
           "type": "message",
           "speaker": "sasha",
-          "paragraphs": ["Кто такая Нина?"],
+          "paragraphs": [
+            "Кто такая Нина?"
+          ],
           "time": "09:24"
         },
         {
@@ -329,7 +343,10 @@
           ],
           "correct": 1,
           "explanation": "Копии одного обещания не равны независимым наблюдениям.",
-          "references": ["team-search-table", "team-search-evidence"],
+          "references": [
+            "team-search-table",
+            "team-search-evidence"
+          ],
           "track": null
         }
       ],
@@ -364,9 +381,16 @@
       "sentTime": "09:26",
       "replyTime": "09:27",
       "arc": {
-        "problem": ["team-search-table"],
-        "attempts": ["team-search-table"],
-        "resolution": ["team-search-evidence", "team-search-pattern"]
+        "problem": [
+          "team-search-table"
+        ],
+        "attempts": [
+          "team-search-table"
+        ],
+        "resolution": [
+          "team-search-evidence",
+          "team-search-pattern"
+        ]
       }
     },
     {
@@ -422,7 +446,9 @@
           "id": "patterns-memory",
           "type": "message",
           "speaker": "sasha",
-          "paragraphs": ["То есть не база готовых ответов?"],
+          "paragraphs": [
+            "То есть не база готовых ответов?"
+          ],
           "time": "09:51"
         },
         {
@@ -472,7 +498,9 @@
               "id": "patterns-research-why",
               "type": "message",
               "speaker": "anna",
-              "paragraphs": ["Что дала нейросетевая линия?"],
+              "paragraphs": [
+                "Что дала нейросетевая линия?"
+              ],
               "time": "08:04"
             },
             {
@@ -485,13 +513,19 @@
               "time": "08:05"
             }
           ],
-          "terms": ["model", "training"]
+          "terms": [
+            "model",
+            "training"
+          ]
         }
       ],
       "checks": [
         {
           "id": "patterns-model-check",
-          "terms": ["model", "training"],
+          "terms": [
+            "model",
+            "training"
+          ],
           "question": "Что отличает обучение модели от дописывания правила для каждой фразы?",
           "options": [
             "Параметры меняются по примерам; перенос на новые случаи нужно проверить",
@@ -520,7 +554,10 @@
           "url": "https://www.jmlr.org/papers/v3/bengio03a.html"
         }
       ],
-      "terms": ["model", "training"],
+      "terms": [
+        "model",
+        "training"
+      ],
       "decision": {
         "speaker": "sasha",
         "responder": "anna",
@@ -538,9 +575,17 @@
       "sentTime": "09:48",
       "replyTime": "09:49",
       "arc": {
-        "problem": ["patterns-automate"],
-        "attempts": ["patterns-rule", "patterns-wall"],
-        "resolution": ["patterns-learning", "patterns-transfer"]
+        "problem": [
+          "patterns-automate"
+        ],
+        "attempts": [
+          "patterns-rule",
+          "patterns-wall"
+        ],
+        "resolution": [
+          "patterns-learning",
+          "patterns-transfer"
+        ]
       }
     },
     {
@@ -567,7 +612,9 @@
           "id": "data-types",
           "type": "message",
           "speaker": "sasha",
-          "paragraphs": ["Только отзывы?"],
+          "paragraphs": [
+            "Только отзывы?"
+          ],
           "time": "10:08"
         },
         {
@@ -643,13 +690,20 @@
               "time": "08:03"
             }
           ],
-          "terms": ["modality", "multimodal"]
+          "terms": [
+            "modality",
+            "multimodal"
+          ]
         }
       ],
       "checks": [
         {
           "id": "data-dataset-check",
-          "terms": ["data", "dataset", "corpus"],
+          "terms": [
+            "data",
+            "dataset",
+            "corpus"
+          ],
           "question": "Чем наш обучающий набор отличается от просто доступного интернета?",
           "options": [
             "Это выбранные и подготовленные примеры для обучения",
@@ -657,12 +711,19 @@
           ],
           "correct": 0,
           "explanation": "Для обучения нужен конкретный материал. Его отбор и сохранённые связи влияют на то, чему система научится.",
-          "references": ["data-access", "data-dataset", "data-human-data"],
+          "references": [
+            "data-access",
+            "data-dataset",
+            "data-human-data"
+          ],
           "track": null
         },
         {
           "id": "data-modality-check",
-          "terms": ["modality", "multimodal"],
+          "terms": [
+            "modality",
+            "multimodal"
+          ],
           "question": "Почему расшифровка не заменяет запись при оценке слышимой помехи?",
           "options": [
             "Текст не сохраняет все свойства звука",
@@ -695,7 +756,11 @@
           "url": "https://arxiv.org/abs/2103.00020"
         }
       ],
-      "terms": ["data", "dataset", "corpus"],
+      "terms": [
+        "data",
+        "dataset",
+        "corpus"
+      ],
       "decision": {
         "speaker": "sasha",
         "responder": "anna",
@@ -713,9 +778,17 @@
       "sentTime": "10:10",
       "replyTime": "10:11",
       "arc": {
-        "problem": ["data-all-web"],
-        "attempts": ["data-access", "data-forms"],
-        "resolution": ["data-dataset", "data-human-data"]
+        "problem": [
+          "data-all-web"
+        ],
+        "attempts": [
+          "data-access",
+          "data-forms"
+        ],
+        "resolution": [
+          "data-dataset",
+          "data-human-data"
+        ]
       }
     },
     {
@@ -734,7 +807,7 @@
           "type": "message",
           "speaker": "anna",
           "paragraphs": [
-            "Токен — просто рабочая единица последовательности. Такие единицы использовали задолго до LLM. В языковых задачах, например, брали целые слова. Вопрос не в том, как впервые разрезать текст, а в том, какие единицы удобны для модели."
+            "Токен — просто рабочая единица последовательности. Такие единицы использовали задолго до современных больших языковых моделей. В языковых задачах, например, брали целые слова. Вопрос не в том, как впервые разрезать текст, а в том, какие единицы удобны для модели."
           ],
           "time": "10:29"
         },
@@ -781,7 +854,7 @@
           "type": "message",
           "speaker": "anna",
           "paragraphs": [
-            "Один влиятельный путь пришёл из сжатия данных: запоминать часто соседствующие части. Идею BPE позднее адаптировали для редких слов в машинном переводе. Токенизацию не изобрели специально для чата с LLM."
+            "Один влиятельный путь пришёл из сжатия данных: запоминать часто соседствующие части. Идею BPE — кодирования пар — позднее адаптировали для редких слов в машинном переводе. Токенизацию не изобрели специально для современных чатов."
           ],
           "time": "10:36"
         },
@@ -790,7 +863,14 @@
           "type": "visual",
           "kind": "tokens",
           "title": "Настоящее разбиение выбранным токенизатором",
-          "items": ["П", "ровер", "ьте", " микро", "фон", "."],
+          "items": [
+            "П",
+            "ровер",
+            "ьте",
+            " микро",
+            "фон",
+            "."
+          ],
           "caption": "Части в этом порядке восстанавливают «Проверьте микрофон.». Пробел тоже сохранён. Это проверенный пример, а не универсальная граница слова."
         },
         {
@@ -859,7 +939,10 @@
               "type": "visual",
               "kind": "merge",
               "title": "Условное объединение повторяющейся пары",
-              "items": ["м · а · м · а", "ма · ма"],
+              "items": [
+                "м · а · м · а",
+                "ма · ма"
+              ],
               "caption": "Правило объединения изучают по выбранным данным. Позже этим правилом кодируют новый текст."
             },
             {
@@ -890,13 +973,22 @@
               "time": "08:06"
             }
           ],
-          "terms": ["token", "tokenizer", "vocabulary"]
+          "terms": [
+            "token",
+            "tokenizer",
+            "vocabulary",
+            "bpe"
+          ]
         }
       ],
       "checks": [
         {
           "id": "tokens-token-check",
-          "terms": ["token", "tokenizer", "vocabulary"],
+          "terms": [
+            "token",
+            "tokenizer",
+            "vocabulary"
+          ],
           "question": "Новое имя отсутствует среди целых слов словаря. Что позволяет субсловный подход?",
           "options": [
             "Разбить его на доступные части, если их базовое представление поддерживается",
@@ -914,7 +1006,9 @@
         },
         {
           "id": "tokens-order-check",
-          "terms": ["token"],
+          "terms": [
+            "token"
+          ],
           "question": "Зачем сохранять порядок токенов?",
           "options": [
             "Чтобы сохранялся исходный текст; отношения позиций затем учитывает модель",
@@ -922,12 +1016,20 @@
           ],
           "correct": 0,
           "explanation": "Переставленные фрагменты образуют другую последовательность. Кодирование не превращает её в мешок слов.",
-          "references": ["tokens-pieces", "tokens-order", "tokens-solution"],
+          "references": [
+            "tokens-pieces",
+            "tokens-order",
+            "tokens-solution"
+          ],
           "track": null
         },
         {
           "id": "tokens-bpe-check",
-          "terms": ["tokenizer", "vocabulary"],
+          "terms": [
+            "tokenizer",
+            "vocabulary",
+            "bpe"
+          ],
           "question": "Что меняется при обучении BPE-подобного токенизатора?",
           "options": [
             "Словарь фрагментов и правила их объединения",
@@ -946,7 +1048,11 @@
       "id": "tokens",
       "title": "Словарь, в котором не хватает слов",
       "elapsed": "В тот же день",
-      "terms": ["token", "tokenizer", "vocabulary"],
+      "terms": [
+        "token",
+        "tokenizer",
+        "vocabulary"
+      ],
       "decision": {
         "speaker": "sasha",
         "responder": "anna",
@@ -964,9 +1070,19 @@
       "sentTime": "10:33",
       "replyTime": "10:34",
       "arc": {
-        "problem": ["tokens-whole-text"],
-        "attempts": ["tokens-word-gap", "tokens-chars", "tokens-char-cost"],
-        "resolution": ["tokens-subword", "tokens-borrowed", "tokens-solution"]
+        "problem": [
+          "tokens-whole-text"
+        ],
+        "attempts": [
+          "tokens-word-gap",
+          "tokens-chars",
+          "tokens-char-cost"
+        ],
+        "resolution": [
+          "tokens-subword",
+          "tokens-borrowed",
+          "tokens-solution"
+        ]
       }
     },
     {
@@ -1069,7 +1185,9 @@
               "id": "vectors-repr-question",
               "type": "message",
               "speaker": "ira",
-              "paragraphs": ["Мы меняем таблицу во время каждого ответа?"],
+              "paragraphs": [
+                "Мы меняем таблицу во время каждого ответа?"
+              ],
               "time": "08:02"
             },
             {
@@ -1082,13 +1200,21 @@
               "time": "08:03"
             }
           ],
-          "terms": ["vector", "embedding", "parameter"]
+          "terms": [
+            "vector",
+            "embedding",
+            "parameter"
+          ]
         }
       ],
       "checks": [
         {
           "id": "vectors-vector-check",
-          "terms": ["vector", "embedding", "parameter"],
+          "terms": [
+            "vector",
+            "embedding",
+            "parameter"
+          ],
           "question": "Что вектор даёт по сравнению с уникальной меткой токена?",
           "options": [
             "Представление для обучаемых вычислений и переноса закономерностей",
@@ -1117,7 +1243,11 @@
           "url": "https://arxiv.org/abs/1706.03762"
         }
       ],
-      "terms": ["vector", "embedding", "parameter"],
+      "terms": [
+        "vector",
+        "embedding",
+        "parameter"
+      ],
       "decision": {
         "speaker": "sasha",
         "responder": "anna",
@@ -1135,13 +1265,18 @@
       "sentTime": "10:54",
       "replyTime": "10:55",
       "arc": {
-        "problem": ["vectors-what-next"],
+        "problem": [
+          "vectors-what-next"
+        ],
         "attempts": [
           "vectors-id-fails",
           "vectors-manual",
           "vectors-manual-limit"
         ],
-        "resolution": ["vectors-embedding", "vectors-vector-answer"]
+        "resolution": [
+          "vectors-embedding",
+          "vectors-vector-answer"
+        ]
       }
     },
     {
@@ -1177,7 +1312,9 @@
           "id": "training-learning-question",
           "type": "message",
           "speaker": "sasha",
-          "paragraphs": ["И просто сказать ей «неправильно»?"],
+          "paragraphs": [
+            "И просто сказать ей «неправильно»?"
+          ],
           "time": "11:15"
         },
         {
@@ -1280,13 +1417,21 @@
               "time": "08:04"
             }
           ],
-          "terms": ["loss", "parameter", "training"]
+          "terms": [
+            "loss",
+            "parameter",
+            "training"
+          ]
         }
       ],
       "checks": [
         {
           "id": "training-training-check",
-          "terms": ["training", "parameter", "loss"],
+          "terms": [
+            "training",
+            "parameter",
+            "loss"
+          ],
           "question": "Что меняется во время описанного обучения и откуда берётся цель упражнения?",
           "options": [
             "Меняются параметры; цель — следующий токен исходного текста",
@@ -1328,7 +1473,11 @@
       "id": "training",
       "title": "Откуда берётся сигнал ошибки",
       "elapsed": "Начинаются эксперименты",
-      "terms": ["training", "parameter", "loss"],
+      "terms": [
+        "training",
+        "parameter",
+        "loss"
+      ],
       "decision": {
         "speaker": "sasha",
         "responder": "anna",
@@ -1346,7 +1495,9 @@
       "sentTime": "11:17",
       "replyTime": "11:18",
       "arc": {
-        "problem": ["training-annotation"],
+        "problem": [
+          "training-annotation"
+        ],
         "attempts": [
           "training-label-cost",
           "training-learning-question",
@@ -1467,13 +1618,18 @@
               "time": "08:03"
             }
           ],
-          "terms": ["evaluation"]
+          "terms": [
+            "evaluation"
+          ]
         }
       ],
       "checks": [
         {
           "id": "first-model-eval-check",
-          "terms": ["model", "evaluation"],
+          "terms": [
+            "model",
+            "evaluation"
+          ],
           "question": "Почему успешного ответа на пример, который много раз исправляли, недостаточно?",
           "options": [
             "Он может отражать подгонку под знакомый случай; нужны новые задачи",
@@ -1502,7 +1658,11 @@
           "url": "https://arxiv.org/abs/2005.14165"
         }
       ],
-      "terms": ["model", "training", "evaluation"],
+      "terms": [
+        "model",
+        "training",
+        "evaluation"
+      ],
       "decision": {
         "speaker": "sasha",
         "responder": "anna",
@@ -1520,9 +1680,17 @@
       "sentTime": "11:37",
       "replyTime": "11:38",
       "arc": {
-        "problem": ["first-model-try", "first-model-fail"],
-        "attempts": ["first-model-celebrate"],
-        "resolution": ["first-model-evaluation", "first-model-return"]
+        "problem": [
+          "first-model-try",
+          "first-model-fail"
+        ],
+        "attempts": [
+          "first-model-celebrate"
+        ],
+        "resolution": [
+          "first-model-evaluation",
+          "first-model-return"
+        ]
       }
     },
     {
@@ -1578,7 +1746,9 @@
           "id": "data-quality-improvement",
           "type": "message",
           "speaker": "sasha",
-          "paragraphs": ["Стало лучше?"],
+          "paragraphs": [
+            "Стало лучше?"
+          ],
           "time": "12:03"
         },
         {
@@ -1625,13 +1795,20 @@
               "time": "08:03"
             }
           ],
-          "terms": ["data", "dataset", "corpus"]
+          "terms": [
+            "data",
+            "dataset",
+            "corpus"
+          ]
         }
       ],
       "checks": [
         {
           "id": "data-quality-cleaning-check",
-          "terms": ["data", "dataset"],
+          "terms": [
+            "data",
+            "dataset"
+          ],
           "question": "Почему потерянная оговорка может быть важнее объёма набора?",
           "options": [
             "Она меняет смысл учебного примера",
@@ -1668,7 +1845,11 @@
       "id": "data-quality",
       "title": "Данные учат и тому, чего мы не хотели",
       "elapsed": "На следующий день",
-      "terms": ["data", "dataset", "evaluation"],
+      "terms": [
+        "data",
+        "dataset",
+        "evaluation"
+      ],
       "decision": {
         "speaker": "sasha",
         "responder": "anna",
@@ -1686,8 +1867,12 @@
       "sentTime": "11:59",
       "replyTime": "12:00",
       "arc": {
-        "problem": ["data-quality-broken"],
-        "attempts": ["data-quality-duplicates"],
+        "problem": [
+          "data-quality-broken"
+        ],
+        "attempts": [
+          "data-quality-duplicates"
+        ],
         "resolution": [
           "data-quality-cleaning",
           "data-quality-not-truth",
@@ -1740,7 +1925,10 @@
           "type": "visual",
           "kind": "relations",
           "title": "Одни слова — разные отношения",
-          "items": ["Саша → слышит → коллег", "Коллеги → слышат → Сашу"],
+          "items": [
+            "Саша → слышит → коллег",
+            "Коллеги → слышат → Сашу"
+          ],
           "caption": "Порядок и отношения меняют задачу. Это смысловая иллюстрация, не измеренные коэффициенты внимания."
         },
         {
@@ -1775,7 +1963,7 @@
           "type": "message",
           "speaker": "anna",
           "paragraphs": [
-            "В **Transformer** внимание сочетается с другими вычислительными слоями. Такая архитектура позволила удобнее распараллеливать обработку позиций при обучении. Но токены ответа при обычной генерации по-прежнему выбираются последовательно."
+            "В **Transformer** внимание сочетается с другими вычислительными слоями. Такая архитектура позволила удобнее распараллеливать обработку позиций при обучении. Но токены ответа при обычном построении ответа по-прежнему выбираются последовательно."
           ],
           "time": "12:27"
         },
@@ -1808,7 +1996,9 @@
               "id": "attention-attn-question",
               "type": "message",
               "speaker": "maks",
-              "paragraphs": ["Значит, всё решили одной формулой?"],
+              "paragraphs": [
+                "Значит, всё решили одной формулой?"
+              ],
               "time": "08:02"
             },
             {
@@ -1839,13 +2029,20 @@
               "time": "08:05"
             }
           ],
-          "terms": ["attention", "transformer"]
+          "terms": [
+            "attention",
+            "transformer"
+          ]
         }
       ],
       "checks": [
         {
           "id": "attention-attention-check",
-          "terms": ["attention", "transformer", "vector"],
+          "terms": [
+            "attention",
+            "transformer",
+            "vector"
+          ],
           "question": "Почему для задачи Саши мало обнаружить знакомое слово «шум»?",
           "options": [
             "Нужно учитывать отношения и порядок; внимание помогает связывать доступные части входа",
@@ -1863,7 +2060,10 @@
         },
         {
           "id": "attention-parallel-check",
-          "terms": ["attention", "transformer"],
+          "terms": [
+            "attention",
+            "transformer"
+          ],
           "question": "Почему параллельная обработка при обучении не означает, что обычный ответ сразу генерируется целиком?",
           "options": [
             "В обучении исходный текст известен; при генерации будущее продолжение ещё нужно построить",
@@ -1901,7 +2101,11 @@
       "id": "attention",
       "title": "Кто кого должен слышать",
       "elapsed": "Новый эксперимент",
-      "terms": ["attention", "transformer", "vector"],
+      "terms": [
+        "attention",
+        "transformer",
+        "vector"
+      ],
       "decision": {
         "speaker": "sasha",
         "responder": "anna",
@@ -1919,8 +2123,14 @@
       "sentTime": "12:21",
       "replyTime": "12:22",
       "arc": {
-        "problem": ["attention-roles", "attention-bottleneck"],
-        "attempts": ["attention-old-compression", "attention-parallel-problem"],
+        "problem": [
+          "attention-roles",
+          "attention-bottleneck"
+        ],
+        "attempts": [
+          "attention-old-compression",
+          "attention-parallel-problem"
+        ],
         "resolution": [
           "attention-attention-solution",
           "attention-positions",
@@ -1952,7 +2162,9 @@
           "id": "generation-one-token",
           "type": "message",
           "speaker": "sasha",
-          "paragraphs": ["Только следующего? Но я просил целый совет."],
+          "paragraphs": [
+            "Только следующего? Но я просил целый совет."
+          ],
           "time": "12:42"
         }
       ],
@@ -1963,7 +2175,7 @@
           "kind": "cycle",
           "title": "Один шаг генерации",
           "items": [
-            "Доступный контекст",
+            "Доступный текст",
             "Оценки следующих токенов",
             "Выбор токена",
             "Добавление к последовательности",
@@ -2051,7 +2263,10 @@
               "time": "08:04"
             }
           ],
-          "terms": ["generation", "llm"]
+          "terms": [
+            "generation",
+            "llm"
+          ]
         },
         {
           "id": "generation-sampling",
@@ -2077,13 +2292,20 @@
               "time": "08:02"
             }
           ],
-          "terms": ["probability", "generation"]
+          "terms": [
+            "probability",
+            "generation"
+          ]
         }
       ],
       "checks": [
         {
           "id": "generation-generation-check",
-          "terms": ["generation", "probability", "llm"],
+          "terms": [
+            "generation",
+            "probability",
+            "llm"
+          ],
           "question": "Что происходит после выбора токена при обычной генерации?",
           "options": [
             "Он добавляется к последовательности, и следующий шаг учитывает его",
@@ -2121,7 +2343,11 @@
       "id": "generation",
       "title": "Ответ, которого не было готовым абзацем",
       "elapsed": "В тот же день",
-      "terms": ["generation", "probability", "llm"],
+      "terms": [
+        "generation",
+        "probability",
+        "llm"
+      ],
       "decision": {
         "speaker": "sasha",
         "responder": "anna",
@@ -2139,8 +2365,12 @@
       "sentTime": "12:43",
       "replyTime": "12:44",
       "arc": {
-        "problem": ["generation-whole-answer"],
-        "attempts": ["generation-retrieval-fails"],
+        "problem": [
+          "generation-whole-answer"
+        ],
+        "attempts": [
+          "generation-retrieval-fails"
+        ],
         "resolution": [
           "generation-cycle",
           "generation-probability",
@@ -2250,13 +2480,19 @@
               "time": "08:03"
             }
           ],
-          "terms": ["feedback", "instruction-tuning"]
+          "terms": [
+            "feedback",
+            "instruction-tuning"
+          ]
         }
       ],
       "checks": [
         {
           "id": "assistant-assistant-check",
-          "terms": ["instruction-tuning", "feedback"],
+          "terms": [
+            "instruction-tuning",
+            "feedback"
+          ],
           "question": "Почему обучение на предпочитаемых ответах не гарантирует истинность совета?",
           "options": [
             "Предпочтение может оценивать приятную форму, а не подтверждение факта",
@@ -2285,7 +2521,11 @@
           "url": "https://arxiv.org/abs/2109.07958"
         }
       ],
-      "terms": ["instruction-tuning", "feedback", "training"],
+      "terms": [
+        "instruction-tuning",
+        "feedback",
+        "training"
+      ],
       "decision": {
         "speaker": "sasha",
         "responder": "anna",
@@ -2303,8 +2543,12 @@
       "sentTime": "13:05",
       "replyTime": "13:06",
       "arc": {
-        "problem": ["assistant-ad"],
-        "attempts": ["assistant-objective"],
+        "problem": [
+          "assistant-ad"
+        ],
+        "attempts": [
+          "assistant-objective"
+        ],
         "resolution": [
           "assistant-instruction-tuning",
           "assistant-feedback-limit"
@@ -2389,7 +2633,9 @@
               "id": "hallucinations-claim-question",
               "type": "message",
               "speaker": "anna",
-              "paragraphs": ["Но в обоих местах говорится о шуме."],
+              "paragraphs": [
+                "Но в обоих местах говорится о шуме."
+              ],
               "time": "08:02"
             },
             {
@@ -2402,13 +2648,19 @@
               "time": "08:03"
             }
           ],
-          "terms": ["grounding", "hallucination"]
+          "terms": [
+            "grounding",
+            "hallucination"
+          ]
         }
       ],
       "checks": [
         {
           "id": "hallucinations-hallucination-check",
-          "terms": ["hallucination", "grounding"],
+          "terms": [
+            "hallucination",
+            "grounding"
+          ],
           "question": "Под ответом есть ссылка. Значит, обещание про микрофон доказано?",
           "options": [
             "Нет: нужно проверить, подтверждает ли фрагмент именно это свойство",
@@ -2438,7 +2690,10 @@
           "url": "https://arxiv.org/abs/2005.11401"
         }
       ],
-      "terms": ["hallucination", "grounding"],
+      "terms": [
+        "hallucination",
+        "grounding"
+      ],
       "decision": {
         "speaker": "sasha",
         "responder": "anna",
@@ -2456,8 +2711,12 @@
       "sentTime": "13:27",
       "replyTime": "13:28",
       "arc": {
-        "problem": ["hallucinations-almost"],
-        "attempts": ["hallucinations-honesty"],
+        "problem": [
+          "hallucinations-almost"
+        ],
+        "attempts": [
+          "hallucinations-honesty"
+        ],
         "resolution": [
           "hallucinations-causes",
           "hallucinations-grounding",
@@ -2489,7 +2748,9 @@
           "id": "context-trained",
           "type": "message",
           "speaker": "sasha",
-          "paragraphs": ["Мы только что дообучили её одним сообщением?"],
+          "paragraphs": [
+            "Мы только что дообучили её одним сообщением?"
+          ],
           "time": "13:48"
         }
       ],
@@ -2567,7 +2828,9 @@
               "id": "context-memory-detail-question",
               "type": "message",
               "speaker": "anna",
-              "paragraphs": ["Тогда зачем хранить?"],
+              "paragraphs": [
+                "Тогда зачем хранить?"
+              ],
               "time": "08:02"
             },
             {
@@ -2580,13 +2843,20 @@
               "time": "08:03"
             }
           ],
-          "terms": ["memory", "context", "context-window"]
+          "terms": [
+            "memory",
+            "context",
+            "context-window"
+          ]
         }
       ],
       "checks": [
         {
           "id": "context-context-check",
-          "terms": ["context", "context-window"],
+          "terms": [
+            "context",
+            "context-window"
+          ],
           "question": "Почему после приложенного отзыва ответ изменился без переобучения?",
           "options": [
             "Изменился доступный вход; параметры могли остаться прежними",
@@ -2604,7 +2874,9 @@
         },
         {
           "id": "context-memory-check",
-          "terms": ["memory"],
+          "terms": [
+            "memory"
+          ],
           "question": "Старая заметка видна в приложении. Гарантирует ли это её участие в текущем ответе?",
           "options": [
             "Нет: приложение должно передать её в доступный контекст",
@@ -2634,7 +2906,11 @@
           "url": "https://huggingface.co/docs/transformers/en/llm_tutorial"
         }
       ],
-      "terms": ["context", "context-window", "memory"],
+      "terms": [
+        "context",
+        "context-window",
+        "memory"
+      ],
       "decision": {
         "speaker": "sasha",
         "responder": "anna",
@@ -2652,8 +2928,12 @@
       "sentTime": "13:49",
       "replyTime": "13:50",
       "arc": {
-        "problem": ["context-trained"],
-        "attempts": ["context-changed"],
+        "problem": [
+          "context-trained"
+        ],
+        "attempts": [
+          "context-changed"
+        ],
         "resolution": [
           "context-context-definition",
           "context-context-visual",
@@ -2755,13 +3035,19 @@
               "time": "08:03"
             }
           ],
-          "terms": ["instruction", "fine-tuning"]
+          "terms": [
+            "instruction",
+            "fine-tuning"
+          ]
         }
       ],
       "checks": [
         {
           "id": "context-or-training-fine-check",
-          "terms": ["instruction", "fine-tuning"],
+          "terms": [
+            "instruction",
+            "fine-tuning"
+          ],
           "question": "Появился свежий обзор. Какой первый шаг разумен для нашей задачи?",
           "options": [
             "Предоставить подходящий источник в контексте и проверить вывод",
@@ -2799,7 +3085,11 @@
           "url": "https://huggingface.co/docs/transformers/main/training"
         }
       ],
-      "terms": ["instruction", "fine-tuning", "context"],
+      "terms": [
+        "instruction",
+        "fine-tuning",
+        "context"
+      ],
       "decision": {
         "speaker": "sasha",
         "responder": "anna",
@@ -2817,8 +3107,12 @@
       "sentTime": "14:11",
       "replyTime": "14:12",
       "arc": {
-        "problem": ["context-or-training-permanent"],
-        "attempts": ["context-or-training-two-needs"],
+        "problem": [
+          "context-or-training-permanent"
+        ],
+        "attempts": [
+          "context-or-training-two-needs"
+        ],
         "resolution": [
           "context-or-training-instruction",
           "context-or-training-fine-tuning",
@@ -2937,13 +3231,21 @@
               "time": "08:03"
             }
           ],
-          "terms": ["retrieval", "rag", "vector"]
+          "terms": [
+            "retrieval",
+            "rag",
+            "vector"
+          ]
         }
       ],
       "checks": [
         {
           "id": "retrieval-rag-check",
-          "terms": ["retrieval", "rag", "grounding"],
+          "terms": [
+            "retrieval",
+            "rag",
+            "grounding"
+          ],
           "question": "В чём роль RAG в нашей системе?",
           "options": [
             "Найти материал, добавить его в контекст и использовать при ответе",
@@ -2968,7 +3270,11 @@
           "url": "https://arxiv.org/abs/2005.11401"
         }
       ],
-      "terms": ["retrieval", "rag", "grounding"],
+      "terms": [
+        "retrieval",
+        "rag",
+        "grounding"
+      ],
       "decision": {
         "speaker": "sasha",
         "responder": "anna",
@@ -2986,9 +3292,16 @@
       "sentTime": "14:34",
       "replyTime": "14:35",
       "arc": {
-        "problem": ["retrieval-manual-burden"],
-        "attempts": ["retrieval-first-result"],
-        "resolution": ["retrieval-rag", "retrieval-support"]
+        "problem": [
+          "retrieval-manual-burden"
+        ],
+        "attempts": [
+          "retrieval-first-result"
+        ],
+        "resolution": [
+          "retrieval-rag",
+          "retrieval-support"
+        ]
       }
     },
     {
@@ -3091,7 +3404,9 @@
               "id": "tools-integration-question",
               "type": "message",
               "speaker": "anna",
-              "paragraphs": ["А ошибка тоже возвращается модели?"],
+              "paragraphs": [
+                "А ошибка тоже возвращается модели?"
+              ],
               "time": "08:02"
             },
             {
@@ -3104,13 +3419,20 @@
               "time": "08:03"
             }
           ],
-          "terms": ["tool", "observation"]
+          "terms": [
+            "tool",
+            "observation"
+          ]
         }
       ],
       "checks": [
         {
           "id": "tools-tool-check",
-          "terms": ["tool", "observation", "context"],
+          "terms": [
+            "tool",
+            "observation",
+            "context"
+          ],
           "question": "Кто выполняет действие и что должно вернуться в модель?",
           "options": [
             "Приложение вызывает инструмент; фактический результат добавляется в контекст",
@@ -3140,7 +3462,11 @@
           "url": "https://arxiv.org/abs/2302.04761"
         }
       ],
-      "terms": ["tool", "observation", "context"],
+      "terms": [
+        "tool",
+        "observation",
+        "context"
+      ],
       "decision": {
         "speaker": "sasha",
         "responder": "anna",
@@ -3158,8 +3484,12 @@
       "sentTime": "14:56",
       "replyTime": "14:57",
       "arc": {
-        "problem": ["tools-claim"],
-        "attempts": ["tools-no-action"],
+        "problem": [
+          "tools-claim"
+        ],
+        "attempts": [
+          "tools-no-action"
+        ],
         "resolution": [
           "tools-tool-cycle",
           "tools-observation",
@@ -3305,7 +3635,11 @@
               "time": "08:03"
             }
           ],
-          "terms": ["agent", "agent-loop", "evaluation"]
+          "terms": [
+            "agent",
+            "agent-loop",
+            "evaluation"
+          ]
         },
         {
           "id": "agent-decisions",
@@ -3349,13 +3683,19 @@
               "time": "08:04"
             }
           ],
-          "terms": ["classification", "probability"]
+          "terms": [
+            "classification",
+            "probability"
+          ]
         }
       ],
       "checks": [
         {
           "id": "agent-agent-check",
-          "terms": ["agent", "agent-loop"],
+          "terms": [
+            "agent",
+            "agent-loop"
+          ],
           "question": "Первый поиск не дал свидетельства о микрофоне. Что отличает показанный агентный цикл от фиксированного пересказа?",
           "options": [
             "Следующее действие выбирается по обнаруженному пробелу и наблюдению",
@@ -3374,7 +3714,10 @@
         },
         {
           "id": "agent-decision-check",
-          "terms": ["classification", "probability"],
+          "terms": [
+            "classification",
+            "probability"
+          ],
           "question": "Если модель возвращает только допустимый вариант, обязательно ли он правильный?",
           "options": [
             "Нет: корректная форма и правильное решение — разные свойства",
@@ -3407,7 +3750,12 @@
       "id": "agent",
       "title": "Не пересказ, а следующий нужный шаг",
       "elapsed": "Тест на задаче Саши",
-      "terms": ["agent", "agent-loop", "tool", "observation"],
+      "terms": [
+        "agent",
+        "agent-loop",
+        "tool",
+        "observation"
+      ],
       "decision": {
         "speaker": "sasha",
         "responder": "anna",
@@ -3425,8 +3773,12 @@
       "sentTime": "15:17",
       "replyTime": "15:18",
       "arc": {
-        "problem": ["agent-goal"],
-        "attempts": ["agent-fixed"],
+        "problem": [
+          "agent-goal"
+        ],
+        "attempts": [
+          "agent-fixed"
+        ],
         "resolution": [
           "agent-bad-review",
           "agent-adapt",
@@ -3489,7 +3841,10 @@
       "checks": [
         {
           "id": "ending-result-check",
-          "terms": ["agent", "evaluation"],
+          "terms": [
+            "agent",
+            "evaluation"
+          ],
           "question": "Что в истории Саши стало итоговым критерием пользы?",
           "options": [
             "Обоснованное решение его задачи с понятными ограничениями",
@@ -3514,7 +3869,10 @@
           "url": "https://arxiv.org/abs/2210.03629"
         }
       ],
-      "terms": ["agent", "evaluation"],
+      "terms": [
+        "agent",
+        "evaluation"
+      ],
       "threads": [],
       "decision": {
         "speaker": "sasha",
@@ -3533,9 +3891,16 @@
       "sentTime": "15:39",
       "replyTime": "15:40",
       "arc": {
-        "problem": ["ending-relief"],
-        "attempts": ["ending-not-finished"],
-        "resolution": ["ending-new-task", "ending-next-session"]
+        "problem": [
+          "ending-relief"
+        ],
+        "attempts": [
+          "ending-not-finished"
+        ],
+        "resolution": [
+          "ending-new-task",
+          "ending-next-session"
+        ]
       }
     }
   ],
@@ -3571,26 +3936,60 @@
           {
             "id": "data-skill",
             "title": "Выбирать данные и сохранять условия",
-            "chapters": ["data", "data-quality"],
-            "terms": ["data", "dataset", "corpus", "modality", "multimodal"]
+            "chapters": [
+              "data",
+              "data-quality"
+            ],
+            "terms": [
+              "data",
+              "dataset",
+              "corpus",
+              "modality",
+              "multimodal"
+            ]
           },
           {
             "id": "representation",
             "title": "Отличать токены от представлений",
-            "chapters": ["tokens", "vectors"],
-            "terms": ["token", "tokenizer", "vocabulary", "vector", "embedding"]
+            "chapters": [
+              "tokens",
+              "vectors"
+            ],
+            "terms": [
+              "token",
+              "tokenizer",
+              "vocabulary",
+              "vector",
+              "embedding",
+              "bpe"
+            ]
           },
           {
             "id": "optimization",
             "title": "Объяснять обучение и проверку",
-            "chapters": ["patterns", "training", "first-model"],
-            "terms": ["model", "training", "parameter", "loss", "evaluation"]
+            "chapters": [
+              "patterns",
+              "training",
+              "first-model"
+            ],
+            "terms": [
+              "model",
+              "training",
+              "parameter",
+              "loss",
+              "evaluation"
+            ]
           },
           {
             "id": "relations",
             "title": "Понимать связи и порядок",
-            "chapters": ["attention"],
-            "terms": ["attention", "transformer"]
+            "chapters": [
+              "attention"
+            ],
+            "terms": [
+              "attention",
+              "transformer"
+            ]
           }
         ]
       },
@@ -3601,13 +4000,22 @@
           {
             "id": "text",
             "title": "Проследить цикл генерации",
-            "chapters": ["generation"],
-            "terms": ["generation", "probability", "llm"]
+            "chapters": [
+              "generation"
+            ],
+            "terms": [
+              "generation",
+              "probability",
+              "llm"
+            ]
           },
           {
             "id": "behavior",
             "title": "Отделять поведение от достоверности",
-            "chapters": ["assistant", "hallucinations"],
+            "chapters": [
+              "assistant",
+              "hallucinations"
+            ],
             "terms": [
               "instruction-tuning",
               "feedback",
@@ -3618,7 +4026,10 @@
           {
             "id": "working-input",
             "title": "Различать контекст, память и дообучение",
-            "chapters": ["context", "context-or-training"],
+            "chapters": [
+              "context",
+              "context-or-training"
+            ],
             "terms": [
               "context",
               "context-window",
@@ -3636,20 +4047,37 @@
           {
             "id": "finding",
             "title": "Находить подходящие основания",
-            "chapters": ["retrieval"],
-            "terms": ["retrieval", "rag"]
+            "chapters": [
+              "retrieval"
+            ],
+            "terms": [
+              "retrieval",
+              "rag"
+            ]
           },
           {
             "id": "execution",
             "title": "Отличать вызов от результата",
-            "chapters": ["tools"],
-            "terms": ["tool", "observation"]
+            "chapters": [
+              "tools"
+            ],
+            "terms": [
+              "tool",
+              "observation"
+            ]
           },
           {
             "id": "looping",
             "title": "Видеть цикл и правила остановки",
-            "chapters": ["agent", "ending"],
-            "terms": ["agent", "agent-loop", "classification"]
+            "chapters": [
+              "agent",
+              "ending"
+            ],
+            "terms": [
+              "agent",
+              "agent-loop",
+              "classification"
+            ]
           }
         ]
       }
