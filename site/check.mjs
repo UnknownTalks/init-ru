@@ -46,6 +46,56 @@ await walk(root, async (filename) => {
     for (const edge of canvas.edges)
       if (!ids.has(edge.fromNode) || !ids.has(edge.toNode))
         errors.push(`Canvas edge: ${edge.id}`);
+  } else if (path.basename(filename) === "story.json") {
+    const story = JSON.parse(await readFile(filename, "utf8"));
+    const scenes = new Map(story.scenes.map((scene) => [scene.id, scene]));
+    const chapters = new Set(story.chapters.map((chapter) => chapter.id));
+    const basics = new Set(story.basics);
+    if (scenes.size !== story.scenes.length)
+      errors.push("Story: duplicate scene IDs");
+    if (basics.size !== story.basics.length || !basics.size)
+      errors.push("Story: basic route must contain unique scene IDs");
+    if (
+      story.basics.length !== story.chapters.length ||
+      story.basics.some(
+        (id, index) => scenes.get(id)?.chapter !== story.chapters[index]?.id,
+      )
+    )
+      errors.push("Story: basic route must follow the stages in order");
+    const canvas = JSON.parse(
+      await readFile(path.join(path.dirname(filename), "map.canvas"), "utf8"),
+    );
+    const canvasNodes = new Map(canvas.nodes.map((node) => [node.id, node]));
+    const firstBasic = canvasNodes.get(story.basics[0]);
+    for (const scene of story.scenes) {
+      if (!chapters.has(scene.chapter))
+        errors.push(`Story: unknown stage for ${scene.id}`);
+      if (
+        !scene.explanation || !scene.bridge || !scene.fact?.text ||
+        !scene.fact?.kind || !scene.sources?.length
+      )
+        errors.push(`Story: incomplete explanation or sources for ${scene.id}`);
+      const node = canvasNodes.get(scene.id);
+      if (node?.type !== "file") {
+        errors.push(`Story: missing Canvas scene ${scene.id}`);
+        continue;
+      }
+      const explanation = node.file.replace(/\.svg$/, "-explanation.svg");
+      if (!existsSync(path.join(root, explanation)))
+        errors.push(`Story: missing explanation image ${explanation}`);
+      if (basics.has(scene.id)) {
+        if (scene.parent || scene.level !== 1 || node.y !== firstBasic?.y)
+          errors.push(`Story: basic scene must be in the upper row: ${scene.id}`);
+      } else {
+        const parent = scenes.get(scene.parent);
+        const parentNode = canvasNodes.get(scene.parent);
+        if (
+          !parent || parent.chapter !== scene.chapter ||
+          scene.level !== parent.level + 1 || node.y <= parentNode?.y
+        )
+          errors.push(`Story: invalid depth relationship for ${scene.id}`);
+      }
+    }
   }
 });
 if (!existsSync(path.join(publicDir, "index.html")))

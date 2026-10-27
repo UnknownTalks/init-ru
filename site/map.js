@@ -17,6 +17,60 @@
     ty = 0,
     overview = false,
     animation = 0;
+  let explaining = false;
+  const depthNames = {
+    1: "Основы",
+    2: "Принцип",
+    3: "Реализация",
+    4: "Разбор вычисления",
+  };
+  const byId = new Map(data.scenes.map((scene, i) => [scene.id, i]));
+  function route() {
+    const current = data.scenes[index];
+    return current.level === 1
+      ? data.basics.map((id) => byId.get(id))
+      : data.scenes
+          .map((scene, i) => ({ scene, i }))
+          .filter(({ scene }) => scene.parent === current.parent)
+          .map(({ i }) => i);
+  }
+  function children() {
+    return data.scenes
+      .map((scene, i) => ({ scene, i }))
+      .filter(({ scene }) => scene.parent === data.scenes[index].id);
+  }
+  function move(delta) {
+    const list = route(),
+      position = list.indexOf(index),
+      next = list[position + delta];
+    if (next !== undefined) focus(next);
+  }
+  function closeBranches() {
+    document.getElementById("branches").hidden = true;
+    document.getElementById("deeper").setAttribute("aria-expanded", "false");
+  }
+  function showBranches() {
+    const branch = children();
+    if (!branch.length) return;
+    if (branch.length === 1) {
+      focus(branch[0].i);
+      return;
+    }
+    const panel = document.getElementById("branches");
+    const open = panel.hidden;
+    closeBranches();
+    if (!open) return;
+    panel.replaceChildren();
+    for (const { scene, i } of branch) {
+      const button = document.createElement("button");
+      button.textContent = scene.title;
+      button.dataset.target = scene.id;
+      button.addEventListener("click", () => focus(i));
+      panel.append(button);
+    }
+    panel.hidden = false;
+    document.getElementById("deeper").setAttribute("aria-expanded", "true");
+  }
   const chapterColors = [
     "#6de4d2",
     "#f6ce77",
@@ -72,7 +126,7 @@
     const a = entries.get(edge.fromNode)?.scene,
       b = entries.get(edge.toNode)?.scene;
     if (!a || !b) continue;
-    const horizontal = a.x !== b.x;
+    const horizontal = edge.fromSide === "right";
     const x1 = a.x + (horizontal ? a.width : a.width / 2),
       y1 = a.y + (horizontal ? a.height / 2 : a.height);
     const x2 = b.x + (horizontal ? 0 : b.width / 2),
@@ -82,7 +136,7 @@
       "d",
       horizontal
         ? `M${x1},${y1} C${x1 + 180},${y1} ${x2 - 180},${y2} ${x2},${y2}`
-        : `M${x1},${y1} L${x2},${y2}`,
+        : `M${x1},${y1} C${x1},${y1 + 180} ${x2},${y2 - 180} ${x2},${y2}`,
     );
     p.setAttribute("fill", "none");
     p.setAttribute("stroke", "#47566f");
@@ -98,12 +152,13 @@
     const available = stage.getBoundingClientRect();
     const targetScale = Math.min(
       (available.width - pad * 2) / rect.width,
-      (available.height - pad * 2) / rect.height,
+      (available.height - pad * 2 - (overview ? 0 : 58)) / rect.height,
     );
     const targetX =
       (available.width - rect.width * targetScale) / 2 - rect.x * targetScale;
     const targetY =
-      (available.height - rect.height * targetScale) / 2 - rect.y * targetScale;
+      (available.height - (overview ? 0 : 58) - rect.height * targetScale) / 2 -
+      rect.y * targetScale;
     if (!animate || reduced) {
       scale = targetScale;
       tx = targetX;
@@ -129,6 +184,15 @@
     sourceToggle.setAttribute("aria-expanded", "false");
   }
   function focus(next, animate = true) {
+    const previous = data.scenes[index];
+    entries
+      .get(previous.id)
+      ?.card.querySelector("img")
+      .setAttribute("src", previous.image);
+    explaining = false;
+    document.getElementById("explain").textContent = "Пояснение";
+    document.getElementById("explain").setAttribute("aria-pressed", "false");
+    closeBranches();
     index = Math.max(0, Math.min(data.scenes.length - 1, next));
     overview = false;
     document.body.classList.remove("overview");
@@ -138,14 +202,22 @@
       entry.card.setAttribute("aria-current", String(id === scene.id));
     }
     document.getElementById("scene-title").textContent = scene.title;
-    document.getElementById("chapter-label").textContent = data.chapters.find(
-      (c) => c.id === scene.chapter,
-    ).title;
+    const parent = scene.parent ? data.scenes[byId.get(scene.parent)] : null;
+    const list = route(),
+      position = list.indexOf(index);
+    document.getElementById("chapter-label").textContent =
+      depthNames[scene.level] +
+      " · " +
+      data.chapters.find((c) => c.id === scene.chapter).title +
+      (parent ? " / " + parent.title : "");
     document.getElementById("scene-number").textContent = String(
-      index + 1,
+      position + 1,
     ).padStart(2, "0");
-    document.getElementById("previous").disabled = index === 0;
-    document.getElementById("next").disabled = index === data.scenes.length - 1;
+    document.getElementById("route-total").textContent = String(list.length);
+    document.getElementById("previous").disabled = position === 0;
+    document.getElementById("next").disabled = position === list.length - 1;
+    document.getElementById("up").disabled = !scene.parent;
+    document.getElementById("deeper").disabled = !children().length;
     for (const button of document.querySelectorAll("[data-chapter]"))
       button.setAttribute(
         "aria-current",
@@ -159,6 +231,7 @@
     overview = true;
     document.body.classList.add("overview");
     closeSources();
+    closeBranches();
     const minX = Math.min(...data.groups.map((g) => g.x)) - 40,
       minY = Math.min(...data.groups.map((g) => g.y)) - 70;
     const maxX = Math.max(...data.groups.map((g) => g.x + g.width)) + 40,
@@ -173,12 +246,8 @@
     scale = next;
     transform();
   }
-  document
-    .getElementById("previous")
-    .addEventListener("click", () => focus(index - 1));
-  document
-    .getElementById("next")
-    .addEventListener("click", () => focus(index + 1));
+  document.getElementById("previous").addEventListener("click", () => move(-1));
+  document.getElementById("next").addEventListener("click", () => move(1));
   document
     .getElementById("overview")
     .addEventListener("click", () =>
@@ -188,6 +257,37 @@
   document
     .getElementById("zoom-out")
     .addEventListener("click", () => zoom(1 / 1.3));
+  document.getElementById("up").addEventListener("click", () => {
+    const parent = data.scenes[index].parent;
+    if (parent) focus(byId.get(parent));
+  });
+  document.getElementById("deeper").addEventListener("click", showBranches);
+  document
+    .getElementById("basics-route")
+    .addEventListener("click", () =>
+      focus(
+        byId.get(
+          data.basics.find(
+            (id) =>
+              data.scenes[byId.get(id)].chapter === data.scenes[index].chapter,
+          ),
+        ),
+      ),
+    );
+  document.getElementById("explain").addEventListener("click", () => {
+    explaining = !explaining;
+    const scene = data.scenes[index];
+    entries.get(scene.id).card.querySelector("img").src = explaining
+      ? scene.explanationImage
+      : scene.image;
+    document.getElementById("explain").textContent = explaining
+      ? "Показать схему"
+      : "Пояснение";
+    document
+      .getElementById("explain")
+      .setAttribute("aria-pressed", String(explaining));
+    fit(scene, false);
+  });
   document.getElementById("fullscreen").addEventListener("click", () => {
     if (document.fullscreenElement) document.exitFullscreen();
     else document.documentElement.requestFullscreen?.();
@@ -213,22 +313,31 @@
     sourceToggle.setAttribute("aria-expanded", "true");
   });
   document.addEventListener("keydown", (event) => {
-    if (event.target.closest("input,textarea,select")) return;
+    if (event.target.closest("input,textarea,select,#branches")) return;
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      showBranches();
+    }
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      const parent = data.scenes[index].parent;
+      if (parent) focus(byId.get(parent));
+    }
     if (["ArrowRight", "PageDown", " "].includes(event.key)) {
       event.preventDefault();
-      focus(index + 1);
+      move(1);
     }
     if (["ArrowLeft", "PageUp"].includes(event.key)) {
       event.preventDefault();
-      focus(index - 1);
+      move(-1);
     }
     if (event.key === "Home") {
       event.preventDefault();
-      focus(0);
+      focus(byId.get(data.basics[0]));
     }
     if (event.key === "End") {
       event.preventDefault();
-      focus(data.scenes.length - 1);
+      focus(byId.get(data.basics.at(-1)));
     }
     if (event.key.toLowerCase() === "o" || event.key === "щ") {
       event.preventDefault();

@@ -13,6 +13,7 @@ export async function renderStoryMap(root) {
   const model = {
     title: story.title,
     chapters: story.chapters,
+    basics: story.basics,
     scenes: story.scenes.map((scene, index) => {
       const node = nodes.get(scene.id);
       if (!node || node.type !== "file")
@@ -25,6 +26,11 @@ export async function renderStoryMap(root) {
         width: node.width,
         height: node.height,
         image: "./" + path.posix.relative(lesson, node.file),
+        explanationImage:
+          "./" +
+          path.posix
+            .relative(lesson, node.file)
+            .replace(/\.svg$/, "-explanation.svg"),
       };
     }),
     edges: canvas.edges.filter(
@@ -38,10 +44,12 @@ export async function renderStoryMap(root) {
   const html = `<!doctype html>
 <html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#080a10"><title>${story.title} · UnknownTalks</title><link rel="stylesheet" href="../../static/story-map.css"></head>
 <body>
-<header class="topbar"><a class="brand" href="./">UNKNOWN<span>TALKS</span><small>/ init-ru</small></a><nav id="chapters" aria-label="Ветки карты"></nav><button id="overview" aria-label="Показать всю карту">Вся карта <kbd>O</kbd></button><button id="fullscreen" aria-label="Полный экран">↗</button></header>
+<header class="topbar"><a class="brand" href="./">UNKNOWN<span>TALKS</span><small>/ init-ru</small></a><nav id="chapters" aria-label="Этапы от данных до агентов"></nav><button id="basics-route">Основы</button><button id="overview" aria-label="Показать всю карту">Вся карта <kbd>O</kbd></button><button id="fullscreen" aria-label="Полный экран">↗</button></header>
 <main id="stage" aria-label="Интерактивная карта" tabindex="0"><div id="world"><svg id="connections" aria-hidden="true"></svg><div id="scenes"></div></div><div class="zoom"><button id="zoom-in" aria-label="Приблизить">+</button><button id="zoom-out" aria-label="Отдалить">−</button></div></main>
-<footer class="transport"><button id="previous" aria-label="Предыдущая сцена">←</button><div class="current"><div id="chapter-label"></div><div id="scene-title" aria-live="polite"></div></div><button id="sources-toggle" aria-expanded="false">Источники</button><div class="counter"><span id="scene-number">01</span><span class="total"> / ${story.scenes.length}</span></div><button id="next" aria-label="Следующая сцена">→</button></footer>
-<aside id="sources" aria-label="Первоисточники сцены" hidden></aside><div id="hint">← → — двигаться по рассказу <span>·</span> O — общий обзор <span>·</span> колесо — масштаб <span>·</span> перетаскивание — перемещение</div>
+<div id="depth-nav"><button id="up" aria-label="На уровень выше">↑ Выше</button><button id="deeper" aria-expanded="false">↓ Глубже</button><button id="explain" aria-pressed="false">Пояснение</button></div>
+<aside id="branches" aria-label="Углубления этой темы" hidden></aside>
+<footer class="transport"><button id="previous" aria-label="Предыдущая сцена">←</button><div class="current"><div id="chapter-label"></div><div id="scene-title" aria-live="polite"></div></div><button id="sources-toggle" aria-expanded="false">Источники</button><div class="counter"><span id="scene-number">01</span><span class="total"> / <span id="route-total">${story.basics.length}</span></span></div><button id="next" aria-label="Следующая сцена">→</button></footer>
+<aside id="sources" aria-label="Первоисточники сцены" hidden></aside><div id="hint">→ этапы <span>·</span> ↓ глубже <span>·</span> ↑ выше <span>·</span> O — вся карта <span>·</span> колесо — масштаб</div>
 <script id="story-data" type="application/json">${json}</script><script src="../../static/story-map.js"></script>
 </body></html>`;
   const output = path.join(root, "public", lesson, "map.canvas.html");

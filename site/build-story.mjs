@@ -1,4 +1,4 @@
-import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { readFile, writeFile, mkdir, readdir, rm } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -11,10 +11,11 @@ const directory = path.join(root, lesson, "assets/story");
 await mkdir(directory, { recursive: true });
 const colors = {
   data: "#6de4d2",
-  ideas: "#f6ce77",
-  llm: "#bbabff",
-  code: "#a0e39b",
-  agents: "#ffb27c",
+  processing: "#f6ce77",
+  training: "#bbabff",
+  llm: "#a0e39b",
+  verification: "#ffb27c",
+  agents: "#ffa5c8",
   decisions: "#ffa5c8",
 };
 const ink = "#f4f4f8",
@@ -131,7 +132,79 @@ function flow(labels, subtitles = [], color = ink) {
     })
     .join("");
 }
+function renderFigure(figure, accent) {
+  if (figure.kind === "flow")
+    return flow(figure.labels, figure.subtitles, accent);
+  if (figure.kind === "stats") {
+    const width = 386;
+    return figure.items
+      .map(([value, label], i) => {
+        const x = 64 + i * 424;
+        const size = value.length > 14 ? 28 : value.length > 9 ? 43 : 62;
+        return (
+          rect(x, 310, width, 250) +
+          text(x + 25, 390, value, size, accent, width - 50, 700) +
+          text(x + 25, 488, label, 22, ink, width - 50)
+        );
+      })
+      .join("");
+  }
+  if (figure.kind === "table") {
+    const widths = figure.headers.length === 2 ? [616, 616] : [330, 520, 382];
+    let x = 64;
+    let output = rect(64, 302, 1232, 260);
+    figure.headers.forEach((header, i) => {
+      output += text(x + 18, 335, header, 19, accent, widths[i] - 36, 650);
+      x += widths[i];
+    });
+    figure.rows.forEach((row, r) => {
+      const y = 378 + r * 67;
+      let columnX = 64;
+      output += line(80, y - 19, 1280, y - 19, "#343a48", false);
+      row.forEach((value, c) => {
+        output += text(columnX + 18, y + 13, value, 20, ink, widths[c] - 36);
+        columnX += widths[c];
+      });
+    });
+    return output;
+  }
+  throw new Error("Unknown figure kind: " + figure.kind);
+}
 function visual(scene, accent) {
+  if (scene.figure) return renderFigure(scene.figure, accent);
+  if (scene.level === 1 && scene.visual === "pipeline")
+    return flow(
+      ["Страница", "Содержимое", "Учебные примеры"],
+      [
+        "меню + текст + код",
+        "выбрать и сохранить структуру",
+        "отложить отдельную проверку",
+      ],
+      accent,
+    );
+  if (scene.level === 1 && scene.visual === "training")
+    return flow(
+      ["Показать начало", "Предложить продолжение", "Сравнить"],
+      ["пример из данных", "ответ модели", "изменить параметры"],
+      accent,
+    );
+  if (scene.level === 1 && scene.visual === "generation")
+    return (
+      code(
+        64,
+        307,
+        760,
+        ["def unique(xs):", "    return list(dict.fromkeys(xs))"],
+        "ВОЗМОЖНЫЙ ОТВЕТ НА ЗАПРОС",
+        25,
+      ) +
+      text(900, 350, "Запрос", 30, accent, 350, 650) +
+      line(950, 371, 950, 393, accent) +
+      text(900, 434, "Модель", 30, ink, 350, 650) +
+      line(950, 454, 950, 474, accent) +
+      text(900, 515, "Ответ", 30, accent, 350, 650)
+    );
+
   switch (scene.visual) {
     case "question":
       return (
@@ -638,133 +711,132 @@ function visual(scene, accent) {
       throw new Error("Unknown visual: " + scene.visual);
   }
 }
+const expected = new Set();
+const depthNames = {
+  1: "Пример / основы",
+  2: "Принцип",
+  3: "Детали реализации",
+  4: "Разбор вычисления",
+};
+function caption(scene, index) {
+  return `### ${depthNames[scene.level]} · ${scene.title}\n\n${scene.explanation}\n\n**Следующий вопрос:** ${scene.bridge}\n\n${scene.sources.map((source) => `[${source.label}](${source.url})`).join(" · ")}`;
+}
 for (const [index, scene] of data.scenes.entries()) {
   const chapter = data.chapters.find((c) => c.id === scene.chapter),
     accent = colors[scene.chapter];
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1360" height="900" viewBox="0 0 1360 900" role="img" aria-labelledby="title desc"><title id="title">${esc(scene.title)}</title><desc id="desc">${esc([scene.question, scene.idea, scene.result, scene.before].join(" "))}</desc><defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L7,3 z" fill="${accent}"/></marker></defs>${rect(1, 1, 1358, 898, "#11141c", "#343a48", 28)}${text(64, 42, "UNKNOWN TALKS / INIT-RU", 14, muted, 750, 650)}${text(64, 77, chapter.title, 17, accent, 1100, 650)}${text(1230, 77, String(index + 1).padStart(2, "0"), 24, accent, 70, 650)}${text(64, 137, scene.title, 43, ink, 1225, 700, false, 1.2)}${text(64, 205, "ПРОБЛЕМА", 13, accent, 1100, 650)}${text(64, 238, scene.question, 25, ink, 1225, 400, false, 1.25)}${visual(scene, accent)}${line(64, 588, 1296, 588, "#343a48", false)}${text(64, 618, "ИДЕЯ", 13, accent, 540, 650)}${text(64, 652, scene.idea, 23, ink, 575, 400, false, 1.3)}${text(710, 618, "ЧТО ПОЛУЧИЛОСЬ", 13, accent, 580, 650)}${text(710, 652, scene.result, 23, ink, 580, 400, false, 1.3)}${text(64, 795, "ЧТО МЕШАЛО РАНЬШЕ / ЧТО БЫЛО ДО ЭТОГО", 13, muted, 1225, 650)}${text(64, 829, scene.before, 21, muted, 1225, 400, false, 1.3)}</svg>`;
-  await writeFile(
-    path.join(
-      directory,
-      `${String(index + 1).padStart(2, "0")}-${scene.id}.svg`,
-    ),
-    svg + "\n",
-  );
+  const filename = `${String(index + 1).padStart(2, "0")}-${scene.id}.svg`;
+  expected.add(filename);
+  const factText = `${scene.fact.kind} · ${scene.fact.text}`;
+  const factSize = lines(factText, 1225, 17).length > 1 ? 15 : 17;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1360" height="900" viewBox="0 0 1360 900" role="img" aria-labelledby="title desc"><title id="title">${esc(scene.title)}</title><desc id="desc">${esc([scene.question, scene.idea, scene.result, scene.bridge].join(" "))}</desc><defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L7,3 z" fill="${accent}"/></marker></defs>${rect(1, 1, 1358, 898, "#11141c", "#343a48", 28)}${text(64, 42, "UNKNOWN TALKS / INIT-RU", 14, muted, 750, 650)}${text(64, 77, chapter.title + "  /  " + depthNames[scene.level], 17, accent, 1160, 650)}${text(1230, 77, "L" + scene.level, 22, accent, 70, 650)}${text(64, 137, scene.title, 40, ink, 1225, 700, false, 1.2)}${text(64, 200, factText, factSize, accent, 1225, 500, false, 1.1)}${text(64, 245, scene.question, 24, ink, 1225, 400, false, 1.25)}${visual(scene, accent)}${line(64, 588, 1296, 588, "#343a48", false)}${text(64, 618, "КАК ЭТО РАБОТАЕТ", 13, accent, 570, 650)}${text(64, 652, scene.idea, 23, ink, 575, 400, false, 1.3)}${text(710, 618, "РАЗБОР ПРИМЕРА / РЕЗУЛЬТАТ", 13, accent, 580, 650)}${text(710, 652, scene.result, 23, ink, 580, 400, false, 1.3)}${text(64, 795, "СЛЕДУЮЩИЙ ВОПРОС", 13, muted, 1225, 650)}${text(64, 829, scene.bridge, 21, muted, 1225, 400, false, 1.3)}</svg>`;
+  await writeFile(path.join(directory, filename), svg + "\n");
+  const explanationName = filename.replace(/\.svg$/, "-explanation.svg");
+  expected.add(explanationName);
+  const explanationSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="1360" height="900" viewBox="0 0 1360 900" role="img" aria-labelledby="title"><title id="title">${esc(scene.title)} — объяснение</title>${rect(1, 1, 1358, 898, "#11141c", "#343a48", 28)}${text(64, 42, "UNKNOWN TALKS / INIT-RU", 14, muted, 750, 650)}${text(64, 77, chapter.title + " / " + depthNames[scene.level] + " / пояснение", 17, accent, 1160, 650)}${text(64, 137, scene.title, 40, ink, 1225, 700)}${text(64, 200, factText, factSize, accent, 1225, 500, false, 1.1)}${text(64, 272, "ЧТО ЭТО ЗНАЧИТ И КАК СВЯЗАНО С ПРИМЕРОМ", 14, accent, 1225, 650)}${text(64, 326, scene.explanation, 26, ink, 1225, 400, false, 1.5)}${line(64, 756, 1296, 756, "#343a48", false)}${text(64, 795, "СЛЕДУЮЩИЙ ВОПРОС", 13, muted, 1225, 650)}${text(64, 829, scene.bridge, 21, muted, 1225, 400, false, 1.3)}</svg>`;
+  await writeFile(path.join(directory, explanationName), explanationSvg + "\n");
 }
+// Remove only obsolete files produced by this generator.
+for (const entry of await readdir(directory))
+  if (/^\d{2}-[a-z0-9-]+\.svg$/.test(entry) && !expected.has(entry))
+    await rm(path.join(directory, entry));
 
-// Layout is generated only explicitly. Later website builds preserve any
-// positions the presenter edits in Obsidian.
+// The upper row is the complete basic route. Lower bands increase depth.
+// Rebuilding assets later preserves the presenter's manually edited positions.
+const canvasPath = path.join(root, lesson, "map.canvas");
 if (process.argv.includes("--layout")) {
   const nodes = [],
-    edges = [];
+    edges = [],
+    levels = [...new Set(data.scenes.map((s) => s.level))].sort();
+  const bandY = new Map();
+  let offset = 0;
+  for (const level of levels) {
+    bandY.set(level, offset);
+    const rows = Math.max(
+      ...data.chapters.map((c) =>
+        Math.ceil(
+          data.scenes.filter((s) => s.chapter === c.id && s.level === level)
+            .length / 2,
+        ),
+      ),
+    );
+    offset += Math.max(1, rows) * 1500;
+  }
   for (const [column, chapter] of data.chapters.entries()) {
-    const scenes = data.scenes.filter((s) => s.chapter === chapter.id),
-      x = column * 1600;
+    const stageScenes = data.scenes.filter((s) => s.chapter === chapter.id),
+      baseX = column * 3200;
     nodes.push({
       id: "group-" + chapter.id,
       type: "group",
-      x: x - 36,
-      y: -110,
-      width: 1432,
-      height: scenes.length * 1120 + 50,
-      label: chapter.title,
+      x: baseX - 50,
+      y: -120,
+      width: 3000,
+      height: offset + 120,
+      label: chapter.title + " · → этап / ↓ глубина",
       color: chapter.color,
     });
-    for (const [row, scene] of scenes.entries()) {
-      const index = data.scenes.indexOf(scene),
-        y = row * 1120,
-        file = `${lesson}/assets/story/${String(index + 1).padStart(2, "0")}-${scene.id}.svg`;
-      nodes.push({
-        id: scene.id,
-        type: "file",
-        x,
-        y,
-        width: 1360,
-        height: 900,
-        file,
-        color: chapter.color,
-      });
-      nodes.push({
-        id: scene.id + "-sources",
-        type: "text",
-        x,
-        y: y + 924,
-        width: 1360,
-        height: 124,
-        text: `**${String(index + 1).padStart(2, "0")} · ${scene.title}**\n\n${scene.sources.map((s) => `[${s.label}](${s.url})`).join(" · ")}`,
-      });
-      if (row)
-        edges.push({
-          id: "within-" + scene.id,
-          fromNode: scenes[row - 1].id,
-          fromSide: "bottom",
-          toNode: scene.id,
-          toSide: "top",
+    for (const level of levels) {
+      const row = stageScenes.filter((s) => s.level === level);
+      for (const [i, scene] of row.entries()) {
+        const index = data.scenes.indexOf(scene),
+          x = baseX + (level === 1 ? 750 : (i % 2) * 1500),
+          y = bandY.get(level) + Math.floor(i / 2) * 1500;
+        nodes.push({
+          id: scene.id,
+          type: "file",
+          x,
+          y,
+          width: 1360,
+          height: 900,
+          file: `${lesson}/assets/story/${String(index + 1).padStart(2, "0")}-${scene.id}.svg`,
           color: chapter.color,
-          label: "следующая идея",
         });
-    }
-    if (column) {
-      const prev = data.chapters[column - 1],
-        previous = data.scenes.find((s) => s.chapter === prev.id);
-      edges.push({
-        id: "chapter-" + chapter.id,
-        fromNode: previous.id,
-        fromSide: "right",
-        toNode: scenes[0].id,
-        toSide: "left",
-        label: "следующий вопрос",
-        color: chapter.color,
-      });
+        nodes.push({
+          id: scene.id + "-sources",
+          type: "text",
+          x,
+          y: y + 930,
+          width: 1360,
+          height: 450,
+          text: caption(scene, index),
+        });
+        if (scene.parent)
+          edges.push({
+            id: "depth-" + scene.id,
+            fromNode: scene.parent,
+            fromSide: "bottom",
+            toNode: scene.id,
+            toSide: "top",
+            label: "глубже: " + scene.title,
+            color: chapter.color,
+          });
+      }
     }
   }
-  edges.push({
-    id: "branch-classification",
-    fromNode: "learn-representations",
-    fromSide: "right",
-    toNode: "classification-before-chat",
-    toSide: "top",
-    color: "1",
-    label: "параллельная ветка: выбирать класс",
-  });
-  edges.push({
-    id: "branch-code",
-    fromNode: "generation",
-    fromSide: "right",
-    toNode: "why-code-works",
-    toSide: "left",
-    color: "4",
-    label: "язык с исполнимой семантикой",
-  });
-  edges.push({
-    id: "branch-feedback",
-    fromNode: "execution",
-    fromSide: "right",
-    toNode: "agent-loop",
-    toSide: "bottom",
-    color: "2",
-    label: "вернуть результат следующему шагу",
-  });
-  await writeFile(
-    path.join(root, lesson, "map.canvas"),
-    JSON.stringify({ nodes, edges }, null, 2) + "\n",
-  );
+  for (let i = 1; i < data.basics.length; i++)
+    edges.push({
+      id: "basic-" + i,
+      fromNode: data.basics[i - 1],
+      fromSide: "right",
+      toNode: data.basics[i],
+      toSide: "left",
+      label: "дальше по основам",
+      color: "5",
+    });
+  await writeFile(canvasPath, JSON.stringify({ nodes, edges }, null, 2) + "\n");
 } else {
-  const filename = path.join(root, lesson, "map.canvas");
-  const canvas = JSON.parse(await readFile(filename, "utf8"));
+  const canvas = JSON.parse(await readFile(canvasPath, "utf8"));
   let changed = false;
   for (const [index, scene] of data.scenes.entries()) {
-    const caption = canvas.nodes.find(
-      (node) => node.id === scene.id + "-sources",
-    );
-    const content = `**${String(index + 1).padStart(2, "0")} · ${scene.title}**\n\n${scene.sources.map((source) => `[${source.label}](${source.url})`).join(" · ")}`;
-    if (caption && caption.text !== content) {
-      caption.text = content;
+    const note = canvas.nodes.find((n) => n.id === scene.id + "-sources");
+    const value = caption(scene, index);
+    if (note && note.text !== value) {
+      note.text = value;
       changed = true;
     }
   }
   if (changed)
-    await writeFile(filename, JSON.stringify(canvas, null, 2) + "\n");
+    await writeFile(canvasPath, JSON.stringify(canvas, null, 2) + "\n");
 }
 console.log(
-  `Rendered ${data.scenes.length} theory scenes for Obsidian and the web.`,
+  `Rendered ${data.basics.length} basics and ${data.scenes.length - data.basics.length} optional details.`,
 );

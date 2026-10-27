@@ -253,12 +253,55 @@ kbd {
 }
 #hint {
   position: absolute;
-  bottom: 111px;
+  bottom: 166px;
   left: 25px;
   color: #8993a4;
   font-size: 11px;
   pointer-events: none;
   transition: opacity 0.3s;
+}
+#depth-nav {
+  position: absolute;
+  bottom: 111px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  z-index: 5;
+}
+#depth-nav button {
+  background: #151a26;
+}
+#depth-nav button[aria-pressed="true"] {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+#branches {
+  position: absolute;
+  left: 50%;
+  bottom: 163px;
+  transform: translateX(-50%);
+  width: min(850px, calc(100vw - 32px));
+  padding: 15px;
+  background: #171c29;
+  border: 1px solid #414b61;
+  border-radius: 14px;
+  z-index: 7;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+#branches[hidden] {
+  display: none;
+}
+#branches button {
+  white-space: normal;
+  text-align: left;
+}
+#chapter-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 #hint span {
   margin: 0 8px;
@@ -323,6 +366,28 @@ body.overview #hint {
   }
 }
 @media (max-width: 760px) {
+  #depth-nav {
+    bottom: 120px;
+    gap: 5px;
+    white-space: nowrap;
+  }
+  #depth-nav button {
+    font-size: 12px;
+    padding: 8px 10px;
+  }
+  #branches {
+    bottom: 163px;
+    padding: 10px;
+    gap: 5px;
+  }
+  #branches button {
+    font-size: 12px;
+    padding: 7px;
+  }
+  #basics-route {
+    padding: 8px 9px;
+    font-size: 11px;
+  }
   .topbar {
     height: 64px;
     padding: 0 12px;
