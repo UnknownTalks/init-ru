@@ -16,6 +16,65 @@
     overview = false,
     animation = 0;
   const byId = new Map(data.scenes.map((scene, i) => [scene.id, i]));
+  let trail = [data.scenes[index].id],
+    trailIndex = 0;
+  if (
+    history.state?.trail?.every((id) => byId.has(id)) &&
+    history.state.trail[history.state.trailIndex] === data.scenes[index].id
+  ) {
+    trail = history.state.trail;
+    trailIndex = history.state.trailIndex;
+  }
+  const visited = new Set(trail);
+  const miniNodes = new Map();
+  const termsById = new Map(data.glossary.map((term) => [term.id, term]));
+  const termDialog = document.getElementById("term-dialog");
+  function openTerm(id) {
+    const term = termsById.get(id);
+    document.getElementById("term-title").textContent = term.title;
+    document.getElementById("term-definition").textContent = term.definition;
+    document.getElementById("term-example").textContent =
+      "Пример: " + term.example;
+    const actions = document.getElementById("term-actions");
+    actions.replaceChildren();
+    const topic = document.createElement("button");
+    topic.textContent =
+      "К теме: " + data.scenes[byId.get(term.topic)].shortTitle;
+    topic.addEventListener("click", () => {
+      termDialog.close();
+      focus(byId.get(term.topic));
+    });
+    const source = document.createElement("a");
+    source.href = "../../glossary.html#" + term.id;
+    source.target = "_blank";
+    source.textContent = "В общем словаре ↗";
+    actions.append(topic, source);
+    if (!termDialog.open) termDialog.showModal();
+  }
+  document
+    .getElementById("term-close")
+    .addEventListener("click", () => termDialog.close());
+  document.addEventListener("click", (event) => {
+    const term = event.target.closest("[data-term]");
+    if (term) {
+      event.preventDefault();
+      event.stopPropagation();
+      openTerm(term.dataset.term);
+    }
+  });
+  termDialog.addEventListener("click", (event) => {
+    if (event.target === termDialog) {
+      const r = termDialog.getBoundingClientRect();
+      if (
+        event.clientX < r.left ||
+        event.clientX > r.right ||
+        event.clientY < r.top ||
+        event.clientY > r.bottom
+      )
+        termDialog.close();
+    }
+  });
+
   function route() {
     const current = data.scenes[index];
     return current.level === 1
@@ -64,7 +123,7 @@
     card.className = "scene";
     card.dataset.scene = scene.id;
     card.setAttribute("aria-label", `${scene.number}. ${scene.title}`);
-    card.setAttribute("aria-description", scene.narrative.join(" "));
+    card.setAttribute("aria-description", scene.walkthrough.join(" "));
     card.style.cssText = `left:${scene.x}px;top:${scene.y}px;width:${scene.width}px;height:${scene.height}px`;
     const kicker = document.createElement("div");
     kicker.className = "card-kicker";
@@ -80,11 +139,11 @@
     tabList.setAttribute("role", "tablist");
     tabList.setAttribute("aria-label", "Разделы темы");
     const views = [
-      ["story", "Рассказ"],
-      ["problem", "Проблема"],
+      ["problem", "Задача и пример"],
       ["mechanism", "Как работает"],
       ["example", "Пример"],
       ["facts", "Факты и источники"],
+      ["terms", "Термины"],
     ];
     const panels = new Map(),
       tabs = new Map();
@@ -134,24 +193,36 @@
       panel.id = scene.id + "-panel-" + id;
       panel.setAttribute("role", "tabpanel");
       panel.setAttribute("aria-labelledby", tab.id);
-      if (id === "story") {
+      if (id === "problem") {
         const prose = document.createElement("div");
-        prose.className = "card-prose";
-        for (const paragraph of scene.narrative) addText(prose, paragraph);
+        prose.className =
+          "card-prose" +
+          (scene.walkthrough.join(" ").length > 680 ? " dense" : "");
+        for (const paragraph of scene.walkthrough) addText(prose, paragraph);
         const example = document.createElement("aside");
         example.className = "card-example";
         addText(example, scene.example.title, "example-title");
         exampleSteps(example);
         addText(example, scene.fact.kind + ": " + scene.fact.text, "card-fact");
         panel.append(prose, example);
-      } else if (id === "problem") {
-        addText(panel, scene.problem, "section-prose");
-        addText(panel, scene.bridge, "section-question");
       } else if (id === "mechanism") {
         addText(panel, scene.explanation, "section-prose");
       } else if (id === "example") {
         addText(panel, scene.example.title, "example-title");
         exampleSteps(panel);
+      } else if (id === "terms") {
+        for (const termId of scene.terms) {
+          const term = data.glossary.find((item) => item.id === termId);
+          const block = document.createElement("section");
+          block.className = "term-card";
+          const name = document.createElement("button");
+          name.className = "term-link";
+          name.dataset.term = term.id;
+          name.textContent = term.title;
+          block.append(name);
+          addText(block, term.definition);
+          panel.append(block);
+        }
       } else {
         addText(panel, scene.fact.kind, "fact-kind");
         addText(panel, scene.fact.text, "fact-statement");
@@ -195,7 +266,7 @@
       card.append(panel);
     }
     card.append(tabList);
-    activateTab("story");
+    activateTab("problem");
     if (scene.navigation.back) {
       const back = document.createElement("a");
       back.className = "card-back";
@@ -216,7 +287,13 @@
       const link = document.createElement("a");
       link.href = "#" + target.id;
       link.dataset.target = target.id;
-      link.textContent = target.title + " →";
+      const relation = {
+        route: "Далее по пути",
+        detail: "Разбор",
+        related: "Связанная тема",
+      }[target.kind];
+      link.textContent = relation + ": " + target.title;
+      link.dataset.kind = target.kind;
       link.addEventListener("click", (event) => {
         event.preventDefault();
         event.stopPropagation();
@@ -224,14 +301,122 @@
       });
       navigation.append(link);
     }
-    card.append(navigation);
+    const navLabel = document.createElement("div");
+    navLabel.className = "card-navigation-label";
+    navLabel.textContent =
+      "Продолжить основную линию или выбрать связанный разбор:";
+    card.append(navLabel, navigation);
     card.addEventListener("click", (event) => {
       if (!dragged && overview) focus(scene.number - 1);
     });
     sceneContainer.append(card);
     entries.set(scene.id, { scene, card });
   }
+
+  const aliases = new Map();
+  for (const term of data.glossary)
+    for (const alias of term.aliases)
+      if (!aliases.has(alias.toLowerCase()))
+        aliases.set(alias.toLowerCase(), term);
+  const escaped = [...aliases.keys()]
+    .sort((a, b) => b.length - a.length)
+    .map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const termPattern = new RegExp(
+    "(?<![\\p{L}\\p{N}_])(?:" + escaped.join("|") + ")(?![\\p{L}\\p{N}_])",
+    "giu",
+  );
+  for (const paragraph of document.querySelectorAll(
+    ".card-prose p,.view-mechanism p,.view-facts .fact-context,.card-example .example-value:not(.mono)",
+  )) {
+    const value = paragraph.textContent,
+      fragment = document.createDocumentFragment();
+    let end = 0;
+    for (const match of value.matchAll(termPattern)) {
+      fragment.append(document.createTextNode(value.slice(end, match.index)));
+      const term = aliases.get(match[0].toLowerCase());
+      const button = document.createElement("button");
+      button.className = "term-link";
+      button.dataset.term = term.id;
+      button.textContent = match[0];
+      button.title = term.definition;
+      fragment.append(button);
+      end = match.index + match[0].length;
+    }
+    fragment.append(document.createTextNode(value.slice(end)));
+    paragraph.replaceChildren(fragment);
+  }
+  function svgElement(tag, attributes) {
+    const node = document.createElementNS(svgNS, tag);
+    for (const [key, value] of Object.entries(attributes))
+      node.setAttribute(key, String(value));
+    return node;
+  }
+  const mini = document.getElementById("minimap");
+  const bounds = {
+    x: -100,
+    y: -200,
+    width: Math.max(...data.groups.map((g) => g.x + g.width)) + 200,
+    height: Math.max(...data.groups.map((g) => g.y + g.height)) + 400,
+  };
+  mini.setAttribute(
+    "viewBox",
+    `${bounds.x} ${bounds.y} ${bounds.width} ${bounds.height}`,
+  );
+  for (const edge of data.edges) {
+    const a = data.scenes[byId.get(edge.fromNode)],
+      b = data.scenes[byId.get(edge.toNode)];
+    mini.append(
+      svgElement("line", {
+        x1: a.x + a.width / 2,
+        y1: a.y + a.height / 2,
+        x2: b.x + b.width / 2,
+        y2: b.y + b.height / 2,
+        stroke: "#58657c",
+        "stroke-width": 22,
+      }),
+    );
+  }
+  for (const scene of data.scenes) {
+    const node = svgElement("rect", {
+      x: scene.x,
+      y: scene.y,
+      width: scene.width,
+      height: scene.height,
+      rx: 130,
+      fill: "#39465c",
+      role: "button",
+      tabindex: 0,
+      "aria-label": scene.shortTitle,
+    });
+    const title = svgElement("title", {});
+    title.textContent = scene.shortTitle;
+    node.append(title);
+    node.addEventListener("click", () => focus(byId.get(scene.id)));
+    node.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        focus(byId.get(scene.id));
+      }
+    });
+    mini.append(node);
+    miniNodes.set(scene.id, node);
+  }
   const connections = document.getElementById("connections");
+  const definitions = svgElement("defs", {});
+  const marker = svgElement("marker", {
+    id: "connection-arrow",
+    viewBox: "0 0 10 10",
+    refX: 9,
+    refY: 5,
+    markerWidth: 5,
+    markerHeight: 5,
+    orient: "auto-start-reverse",
+  });
+  marker.append(
+    svgElement("path", { d: "M0 0 L10 5 L0 10z", fill: "context-stroke" }),
+  );
+  definitions.append(marker);
+  connections.append(definitions);
   for (const edge of data.edges) {
     const a = entries.get(edge.fromNode)?.scene,
       b = entries.get(edge.toNode)?.scene;
@@ -248,79 +433,206 @@
         ? `M${x1},${y1} C${x1 + 180},${y1} ${x2 - 180},${y2} ${x2},${y2}`
         : `M${x1},${y1} C${x1},${y1 + 180} ${x2},${y2 - 180} ${x2},${y2}`,
     );
+    p.dataset.from = a.id;
+    p.dataset.to = b.id;
+    p.classList.add("connection", "connection-" + edge.kind);
+    p.setAttribute("marker-end", "url(#connection-arrow)");
     p.setAttribute("fill", "none");
     p.setAttribute("stroke", "#47566f");
     p.setAttribute("stroke-width", "5");
     connections.append(p);
+    const label = svgElement("text", {
+      x: (x1 + x2) / 2,
+      y: (y1 + y2) / 2 - 20,
+      fill: "#a7b7cc",
+      "font-size": 27,
+      "text-anchor": "middle",
+      class: "edge-label",
+    });
+    label.textContent =
+      { route: "Путь", detail: "Разбор", related: "Связь" }[edge.kind] +
+      ": " +
+      edge.label;
+    connections.append(label);
   }
   function transform() {
     world.style.transform = `translate(${tx}px,${ty}px) scale(${scale})`;
   }
-  function fit(rect, animate = true) {
-    cancelAnimationFrame(animation);
-    const pad = innerWidth < 760 ? 13 : 36;
+  function camera(rect, pad = innerWidth < 760 ? 14 : 36) {
     const available = stage.getBoundingClientRect();
-    const targetScale = Math.min(
+    const s = Math.min(
       (available.width - pad * 2) / rect.width,
       (available.height - pad * 2) / rect.height,
     );
-    const targetX =
-      (available.width - rect.width * targetScale) / 2 - rect.x * targetScale;
-    const targetY =
-      (available.height - rect.height * targetScale) / 2 - rect.y * targetScale;
+    return {
+      scale: s,
+      tx: (available.width - rect.width * s) / 2 - rect.x * s,
+      ty: (available.height - rect.height * s) / 2 - rect.y * s,
+    };
+  }
+  function setCamera(value) {
+    ({ scale, tx, ty } = value);
+    transform();
+  }
+  function mix(a, b, p) {
+    const e = p * p * (3 - 2 * p);
+    return {
+      scale: a.scale + (b.scale - a.scale) * e,
+      tx: a.tx + (b.tx - a.tx) * e,
+      ty: a.ty + (b.ty - a.ty) * e,
+    };
+  }
+  function finishTravel() {
+    document.body.classList.remove("travelling");
+    document.getElementById("travel-status").hidden = true;
+    for (const entry of entries.values()) entry.card.classList.remove("origin");
+  }
+  function fit(rect, animate = true, origin = null) {
+    cancelAnimationFrame(animation);
+    finishTravel();
+    const destination = camera(rect),
+      startCamera = { scale, tx, ty };
     if (!animate || reduced) {
-      scale = targetScale;
-      tx = targetX;
-      ty = targetY;
-      transform();
+      setCamera(destination);
       return;
     }
-    const from = { scale, tx, ty },
-      start = performance.now();
+    const travelling = origin && origin.id !== rect.id;
+    const duration = travelling ? 1150 : 320;
+    let wide;
+    if (travelling) {
+      const x = Math.min(origin.x, rect.x) - 120,
+        y = Math.min(origin.y, rect.y) - 120;
+      wide = camera({
+        x,
+        y,
+        width: Math.max(origin.x + origin.width, rect.x + rect.width) - x + 120,
+        height:
+          Math.max(origin.y + origin.height, rect.y + rect.height) - y + 120,
+      });
+      document.body.classList.add("travelling");
+      entries.get(origin.id).card.classList.add("origin");
+      const status = document.getElementById("travel-status");
+      status.textContent = origin.shortTitle + " → " + rect.shortTitle;
+      status.hidden = false;
+    }
+    const started = performance.now();
     function frame(time) {
-      const p = Math.min(1, (time - start) / 420),
-        eased = 1 - Math.pow(1 - p, 3);
-      scale = from.scale + (targetScale - from.scale) * eased;
-      tx = from.tx + (targetX - from.tx) * eased;
-      ty = from.ty + (targetY - from.ty) * eased;
-      transform();
+      const p = Math.min(1, (time - started) / duration);
+      const value = !travelling
+        ? mix(startCamera, destination, p)
+        : p < 0.35
+          ? mix(startCamera, wide, p / 0.35)
+          : p < 0.57
+            ? wide
+            : mix(wide, destination, (p - 0.57) / 0.43);
+      setCamera(value);
       if (p < 1) animation = requestAnimationFrame(frame);
+      else finishTravel();
     }
     animation = requestAnimationFrame(frame);
   }
-  function focus(next, animate = true) {
+  function updateLocation(scene) {
+    const chain = [];
+    let item = scene;
+    while (item) {
+      chain.unshift(item);
+      item = item.parent ? data.scenes[byId.get(item.parent)] : null;
+    }
+    const breadcrumbs = document.getElementById("breadcrumbs");
+    breadcrumbs.replaceChildren();
+    const home = document.createElement("button");
+    home.textContent = "Встреча 1";
+    home.addEventListener("click", () => focus(byId.get(data.basics[0])));
+    breadcrumbs.append(home);
+    for (const item of chain) {
+      const divider = document.createElement("span");
+      divider.textContent = "›";
+      const link = document.createElement("button");
+      link.textContent = item.shortTitle;
+      link.title = item.title;
+      if (item.id === scene.id) link.setAttribute("aria-current", "page");
+      link.addEventListener("click", () => focus(byId.get(item.id)));
+      breadcrumbs.append(divider, link);
+    }
+    breadcrumbs.scrollLeft = breadcrumbs.scrollWidth;
+    const back = document.getElementById("history-back");
+    back.disabled = trailIndex === 0;
+    back.textContent = trailIndex
+      ? "← " + data.scenes[byId.get(trail[trailIndex - 1])].shortTitle
+      : "← Назад по переходам";
+    document.getElementById("chapter-label").textContent =
+      data.chapters.find((c) => c.id === scene.chapter).title +
+      " · " +
+      (scene.level === 1 ? "основная линия" : "разбор темы");
+    document.getElementById("scene-title").textContent = scene.title;
+    document.getElementById("position-caption").textContent = scene.shortTitle;
+    for (const [id, node] of miniNodes) {
+      node.classList.toggle("current", id === scene.id);
+      node.classList.toggle("visited", visited.has(id));
+      node.setAttribute("aria-current", String(id === scene.id));
+    }
+  }
+  function focus(next, animate = true, record = true) {
+    const origin = data.scenes[index],
+      changed = next !== index;
     index = Math.max(0, Math.min(data.scenes.length - 1, next));
     overview = false;
     document.body.classList.remove("overview");
     const scene = data.scenes[index];
+    visited.add(scene.id);
     for (const [id, entry] of entries) {
       entry.card.classList.toggle("active", id === scene.id);
       entry.card.setAttribute("aria-current", String(id === scene.id));
+      entry.card.inert = id !== scene.id;
+      entry.card.setAttribute("aria-hidden", String(id !== scene.id));
     }
-    document.getElementById("scene-title").textContent = scene.title;
-    const ancestors = [];
-    let parent = scene.parent ? data.scenes[byId.get(scene.parent)] : null;
-    while (parent) {
-      ancestors.unshift(parent.title);
-      parent = parent.parent ? data.scenes[byId.get(parent.parent)] : null;
-    }
-    const label = [
-      data.chapters.find((c) => c.id === scene.chapter).title,
-      ...ancestors,
-    ].join(" › ");
-    document.getElementById("chapter-label").textContent = label;
-    document.getElementById("chapter-label").title = label;
+    if (record && changed) {
+      trail = trail.slice(0, trailIndex + 1);
+      trail.push(scene.id);
+      trailIndex++;
+      history.pushState({ trail: [...trail], trailIndex }, "", "#" + scene.id);
+    } else if (!history.state?.trail)
+      history.replaceState(
+        { trail: [...trail], trailIndex },
+        "",
+        "#" + scene.id,
+      );
+    for (const path of connections.querySelectorAll(".connection"))
+      path.classList.toggle(
+        "route-active",
+        changed &&
+          ((path.dataset.from === origin.id && path.dataset.to === scene.id) ||
+            (path.dataset.to === origin.id && path.dataset.from === scene.id)),
+      );
     for (const button of document.querySelectorAll("[data-chapter]"))
       button.setAttribute(
         "aria-current",
         String(button.dataset.chapter === scene.chapter),
       );
-    history.replaceState(null, "", "#" + scene.id);
-    fit(scene, animate);
+    updateLocation(scene);
+    fit(scene, animate, changed ? origin : null);
   }
+  document.getElementById("history-back").addEventListener("click", () => {
+    if (trailIndex > 0) history.back();
+  });
+  document
+    .getElementById("route-start")
+    .addEventListener("click", () => focus(byId.get(data.basics[0])));
+  addEventListener("popstate", (event) => {
+    if (event.state?.trail) {
+      trail = event.state.trail;
+      trailIndex = event.state.trailIndex;
+    }
+    const i = byId.get(location.hash.slice(1));
+    if (i !== undefined) focus(i, true, false);
+  });
   function showOverview(animate = true) {
     overview = true;
     document.body.classList.add("overview");
+    for (const entry of entries.values()) {
+      entry.card.inert = false;
+      entry.card.setAttribute("aria-hidden", "false");
+    }
     const minX = Math.min(...data.groups.map((g) => g.x)) - 40,
       minY = Math.min(...data.groups.map((g) => g.y)) - 70;
     const maxX = Math.max(...data.groups.map((g) => g.x + g.width)) + 40,
@@ -329,6 +641,7 @@
   }
   function zoom(factor, x = stage.clientWidth / 2, y = stage.clientHeight / 2) {
     cancelAnimationFrame(animation);
+    finishTravel();
     const next = Math.max(0.025, Math.min(3.5, scale * factor));
     tx = x - ((x - tx) * next) / scale;
     ty = y - ((y - ty) * next) / scale;
@@ -349,7 +662,11 @@
     else document.documentElement.requestFullscreen?.();
   });
   document.addEventListener("keydown", (event) => {
-    if (event.target.closest("input,textarea,select,.card-tabs")) return;
+    if (
+      termDialog.open ||
+      event.target.closest("input,textarea,select,.card-tabs")
+    )
+      return;
     if (["Enter", " "].includes(event.key) && event.target.closest("a,button"))
       return;
     if (event.key === "ArrowDown") {
@@ -409,7 +726,11 @@
   const pointers = new Map();
   let pinchDistance = 0;
   stage.addEventListener("pointerdown", (event) => {
-    if (event.target.closest(".card-links,.card-back,.card-tabs,.card-panel a"))
+    if (
+      event.target.closest(
+        ".card-links,.card-back,.card-tabs,.card-panel a,.term-link,input,button",
+      )
+    )
       return;
     pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
     if (pointers.size === 1) {
@@ -447,15 +768,17 @@
       dragged = true;
     if (dragged) {
       cancelAnimationFrame(animation);
+      finishTravel();
       tx = startTX + event.clientX - startX;
       ty = startTY + event.clientY - startY;
       transform();
     }
   });
   function release(event) {
+    if (!pointers.has(event.pointerId)) return;
     pointers.delete(event.pointerId);
     stage.classList.remove("dragging");
-    if (!dragged && overview) {
+    if (!dragged) {
       const r = stage.getBoundingClientRect(),
         x = (event.clientX - r.left - tx) / scale,
         y = (event.clientY - r.top - ty) / scale;
@@ -463,7 +786,8 @@
         (s) =>
           x >= s.x && x <= s.x + s.width && y >= s.y && y <= s.y + s.height,
       );
-      if (hit) focus(hit.number - 1);
+      if (hit && (overview || hit.id !== data.scenes[index].id))
+        focus(hit.number - 1);
     }
     if (pointers.size === 1) {
       const point = [...pointers.values()][0];
@@ -480,7 +804,7 @@
   );
   addEventListener("hashchange", () => {
     const i = data.scenes.findIndex((s) => s.id === location.hash.slice(1));
-    if (i >= 0) focus(i);
+    if (i >= 0 && i !== index) focus(i);
   });
   focus(index, false);
 })();

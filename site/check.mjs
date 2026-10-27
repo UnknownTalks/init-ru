@@ -8,6 +8,12 @@ const publicDir = path.join(root, "public");
 const origin = "https://unknowntalks.github.io";
 const prefix = "/init-ru/";
 const errors = [];
+const glossary = JSON.parse(
+  await readFile(path.join(root, "glossary.json"), "utf8"),
+);
+const termIds = new Set(glossary.terms.map((term) => term.id));
+if (termIds.size !== glossary.terms.length)
+  errors.push("Glossary: duplicate term IDs");
 let markdownCount = 0,
   htmlCount = 0;
 async function walk(directory, visit) {
@@ -52,7 +58,7 @@ await walk(root, async (filename) => {
       if (!chapters.has(scene.chapter))
         errors.push(`Story: unknown stage for ${scene.id}`);
       if (
-        !scene.narrative?.length ||
+        !scene.walkthrough?.length ||
         !scene.example?.steps?.length ||
         !scene.explanation ||
         !scene.bridge ||
@@ -66,6 +72,8 @@ await walk(root, async (filename) => {
           errors.push(`Story: unknown related topic ${scene.id} → ${target}`);
       if (!scene.problem || !scene.factExplanation)
         errors.push(`Story: missing tab content for ${scene.id}`);
+      if (!scene.terms?.length || scene.terms.some((id) => !termIds.has(id)))
+        errors.push(`Story: missing or unknown terms for ${scene.id}`);
       if (basics.has(scene.id)) {
         if (scene.parent || scene.level !== 1)
           errors.push(`Story: invalid root ${scene.id}`);
@@ -79,6 +87,9 @@ await walk(root, async (filename) => {
           errors.push(`Story: invalid parent for ${scene.id}`);
       }
     }
+    for (const term of glossary.terms)
+      if (!term.definition || !term.example || !scenes.has(term.topic))
+        errors.push(`Glossary: incomplete entry ${term.id}`);
     const relative = path.relative(root, path.dirname(filename));
     const exported = JSON.parse(
       await readFile(path.join(publicDir, relative, "story.json"), "utf8"),
@@ -93,7 +104,7 @@ await walk(root, async (filename) => {
     if (full !== markdown) errors.push("Agent view: full-text formats differ");
     for (const scene of story.scenes) {
       const content = [
-        ...scene.narrative,
+        ...scene.walkthrough,
         scene.problem,
         scene.explanation,
         scene.fact.text,

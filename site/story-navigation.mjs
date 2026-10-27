@@ -11,7 +11,16 @@ export function cardNavigation(story, scene) {
   const targets = [...new Set(ids)].map((id) => {
     const target = byId.get(id);
     if (!target) throw new Error(`Unknown link from ${scene.id}: ${id}`);
-    return { id, title: target.title };
+    return {
+      id,
+      title: target.title,
+      kind:
+        target.parent === scene.id
+          ? "detail"
+          : basicIndex >= 0 && id === story.basics[basicIndex + 1]
+            ? "route"
+            : "related",
+    };
   });
   return {
     back: backId ? { id: backId, title: byId.get(backId).title } : null,
@@ -80,6 +89,8 @@ export function storyLayout(story) {
         fromNode: scene.id,
         toNode: target.id,
         fromSide: across ? "right" : "bottom",
+        kind: target.kind,
+        label: byId.get(target.id).shortTitle || target.title,
       });
     }
   return { scenes, groups, edges };

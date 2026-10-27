@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { renderStoryMap } from "./render-map.mjs";
 import { renderAgentView } from "./render-agent.mjs";
+import { renderGlossary } from "./render-glossary.mjs";
 
 // Lesson sources live in the repository; generated pages and build dependencies stay in ignored directories.
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -165,6 +166,7 @@ await cp(
 );
 await renderStoryMap(root);
 await renderAgentView(root);
+await renderGlossary(root);
 await cp(
   path.join(cache, "LICENSE.txt"),
   path.join(root, "public/static/quartz-license.txt"),
