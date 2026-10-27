@@ -199,7 +199,7 @@ if (process.argv.includes("--serve")) {
       request.url = request.url.slice("/init-ru".length) || "/";
     return serve(request, response, {
       public: path.join(root, "public"),
-      cleanUrls: true,
+      cleanUrls: !request.url.split("?")[0].includes("/demos/"),
     });
   }).listen(8080, "127.0.0.1", () =>
     console.log("Preview: http://127.0.0.1:8080/init-ru/"),
