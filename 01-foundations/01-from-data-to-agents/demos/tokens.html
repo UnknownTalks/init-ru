@@ -3,302 +3,130 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Как текст становится токенами · UnknownTalks</title>
+    <title>Текст становится токенами · UnknownTalks</title>
     <style>
       :root {
         color-scheme: dark;
-        --bg: #111319;
-        --panel: #1a1d26;
-        --ink: #f1f1f5;
-        --muted: #aeb4c4;
-        --line: #343949;
-        --accent: #c2b4ff;
-        font:
-          18px/1.55 system-ui,
-          sans-serif;
       }
       * {
         box-sizing: border-box;
       }
       body {
         margin: 0;
-        background: var(--bg);
-        color: var(--ink);
+        padding: 30px 22px;
+        background: #101722;
+        color: #edf3f8;
+        font: 19px/1.6 system-ui;
       }
       main {
-        max-width: 1180px;
+        max-width: 950px;
         margin: auto;
-        padding: 44px 28px 70px;
       }
       a {
-        color: var(--accent);
-      }
-      header {
-        margin-bottom: 32px;
-      }
-      .eyebrow {
-        color: var(--accent);
-        font-size: 14px;
-        letter-spacing: 0.12em;
+        color: #9ce7d2;
       }
       h1 {
-        font-size: clamp(30px, 5vw, 50px);
-        line-height: 1.15;
-        max-width: 850px;
-        margin: 14px 0;
-      }
-      p {
-        max-width: 850px;
-      }
-      .muted {
-        color: var(--muted);
-      }
-      .layout {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 22px;
-      }
-      .panel {
-        background: var(--panel);
-        border: 1px solid var(--line);
-        border-radius: 18px;
-        padding: 24px;
-      }
-      h2 {
-        font-size: 21px;
-        margin: 0 0 14px;
+        font-size: 32px;
+        line-height: 1.25;
       }
       textarea {
         width: 100%;
-        min-height: 185px;
-        resize: vertical;
-        background: var(--bg);
-        color: var(--ink);
-        border: 1px solid var(--line);
-        border-radius: 10px;
-        padding: 15px;
-        font:
-          17px/1.6 ui-monospace,
-          monospace;
+        min-height: 110px;
+        padding: 18px;
+        border: 1px solid #779484;
+        border-radius: 12px;
+        background: #1b293a;
+        color: #fff;
+        font: 23px/1.5 system-ui;
       }
-      textarea:focus,
-      button:focus-visible {
-        outline: 2px solid var(--accent);
-        outline-offset: 3px;
+      label {
+        display: block;
+        margin-bottom: 10px;
       }
-      .examples {
+      #tokens {
         display: flex;
-        gap: 8px;
+        gap: 9px;
         flex-wrap: wrap;
-        margin: 15px 0;
+        margin: 25px 0;
+      }
+      .piece {
+        white-space: pre;
+        font-size: 24px;
+        padding: 12px 9px;
+        border: 1px solid var(--color);
+        border-radius: 8px;
+        background: #1c2938;
       }
       button {
+        color: #d6f7eb;
+        background: #244438;
+        border: 1px solid #719d8b;
+        padding: 8px 13px;
+        border-radius: 8px;
         font: inherit;
-        font-size: 15px;
-        border: 1px solid var(--line);
-        color: var(--ink);
-        background: var(--bg);
-        padding: 7px 12px;
-        border-radius: 8px;
         cursor: pointer;
-      }
-      button:hover {
-        border-color: var(--accent);
-      }
-      button[aria-pressed="true"] {
-        background: #37304d;
-        border-color: var(--accent);
-      }
-      .metrics {
-        display: flex;
-        gap: 28px;
-        margin-top: 20px;
-      }
-      .metric strong {
-        display: block;
-        font-size: 34px;
-        font-variant-numeric: tabular-nums;
-        line-height: 1.15;
-      }
-      .metric span {
-        font-size: 14px;
-        color: var(--muted);
-      }
-      .tokens {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: flex-start;
-        gap: 7px;
-        min-height: 145px;
-      }
-      .token {
-        display: inline-flex;
-        flex-direction: column;
-        padding: 7px 10px;
-        border-radius: 8px;
-        border: 1px solid;
-        background: var(--chipbg);
-        border-color: var(--chip);
-        color: var(--ink);
-        max-width: 100%;
-      }
-      .token code {
-        white-space: pre-wrap;
-        overflow-wrap: anywhere;
-        font-size: 17px;
-      }
-      .token small {
-        color: var(--muted);
-        font-size: 12px;
-        font-variant-numeric: tabular-nums;
-      }
-      .legend {
-        font-size: 14px;
-        margin-bottom: 0;
-      }
-      .sequence {
-        margin-top: 22px;
-      }
-      .sequence code {
-        display: block;
-        white-space: pre-wrap;
-        overflow-wrap: anywhere;
-        color: var(--accent);
-        font-size: 16px;
+        margin: 12px 10px 0 0;
       }
       .note {
-        margin-top: 24px;
-        border-left: 3px solid var(--accent);
-        padding-left: 18px;
+        font-size: 15px;
+        color: #b8c8db;
       }
       details {
-        margin-top: 20px;
+        font-size: 14px;
+        color: #afbdd0;
+        margin-top: 30px;
       }
       summary {
         cursor: pointer;
-        color: var(--accent);
       }
-      footer {
-        margin-top: 35px;
-        font-size: 14px;
-        color: var(--muted);
-      }
-      #status {
-        font-size: 14px;
-        min-height: 22px;
-      }
-      #raw {
+      #reconstructed {
+        padding: 18px;
+        border-left: 3px solid #86cbb7;
+        background: #1d3029;
         white-space: pre-wrap;
-        overflow-wrap: anywhere;
-        font-size: 14px;
       }
       #error {
-        color: #ffb3b3;
-      }
-      @media (max-width: 760px) {
-        main {
-          padding: 25px 16px;
-        }
-        .layout {
-          grid-template-columns: 1fr;
-        }
-        .panel {
-          padding: 18px;
-        }
+        color: #f6bec8;
       }
     </style>
   </head>
   <body>
     <main>
-      <header>
-        <div class="eyebrow">UNKNOWN TALKS / INIT-RU · ВСТРЕЧА 01</div>
-        <h1>Как текст становится токенами</h1>
-        <p class="muted">
-          Один текст — последовательность ID. Сначала угадайте число токенов,
-          затем посмотрите, как строку разбирает конкретный токенизатор.
-        </p>
-        <a href="../" id="back-link">← К материалам встречи</a>
-      </header>
-      <div class="layout">
-        <section class="panel" aria-labelledby="input-title">
-          <h2 id="input-title">1. Исходный текст</h2>
-          <label for="input" class="muted"
-            >Введите текст или выберите пример · до 2000 символов</label
-          >
-          <div class="examples" id="examples" aria-label="Примеры текста"></div>
-          <textarea
-            id="input"
-            maxlength="2000"
-            spellcheck="false"
-            aria-label="Текст для токенизации"
-          >
-Привет, мир!</textarea>
-          <p id="status" role="status">Загружается локальный токенизатор…</p>
-          <p id="error" role="alert" hidden></p>
-          <div class="metrics" aria-live="polite">
-            <div class="metric">
-              <strong id="count">—</strong><span>токенов</span>
-            </div>
-            <div class="metric">
-              <strong id="chars">—</strong><span>кодовых точек Unicode</span>
-            </div>
-          </div>
-        </section>
-        <section class="panel" aria-labelledby="output-title">
-          <h2 id="output-title">2. Токены и их ID</h2>
-          <div class="tokens" id="tokens" aria-live="polite"></div>
-          <p class="muted legend">
-            Цвет отделяет соседние токены. Под каждым фрагментом — ID в словаре.
-            Обозначения: <code>␠</code> пробел, <code>↵</code> перенос,
-            <code>⇥</code> табуляция.
-          </p>
-          <details>
-            <summary>Внутренние обозначения токенов</summary>
-            <pre id="raw"></pre>
-          </details>
-        </section>
+      <a href="../story.html#tokens">← К истории Саши</a>
+      <h1>У текста есть границы токенов</h1>
+      <p>
+        Измените фразу. Настоящий токенизатор разобьёт её на элементы своего
+        словаря. Пробел показан знаком ␠.
+      </p>
+      <label for="input">Фраза</label
+      ><textarea id="input">Нужны наушники для звонков.</textarea>
+      <div>
+        <button data-text="Нужны наушники для звонков.">Просьба Саши</button
+        ><button data-text="Проверьте микрофон.">Продолжение ответа</button>
       </div>
-      <section class="panel sequence">
-        <h2>3. Что получит следующий этап</h2>
-        <code id="ids">[]</code>
-        <p class="muted">
-          По ID выбираются обученные векторы — embeddings. ID не является
-          вектором, значением важности или отдельным «кусочком понимания». Веса
-          модели в этой демонстрации не загружаются.
-        </p>
-      </section>
-      <div class="note">
+      <div id="tokens" aria-live="polite"></div>
+      <p class="note">
+        Токен не обязан совпадать со словом. Порядок элементов сохраняется.
+        Границы зависят от словаря и правил токенизатора.
+      </p>
+      <h2>Восстановленный текст</h2>
+      <p id="reconstructed"></p>
+      <p id="error" hidden></p>
+      <details>
+        <summary>＋ Как проверено</summary>
         <p>
-          <strong>Токен не обязан совпадать со словом или символом.</strong>
-          Разные модели могут использовать разные словари и правила. Если
-          отдельный токен содержит часть UTF-8-символа, его самостоятельное
-          декодирование может показать <code>�</code>. Все токены вместе
-          восстанавливают исходный текст.
+          Разбиение получено токенизатором Qwen. Все файлы лежат рядом со
+          страницей; текст остаётся в браузере, вызова языковой модели нет.
+          Специальные маркеры чата не добавляются. Отдельный токен может
+          приходиться на часть символа, поэтому при необычном тексте фрагменты
+          могут выглядеть непривычно.
         </p>
-        <p class="muted">
-          Здесь кодируется обычный текст без chat template и добавления
-          специальных токенов. Число токенов полного запроса к агенту будет
-          учитывать и другие части контекста.
-        </p>
-      </div>
-      <footer>
-        <p>
-          Токенизатор:
-          <a href="https://huggingface.co/Qwen/Qwen2.5-0.5B"
-            >Qwen/Qwen2.5-0.5B</a
-          >
-          · реализация: Hugging Face Tokenizers.js 0.2.0. Все файлы находятся
-          рядом со страницей; текст обрабатывается в браузере.
-        </p>
-        <p>
-          Источники и лицензии:
-          <a href="tokenizer-source.json">версия и контрольные суммы</a> ·
-          <a href="NOTICE.txt">атрибуция</a>.
-        </p>
-      </footer>
+        <a href="tokenizer-source.json">Точный источник и контрольные суммы</a>
+        · <a href="NOTICE.txt">Атрибуция</a>
+      </details>
     </main>
     <script src="tokenizers.js"></script>
     <script src="qwen-tokenizer.js"></script>
-    <script src="tokens.js"></script>
+    <script src="tokens.js?v=headphones-story"></script>
   </body>
 </html>

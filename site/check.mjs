@@ -2,148 +2,177 @@ import { readFile, readdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const publicDir = path.join(root, "public");
-const origin = "https://unknowntalks.github.io";
-const prefix = "/init-ru/";
-const errors = [];
-const glossary = JSON.parse(
-  await readFile(path.join(root, "glossary.json"), "utf8"),
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."),
+  out = path.join(root, "public"),
+  lesson = "01-foundations/01-from-data-to-agents",
+  origin = "https://unknowntalks.github.io",
+  prefix = "/init-ru/";
+const story = JSON.parse(
+    await readFile(path.join(root, lesson, "story.json"), "utf8"),
+  ),
+  glossary = JSON.parse(
+    await readFile(path.join(root, "glossary.json"), "utf8"),
+  );
+const errors = [],
+  scenes = new Map(story.scenes.map((scene) => [scene.id, scene])),
+  terms = new Map(glossary.terms.map((term) => [term.id, term]));
+const require = (ok, message) => {
+  if (!ok) errors.push(message);
+};
+require(story.schemaVersion === 2, "Wrong story version");
+require(scenes.size === story.scenes.length, "Duplicate scene IDs");
+require(terms.size === glossary.terms.length, "Duplicate glossary IDs");
+require(new Set(story.basics).size ===
+  story.basics.length, "Duplicate main scenes");
+for (const id of story.basics) {
+  const scene = scenes.get(id);
+  require(scene && !scene.optional && !scene.parent, "Invalid main scene " +
+    id);
+}
+for (const scene of story.scenes) {
+  require(scene.scene &&
+    scene.problem &&
+    scene.solution &&
+    scene.takeaway &&
+    scene.nextQuestion, "Missing narrative " + scene.id);
+  require(scene.attempt?.text &&
+    scene.attempt?.outcome &&
+    scene.approaches?.length &&
+    scene.example?.before &&
+    scene.example?.after &&
+    scene.example?.why, "Missing worked example " + scene.id);
+  require(scene.visual?.kind &&
+    scene.sources?.length, "Missing visual or references " + scene.id);
+  require(scene.terms.every((id) => terms.has(id)), "Unknown term " + scene.id);
+  if (scene.optional) {
+    require(scene.title.startsWith("+ "), "Optional title lacks + " + scene.id);
+    require(scenes.has(scene.parent), "Missing optional parent " + scene.id);
+    const seen = new Set([scene.id]);
+    let parent = scene.parent;
+    while (parent) {
+      if (seen.has(parent)) {
+        errors.push("Parent cycle " + scene.id);
+        break;
+      }
+      seen.add(parent);
+      parent = scenes.get(parent)?.parent;
+    }
+  } else {
+    require(story.basics.includes(scene.id), "Main scene not ordered " +
+      scene.id);
+    require(scene.check?.choices?.some((choice) => choice.correct) &&
+      scene.check.choices.some(
+        (choice) => !choice.correct,
+      ), "Missing understanding check " + scene.id);
+    const prose = [
+      scene.title,
+      scene.scene,
+      scene.problem,
+      scene.solution,
+      scene.example.before,
+      scene.example.after,
+      scene.takeaway,
+    ].join(" ");
+    require(!/\d|Python|dict\.|\bID\b/.test(
+      prose,
+    ), "Main line contains numeric or programming prerequisite " + scene.id);
+  }
+  if (scene.visual.parts)
+    require(scene.visual.parts.join("") ===
+      scene.visual.text, "Token pieces do not reassemble " + scene.id);
+}
+for (const term of glossary.terms) {
+  require(term.definition &&
+    term.example &&
+    term.source &&
+    scenes.has(term.topic), "Incomplete glossary " + term.id);
+  require(![
+    "id",
+    "list",
+    "queue",
+    "dictionary",
+    "sorting",
+    "function",
+  ].includes(term.id), "Unrelated programming term " + term.id);
+}
+const exported = JSON.parse(
+  await readFile(path.join(out, lesson, "story.json"), "utf8"),
 );
-const termIds = new Set(glossary.terms.map((term) => term.id));
-if (termIds.size !== glossary.terms.length)
-  errors.push("Glossary: duplicate term IDs");
-let markdownCount = 0,
+require(JSON.stringify(exported) ===
+  JSON.stringify(story), "JSON export differs");
+const markdown = await readFile(path.join(out, lesson, "agent.md"), "utf8");
+require(markdown ===
+  (await readFile(
+    path.join(out, "llms-full.txt"),
+    "utf8",
+  )), "Plain-text exports differ");
+for (const scene of story.scenes) {
+  const values = [
+    scene.scene,
+    scene.problem,
+    scene.solution,
+    scene.takeaway,
+    scene.attempt.text,
+    scene.attempt.outcome,
+    ...scene.approaches.flatMap((item) => [item.title, item.text]),
+    ...Object.values(scene.example),
+    ...scene.sources.map((item) => item.url),
+  ];
+  require(values.every((value) =>
+    markdown.includes(value),
+  ), "Incomplete agent scene " + scene.id);
+}
+let mdCount = 0,
   htmlCount = 0;
-async function walk(directory, visit) {
-  for (const entry of await readdir(directory, { withFileTypes: true })) {
+async function walk(dir, visit) {
+  for (const entry of await readdir(dir, { withFileTypes: true })) {
     if (
       entry.name.startsWith(".") ||
       ["site", "node_modules", "public"].includes(entry.name)
     )
       continue;
-    const filename = path.join(directory, entry.name);
-    if (entry.isDirectory()) await walk(filename, visit);
-    else if (entry.isFile()) await visit(filename);
+    const file = path.join(dir, entry.name);
+    if (entry.isDirectory()) await walk(file, visit);
+    else await visit(file);
   }
 }
-await walk(root, async (filename) => {
-  if (filename.endsWith(".md")) {
-    markdownCount++;
-    const text = await readFile(filename, "utf8");
-    for (const [, target] of text.matchAll(/\]\(([^\s)]+)\)/g)) {
-      if (/^(?:[a-z][a-z\d+.-]*:|#)/i.test(target)) continue;
-      const relative = decodeURIComponent(target.split(/[?#]/)[0]);
-      if (!existsSync(path.resolve(path.dirname(filename), relative)))
-        errors.push(`Markdown: ${path.relative(root, filename)} → ${target}`);
-    }
-  } else if (path.basename(filename) === "story.json") {
-    const story = JSON.parse(await readFile(filename, "utf8"));
-    const scenes = new Map(story.scenes.map((scene) => [scene.id, scene]));
-    const chapters = new Set(story.chapters.map((chapter) => chapter.id));
-    const basics = new Set(story.basics);
-    if (scenes.size !== story.scenes.length)
-      errors.push("Story: duplicate scene IDs");
-    if (basics.size !== story.basics.length || !basics.size)
-      errors.push("Story: basic route must contain unique scene IDs");
-    if (
-      story.basics.length !== story.chapters.length ||
-      story.basics.some(
-        (id, index) => scenes.get(id)?.chapter !== story.chapters[index]?.id,
-      )
-    )
-      errors.push("Story: basic route must follow the stages in order");
-    for (const scene of story.scenes) {
-      if (!chapters.has(scene.chapter))
-        errors.push(`Story: unknown stage for ${scene.id}`);
-      if (
-        !scene.walkthrough?.length ||
-        !scene.example?.steps?.length ||
-        !scene.explanation ||
-        !scene.bridge ||
-        !scene.fact?.text ||
-        !scene.fact?.kind ||
-        !scene.sources?.length
-      )
-        errors.push(`Story: incomplete explanation or sources for ${scene.id}`);
-      for (const target of scene.links || [])
-        if (!scenes.has(target))
-          errors.push(`Story: unknown related topic ${scene.id} → ${target}`);
-      if (!scene.problem || !scene.factExplanation)
-        errors.push(`Story: missing tab content for ${scene.id}`);
-      if (!scene.terms?.length || scene.terms.some((id) => !termIds.has(id)))
-        errors.push(`Story: missing or unknown terms for ${scene.id}`);
-      if (basics.has(scene.id)) {
-        if (scene.parent || scene.level !== 1)
-          errors.push(`Story: invalid root ${scene.id}`);
-      } else {
-        const parent = scenes.get(scene.parent);
-        if (
-          !parent ||
-          parent.chapter !== scene.chapter ||
-          scene.level !== parent.level + 1
-        )
-          errors.push(`Story: invalid parent for ${scene.id}`);
-      }
-    }
-    for (const term of glossary.terms)
-      if (!term.definition || !term.example || !scenes.has(term.topic))
-        errors.push(`Glossary: incomplete entry ${term.id}`);
-    const relative = path.relative(root, path.dirname(filename));
-    const exported = JSON.parse(
-      await readFile(path.join(publicDir, relative, "story.json"), "utf8"),
-    );
-    if (JSON.stringify(exported) !== JSON.stringify(story))
-      errors.push("Agent view: JSON differs from the lesson source");
-    const markdown = await readFile(
-      path.join(publicDir, relative, "agent.md"),
-      "utf8",
-    );
-    const full = await readFile(path.join(publicDir, "llms-full.txt"), "utf8");
-    if (full !== markdown) errors.push("Agent view: full-text formats differ");
-    for (const scene of story.scenes) {
-      const content = [
-        ...scene.walkthrough,
-        scene.problem,
-        scene.explanation,
-        scene.fact.text,
-        scene.factExplanation,
-        ...scene.example.steps.map((step) => step.text),
-        ...scene.sources.map((source) => source.url),
-      ];
-      if (content.some((text) => !markdown.includes(text)))
-        errors.push(`Agent view: incomplete topic ${scene.id}`);
-    }
+await walk(root, async (file) => {
+  if (!file.endsWith(".md")) return;
+  mdCount++;
+  for (const [, target] of (await readFile(file, "utf8")).matchAll(
+    /\]\(([^\s)]+)\)/g,
+  )) {
+    if (/^(?:[a-z][a-z\d+.-]*:|#)/i.test(target)) continue;
+    require(existsSync(
+      path.resolve(
+        path.dirname(file),
+        decodeURIComponent(target.split(/[?#]/)[0]),
+      ),
+    ), "Markdown link " + path.relative(root, file) + " → " + target);
   }
 });
-if (!existsSync(path.join(publicDir, "index.html")))
-  throw new Error("Build the site first: node site/build.mjs");
-await walk(publicDir, async (filename) => {
-  if (!filename.endsWith(".html")) return;
+await walk(out, async (file) => {
+  if (!file.endsWith(".html")) return;
   htmlCount++;
-  const html = await readFile(filename, "utf8");
   const base = new URL(
-    prefix + path.relative(publicDir, filename).split(path.sep).join("/"),
+    prefix + path.relative(out, file).split(path.sep).join("/"),
     origin,
   );
-  for (const [, target] of html.matchAll(/(?:href|src)="([^"]+)"/g)) {
+  for (const [, target] of (await readFile(file, "utf8")).matchAll(
+    /(?:href|src)="([^"]+)"/g,
+  )) {
     if (/^(?:#|data:|mailto:|javascript:)/i.test(target)) continue;
     const url = new URL(target.replaceAll("&amp;", "&"), base);
     if (url.origin !== origin) continue;
     if (url.pathname === prefix.slice(0, -1)) url.pathname = prefix;
-    if (!url.pathname.startsWith(prefix)) {
-      errors.push(`Outside site path: ${url.pathname}`);
-      continue;
-    }
+    require(url.pathname.startsWith(prefix), "Outside site " + url.pathname);
     const local = path.join(
-      publicDir,
+      out,
       decodeURIComponent(url.pathname.slice(prefix.length)),
     );
-    if (
-      ![local, local + ".html", path.join(local, "index.html")].some(existsSync)
-    )
-      errors.push(`HTML: ${path.relative(publicDir, filename)} → ${target}`);
+    require([local, local + ".html", path.join(local, "index.html")].some(
+      existsSync,
+    ), "HTML link " + path.relative(out, file) + " → " + target);
   }
 });
 if (errors.length) {
@@ -151,5 +180,5 @@ if (errors.length) {
   process.exitCode = 1;
 } else
   console.log(
-    `Checked ${markdownCount} Markdown files, ${htmlCount} HTML pages: internal links and resources resolve.`,
+    `Checked linear story, optional branches, token assembly, non-code main line, glossary, complete agent exports, ${mdCount} Markdown files and ${htmlCount} HTML pages.`,
   );

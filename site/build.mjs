@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { renderStoryMap } from "./render-map.mjs";
+import { renderLesson } from "./render-lesson.mjs";
 import { renderAgentView } from "./render-agent.mjs";
 import { renderGlossary } from "./render-glossary.mjs";
 
@@ -157,14 +157,14 @@ async function finishLinks(directory) {
 }
 await finishLinks(path.join(root, "public"));
 await cp(
-  path.join(root, "site/map.css"),
-  path.join(root, "public/static/story-map.css"),
+  path.join(root, "site/lesson.css"),
+  path.join(root, "public/static/lesson.css"),
 );
 await cp(
-  path.join(root, "site/map.js"),
-  path.join(root, "public/static/story-map.js"),
+  path.join(root, "site/lesson.js"),
+  path.join(root, "public/static/lesson.js"),
 );
-await renderStoryMap(root);
+await renderLesson(root);
 await renderAgentView(root);
 await renderGlossary(root);
 await cp(
