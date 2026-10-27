@@ -4,9 +4,9 @@ import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { renderStoryMap } from "./render-map.mjs";
+import { renderAgentView } from "./render-agent.mjs";
 
-// Keep the Obsidian vault at the repository root. Quartz and its generated
-// content live in an ignored cache; no copies of lesson sources are maintained.
+// Lesson sources live in the repository; generated pages and build dependencies stay in ignored directories.
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const cache = path.join(root, ".cache", "quartz");
 const revision = (
@@ -56,16 +56,12 @@ await cp(
   path.join(root, "site/custom.scss"),
   path.join(cache, "quartz/styles/custom.scss"),
 );
-run(process.execPath, [path.join(root, "site/build-story.mjs")], root);
 const content = path.join(cache, "content");
-const { slug: headingSlug } = await import(
-  path.join(cache, "node_modules/github-slugger/index.js")
-);
+
 await rm(content, { recursive: true, force: true });
 await mkdir(content, { recursive: true });
 const allowed = new Set([
   ".md",
-  ".canvas",
   ".html",
   ".js",
   ".json",
@@ -98,41 +94,12 @@ async function stage(source, destination) {
     }
     if (!entry.isFile() || !allowed.has(path.extname(entry.name))) continue;
     if (entry.name.endsWith(".md")) {
-      // README remains the GitHub/Obsidian entry. Only build output uses index.
+      // README remains the GitHub entry. Only build output uses index.
       const markdown = (await readFile(from, "utf8")).replace(
         /\]\(([^\s)]*)README\.md([#?][^)]*)?\)/g,
         "]($1index.md$2)",
       );
       await writeFile(to, markdown);
-    } else if (entry.name.endsWith(".canvas")) {
-      const canvas = JSON.parse(await readFile(from, "utf8"));
-      for (const node of canvas.nodes ?? []) {
-        if (node.type === "file") {
-          node.file = toWebPath(node.file);
-          if (node.subpath?.startsWith("#") && !node.subpath.startsWith("#^"))
-            node.subpath = "#" + headingSlug(node.subpath.slice(1));
-        }
-        if (node.type === "text") {
-          const folder = path
-            .relative(root, path.dirname(from))
-            .split(path.sep)
-            .join("/");
-          node.text = node.text.replace(
-            /\]\(([^)]+\.md)\)/g,
-            (match, target) => {
-              if (!existsSync(path.join(root, target))) return match;
-              return (
-                "](" +
-                path.posix
-                  .relative(folder, toWebPath(target))
-                  .replace(/\.md$/, ".html") +
-                ")"
-              );
-            },
-          );
-        }
-      }
-      await writeFile(to, JSON.stringify(canvas));
     } else {
       await cp(from, to);
     }
@@ -150,7 +117,7 @@ const args = [
 run(process.execPath, args);
 // Quartz slugifies asset names (including .html and uppercase filenames).
 // Preserve standalone demonstrations verbatim so their relative assets also
-// work from file:// in Obsidian and from GitHub Pages.
+// work from local files and from GitHub Pages.
 async function copyDemos(source, relative = "") {
   for (const entry of await readdir(source, { withFileTypes: true })) {
     if (
@@ -180,15 +147,10 @@ async function finishLinks(directory) {
     }
     if (!entry.name.endsWith(".html")) continue;
     const html = await readFile(filename, "utf8");
-    const fixed = html
-      .replace(
-        /href="([^"#?]*\/demos\/[^"#?.]+)([#?][^"]*)?"/g,
-        'href="$1.html$2" data-router-ignore',
-      )
-      .replace(
-        /href="([^"#?]*\.canvas)([#?][^"]*)?"/g,
-        'href="$1.html$2" data-router-ignore',
-      );
+    const fixed = html.replace(
+      /href="([^"#?]*\/demos\/[^"#?.]+)([#?][^"]*)?"/g,
+      'href="$1.html$2" data-router-ignore',
+    );
     if (html !== fixed) await writeFile(filename, fixed);
   }
 }
@@ -202,6 +164,7 @@ await cp(
   path.join(root, "public/static/story-map.js"),
 );
 await renderStoryMap(root);
+await renderAgentView(root);
 await cp(
   path.join(cache, "LICENSE.txt"),
   path.join(root, "public/static/quartz-license.txt"),

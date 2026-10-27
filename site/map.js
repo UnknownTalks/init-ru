@@ -3,8 +3,6 @@
   const stage = document.getElementById("stage");
   const world = document.getElementById("world");
   const sceneContainer = document.getElementById("scenes");
-  const sourceBox = document.getElementById("sources");
-  const sourceToggle = document.getElementById("sources-toggle");
   const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
   const svgNS = "http://www.w3.org/2000/svg";
   const entries = new Map();
@@ -17,13 +15,6 @@
     ty = 0,
     overview = false,
     animation = 0;
-  let explaining = false;
-  const depthNames = {
-    1: "Основы",
-    2: "Принцип",
-    3: "Реализация",
-    4: "Разбор вычисления",
-  };
   const byId = new Map(data.scenes.map((scene, i) => [scene.id, i]));
   function route() {
     const current = data.scenes[index];
@@ -34,42 +25,11 @@
           .filter(({ scene }) => scene.parent === current.parent)
           .map(({ i }) => i);
   }
-  function children() {
-    return data.scenes
-      .map((scene, i) => ({ scene, i }))
-      .filter(({ scene }) => scene.parent === data.scenes[index].id);
-  }
   function move(delta) {
     const list = route(),
       position = list.indexOf(index),
       next = list[position + delta];
     if (next !== undefined) focus(next);
-  }
-  function closeBranches() {
-    document.getElementById("branches").hidden = true;
-    document.getElementById("deeper").setAttribute("aria-expanded", "false");
-  }
-  function showBranches() {
-    const branch = children();
-    if (!branch.length) return;
-    if (branch.length === 1) {
-      focus(branch[0].i);
-      return;
-    }
-    const panel = document.getElementById("branches");
-    const open = panel.hidden;
-    closeBranches();
-    if (!open) return;
-    panel.replaceChildren();
-    for (const { scene, i } of branch) {
-      const button = document.createElement("button");
-      button.textContent = scene.title;
-      button.dataset.target = scene.id;
-      button.addEventListener("click", () => focus(i));
-      panel.append(button);
-    }
-    panel.hidden = false;
-    document.getElementById("deeper").setAttribute("aria-expanded", "true");
   }
   const chapterColors = [
     "#6de4d2",
@@ -100,23 +60,173 @@
     sceneContainer.append(label);
   }
   for (const scene of data.scenes) {
-    const card = document.createElement("button");
-    card.type = "button";
+    const card = document.createElement("article");
     card.className = "scene";
     card.dataset.scene = scene.id;
     card.setAttribute("aria-label", `${scene.number}. ${scene.title}`);
-    card.setAttribute(
-      "aria-description",
-      [scene.question, scene.idea, scene.result, scene.before].join(" "),
-    );
+    card.setAttribute("aria-description", scene.narrative.join(" "));
     card.style.cssText = `left:${scene.x}px;top:${scene.y}px;width:${scene.width}px;height:${scene.height}px`;
-    const image = document.createElement("img");
-    image.src = scene.image;
-    image.alt = scene.title;
-    image.draggable = false;
-    card.append(image);
+    const kicker = document.createElement("div");
+    kicker.className = "card-kicker";
+    kicker.textContent = data.chapters.find(
+      (chapter) => chapter.id === scene.chapter,
+    ).title;
+    const heading = document.createElement("h2");
+    heading.className = "card-title";
+    heading.textContent = scene.title;
+    card.append(kicker, heading);
+    const tabList = document.createElement("div");
+    tabList.className = "card-tabs";
+    tabList.setAttribute("role", "tablist");
+    tabList.setAttribute("aria-label", "Разделы темы");
+    const views = [
+      ["story", "Рассказ"],
+      ["problem", "Проблема"],
+      ["mechanism", "Как работает"],
+      ["example", "Пример"],
+      ["facts", "Факты и источники"],
+    ];
+    const panels = new Map(),
+      tabs = new Map();
+    function addText(parent, value, className = "") {
+      const paragraph = document.createElement("p");
+      paragraph.textContent = value;
+      paragraph.className = className;
+      parent.append(paragraph);
+      return paragraph;
+    }
+    function exampleSteps(parent) {
+      for (const step of scene.example.steps) {
+        const block = document.createElement("section");
+        block.className = "example-step";
+        addText(block, step.label, "example-label");
+        addText(
+          block,
+          step.text,
+          step.mono
+            ? "example-value mono"
+            : step.large
+              ? "example-value large"
+              : "example-value",
+        );
+        parent.append(block);
+      }
+    }
+    function activateTab(id, keyboard = false) {
+      for (const [key, tab] of tabs) {
+        const selected = key === id;
+        tab.setAttribute("aria-selected", String(selected));
+        tab.tabIndex = selected ? 0 : -1;
+        panels.get(key).hidden = !selected;
+      }
+      if (keyboard) tabs.get(id).focus();
+    }
+    for (const [id, title] of views) {
+      const tab = document.createElement("button");
+      tab.type = "button";
+      tab.id = scene.id + "-tab-" + id;
+      tab.dataset.tab = id;
+      tab.setAttribute("role", "tab");
+      tab.setAttribute("aria-controls", scene.id + "-panel-" + id);
+      tab.textContent = title;
+      const panel = document.createElement("div");
+      panel.className = "card-panel view-" + id;
+      panel.id = scene.id + "-panel-" + id;
+      panel.setAttribute("role", "tabpanel");
+      panel.setAttribute("aria-labelledby", tab.id);
+      if (id === "story") {
+        const prose = document.createElement("div");
+        prose.className = "card-prose";
+        for (const paragraph of scene.narrative) addText(prose, paragraph);
+        const example = document.createElement("aside");
+        example.className = "card-example";
+        addText(example, scene.example.title, "example-title");
+        exampleSteps(example);
+        addText(example, scene.fact.kind + ": " + scene.fact.text, "card-fact");
+        panel.append(prose, example);
+      } else if (id === "problem") {
+        addText(panel, scene.problem, "section-prose");
+        addText(panel, scene.bridge, "section-question");
+      } else if (id === "mechanism") {
+        addText(panel, scene.explanation, "section-prose");
+      } else if (id === "example") {
+        addText(panel, scene.example.title, "example-title");
+        exampleSteps(panel);
+      } else {
+        addText(panel, scene.fact.kind, "fact-kind");
+        addText(panel, scene.fact.text, "fact-statement");
+        addText(panel, scene.factExplanation, "fact-context");
+        const sources = document.createElement("div");
+        sources.className = "fact-sources";
+        for (const source of scene.sources) {
+          const link = document.createElement("a");
+          link.href = source.url;
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+          link.textContent = source.label + " ↗";
+          sources.append(link);
+        }
+        panel.append(sources);
+      }
+      tab.addEventListener("click", (event) => {
+        event.stopPropagation();
+        activateTab(id);
+      });
+      tab.addEventListener("keydown", (event) => {
+        if (!["ArrowRight", "ArrowLeft", "Home", "End"].includes(event.key))
+          return;
+        event.preventDefault();
+        event.stopPropagation();
+        const position = views.findIndex(([key]) => key === id);
+        const next =
+          event.key === "Home"
+            ? 0
+            : event.key === "End"
+              ? views.length - 1
+              : (position +
+                  (event.key === "ArrowRight" ? 1 : -1) +
+                  views.length) %
+                views.length;
+        activateTab(views[next][0], true);
+      });
+      tabs.set(id, tab);
+      panels.set(id, panel);
+      tabList.append(tab);
+      card.append(panel);
+    }
+    card.append(tabList);
+    activateTab("story");
+    if (scene.navigation.back) {
+      const back = document.createElement("a");
+      back.className = "card-back";
+      back.textContent = "← " + scene.navigation.back.title;
+      back.href = "#" + scene.navigation.back.id;
+      back.dataset.target = scene.navigation.back.id;
+      back.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        focus(byId.get(scene.navigation.back.id));
+      });
+      card.append(back);
+    }
+    const navigation = document.createElement("nav");
+    navigation.className = "card-links";
+    navigation.setAttribute("aria-label", "Связанные темы");
+    for (const target of scene.navigation.targets) {
+      const link = document.createElement("a");
+      link.href = "#" + target.id;
+      link.dataset.target = target.id;
+      link.textContent = target.title + " →";
+      link.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        focus(byId.get(target.id));
+      });
+      navigation.append(link);
+    }
+    card.append(navigation);
     card.addEventListener("click", (event) => {
-      if (!dragged) focus(scene.number - 1);
+      if (!dragged && overview) focus(scene.number - 1);
     });
     sceneContainer.append(card);
     entries.set(scene.id, { scene, card });
@@ -152,13 +262,12 @@
     const available = stage.getBoundingClientRect();
     const targetScale = Math.min(
       (available.width - pad * 2) / rect.width,
-      (available.height - pad * 2 - (overview ? 0 : 58)) / rect.height,
+      (available.height - pad * 2) / rect.height,
     );
     const targetX =
       (available.width - rect.width * targetScale) / 2 - rect.x * targetScale;
     const targetY =
-      (available.height - (overview ? 0 : 58) - rect.height * targetScale) / 2 -
-      rect.y * targetScale;
+      (available.height - rect.height * targetScale) / 2 - rect.y * targetScale;
     if (!animate || reduced) {
       scale = targetScale;
       tx = targetX;
@@ -179,20 +288,7 @@
     }
     animation = requestAnimationFrame(frame);
   }
-  function closeSources() {
-    sourceBox.hidden = true;
-    sourceToggle.setAttribute("aria-expanded", "false");
-  }
   function focus(next, animate = true) {
-    const previous = data.scenes[index];
-    entries
-      .get(previous.id)
-      ?.card.querySelector("img")
-      .setAttribute("src", previous.image);
-    explaining = false;
-    document.getElementById("explain").textContent = "Пояснение";
-    document.getElementById("explain").setAttribute("aria-pressed", "false");
-    closeBranches();
     index = Math.max(0, Math.min(data.scenes.length - 1, next));
     overview = false;
     document.body.classList.remove("overview");
@@ -202,36 +298,29 @@
       entry.card.setAttribute("aria-current", String(id === scene.id));
     }
     document.getElementById("scene-title").textContent = scene.title;
-    const parent = scene.parent ? data.scenes[byId.get(scene.parent)] : null;
-    const list = route(),
-      position = list.indexOf(index);
-    document.getElementById("chapter-label").textContent =
-      depthNames[scene.level] +
-      " · " +
-      data.chapters.find((c) => c.id === scene.chapter).title +
-      (parent ? " / " + parent.title : "");
-    document.getElementById("scene-number").textContent = String(
-      position + 1,
-    ).padStart(2, "0");
-    document.getElementById("route-total").textContent = String(list.length);
-    document.getElementById("previous").disabled = position === 0;
-    document.getElementById("next").disabled = position === list.length - 1;
-    document.getElementById("up").disabled = !scene.parent;
-    document.getElementById("deeper").disabled = !children().length;
+    const ancestors = [];
+    let parent = scene.parent ? data.scenes[byId.get(scene.parent)] : null;
+    while (parent) {
+      ancestors.unshift(parent.title);
+      parent = parent.parent ? data.scenes[byId.get(parent.parent)] : null;
+    }
+    const label = [
+      data.chapters.find((c) => c.id === scene.chapter).title,
+      ...ancestors,
+    ].join(" › ");
+    document.getElementById("chapter-label").textContent = label;
+    document.getElementById("chapter-label").title = label;
     for (const button of document.querySelectorAll("[data-chapter]"))
       button.setAttribute(
         "aria-current",
         String(button.dataset.chapter === scene.chapter),
       );
     history.replaceState(null, "", "#" + scene.id);
-    closeSources();
     fit(scene, animate);
   }
   function showOverview(animate = true) {
     overview = true;
     document.body.classList.add("overview");
-    closeSources();
-    closeBranches();
     const minX = Math.min(...data.groups.map((g) => g.x)) - 40,
       minY = Math.min(...data.groups.map((g) => g.y)) - 70;
     const maxX = Math.max(...data.groups.map((g) => g.x + g.width)) + 40,
@@ -246,8 +335,6 @@
     scale = next;
     transform();
   }
-  document.getElementById("previous").addEventListener("click", () => move(-1));
-  document.getElementById("next").addEventListener("click", () => move(1));
   document
     .getElementById("overview")
     .addEventListener("click", () =>
@@ -257,66 +344,20 @@
   document
     .getElementById("zoom-out")
     .addEventListener("click", () => zoom(1 / 1.3));
-  document.getElementById("up").addEventListener("click", () => {
-    const parent = data.scenes[index].parent;
-    if (parent) focus(byId.get(parent));
-  });
-  document.getElementById("deeper").addEventListener("click", showBranches);
-  document
-    .getElementById("basics-route")
-    .addEventListener("click", () =>
-      focus(
-        byId.get(
-          data.basics.find(
-            (id) =>
-              data.scenes[byId.get(id)].chapter === data.scenes[index].chapter,
-          ),
-        ),
-      ),
-    );
-  document.getElementById("explain").addEventListener("click", () => {
-    explaining = !explaining;
-    const scene = data.scenes[index];
-    entries.get(scene.id).card.querySelector("img").src = explaining
-      ? scene.explanationImage
-      : scene.image;
-    document.getElementById("explain").textContent = explaining
-      ? "Показать схему"
-      : "Пояснение";
-    document
-      .getElementById("explain")
-      .setAttribute("aria-pressed", String(explaining));
-    fit(scene, false);
-  });
   document.getElementById("fullscreen").addEventListener("click", () => {
     if (document.fullscreenElement) document.exitFullscreen();
     else document.documentElement.requestFullscreen?.();
   });
-  sourceToggle.addEventListener("click", () => {
-    const open = sourceBox.hidden;
-    closeSources();
-    if (!open) return;
-    sourceBox.replaceChildren();
-    const intro = document.createElement("p");
-    intro.textContent =
-      "Первоисточники и исторические свидетельства этой сцены";
-    sourceBox.append(intro);
-    for (const source of data.scenes[index].sources) {
-      const a = document.createElement("a");
-      a.href = source.url;
-      a.target = "_blank";
-      a.rel = "noopener noreferrer";
-      a.textContent = source.label + " ↗";
-      sourceBox.append(a);
-    }
-    sourceBox.hidden = false;
-    sourceToggle.setAttribute("aria-expanded", "true");
-  });
   document.addEventListener("keydown", (event) => {
-    if (event.target.closest("input,textarea,select,#branches")) return;
+    if (event.target.closest("input,textarea,select,.card-tabs")) return;
+    if (["Enter", " "].includes(event.key) && event.target.closest("a,button"))
+      return;
     if (event.key === "ArrowDown") {
       event.preventDefault();
-      showBranches();
+      entries
+        .get(data.scenes[index].id)
+        .card.querySelector(".card-links a")
+        ?.focus();
     }
     if (event.key === "ArrowUp") {
       event.preventDefault();
@@ -344,7 +385,6 @@
       overview ? focus(index) : showOverview();
     }
     if (event.key === "Escape") {
-      closeSources();
       focus(index);
     }
   });
@@ -369,6 +409,8 @@
   const pointers = new Map();
   let pinchDistance = 0;
   stage.addEventListener("pointerdown", (event) => {
+    if (event.target.closest(".card-links,.card-back,.card-tabs,.card-panel a"))
+      return;
     pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
     if (pointers.size === 1) {
       dragged = false;

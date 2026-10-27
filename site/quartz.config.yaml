@@ -41,9 +41,6 @@ plugins:
     order: 1
     options:
       hidePropertiesView: true
-  - source: "@quartz-community/obsidian-flavored-markdown"
-    enabled: true
-    order: 10
   - source: "@quartz-community/github-flavored-markdown"
     enabled: true
     order: 20
@@ -63,12 +60,6 @@ plugins:
     options:
       enableSiteMap: true
       enableRSS: false
-  - source: "@quartz-community/canvas-page"
-    enabled: true
-    options:
-      enableInteraction: true
-      minZoom: 0.08
-      maxZoom: 3
   - source: "@quartz-community/content-page"
     enabled: true
   - source: "@quartz-community/folder-page"
@@ -103,6 +94,3 @@ plugins:
     layout:
       position: right
       priority: 20
-layout:
-  byPageType:
-    canvas: {}

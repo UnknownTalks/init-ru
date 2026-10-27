@@ -2,8 +2,4 @@
 .cache/
 node_modules/
 public/
-.obsidian/workspace*.json
-.obsidian/cache/
-.obsidian/plugins/
-.obsidian/appearance.json
-.obsidian/core-plugins-migration.json
+.obsidian/

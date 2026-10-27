@@ -9,8 +9,7 @@ const origin = "https://unknowntalks.github.io";
 const prefix = "/init-ru/";
 const errors = [];
 let markdownCount = 0,
-  htmlCount = 0,
-  canvasCount = 0;
+  htmlCount = 0;
 async function walk(directory, visit) {
   for (const entry of await readdir(directory, { withFileTypes: true })) {
     if (
@@ -33,19 +32,6 @@ await walk(root, async (filename) => {
       if (!existsSync(path.resolve(path.dirname(filename), relative)))
         errors.push(`Markdown: ${path.relative(root, filename)} → ${target}`);
     }
-  } else if (filename.endsWith(".canvas")) {
-    canvasCount++;
-    const canvas = JSON.parse(await readFile(filename, "utf8"));
-    const ids = new Set();
-    for (const node of canvas.nodes) {
-      if (ids.has(node.id)) errors.push(`Duplicate canvas node: ${node.id}`);
-      ids.add(node.id);
-      if (node.type === "file" && !existsSync(path.join(root, node.file)))
-        errors.push(`Canvas file: ${node.file}`);
-    }
-    for (const edge of canvas.edges)
-      if (!ids.has(edge.fromNode) || !ids.has(edge.toNode))
-        errors.push(`Canvas edge: ${edge.id}`);
   } else if (path.basename(filename) === "story.json") {
     const story = JSON.parse(await readFile(filename, "utf8"));
     const scenes = new Map(story.scenes.map((scene) => [scene.id, scene]));
@@ -62,39 +48,61 @@ await walk(root, async (filename) => {
       )
     )
       errors.push("Story: basic route must follow the stages in order");
-    const canvas = JSON.parse(
-      await readFile(path.join(path.dirname(filename), "map.canvas"), "utf8"),
-    );
-    const canvasNodes = new Map(canvas.nodes.map((node) => [node.id, node]));
-    const firstBasic = canvasNodes.get(story.basics[0]);
     for (const scene of story.scenes) {
       if (!chapters.has(scene.chapter))
         errors.push(`Story: unknown stage for ${scene.id}`);
       if (
-        !scene.explanation || !scene.bridge || !scene.fact?.text ||
-        !scene.fact?.kind || !scene.sources?.length
+        !scene.narrative?.length ||
+        !scene.example?.steps?.length ||
+        !scene.explanation ||
+        !scene.bridge ||
+        !scene.fact?.text ||
+        !scene.fact?.kind ||
+        !scene.sources?.length
       )
         errors.push(`Story: incomplete explanation or sources for ${scene.id}`);
-      const node = canvasNodes.get(scene.id);
-      if (node?.type !== "file") {
-        errors.push(`Story: missing Canvas scene ${scene.id}`);
-        continue;
-      }
-      const explanation = node.file.replace(/\.svg$/, "-explanation.svg");
-      if (!existsSync(path.join(root, explanation)))
-        errors.push(`Story: missing explanation image ${explanation}`);
+      for (const target of scene.links || [])
+        if (!scenes.has(target))
+          errors.push(`Story: unknown related topic ${scene.id} → ${target}`);
+      if (!scene.problem || !scene.factExplanation)
+        errors.push(`Story: missing tab content for ${scene.id}`);
       if (basics.has(scene.id)) {
-        if (scene.parent || scene.level !== 1 || node.y !== firstBasic?.y)
-          errors.push(`Story: basic scene must be in the upper row: ${scene.id}`);
+        if (scene.parent || scene.level !== 1)
+          errors.push(`Story: invalid root ${scene.id}`);
       } else {
         const parent = scenes.get(scene.parent);
-        const parentNode = canvasNodes.get(scene.parent);
         if (
-          !parent || parent.chapter !== scene.chapter ||
-          scene.level !== parent.level + 1 || node.y <= parentNode?.y
+          !parent ||
+          parent.chapter !== scene.chapter ||
+          scene.level !== parent.level + 1
         )
-          errors.push(`Story: invalid depth relationship for ${scene.id}`);
+          errors.push(`Story: invalid parent for ${scene.id}`);
       }
+    }
+    const relative = path.relative(root, path.dirname(filename));
+    const exported = JSON.parse(
+      await readFile(path.join(publicDir, relative, "story.json"), "utf8"),
+    );
+    if (JSON.stringify(exported) !== JSON.stringify(story))
+      errors.push("Agent view: JSON differs from the lesson source");
+    const markdown = await readFile(
+      path.join(publicDir, relative, "agent.md"),
+      "utf8",
+    );
+    const full = await readFile(path.join(publicDir, "llms-full.txt"), "utf8");
+    if (full !== markdown) errors.push("Agent view: full-text formats differ");
+    for (const scene of story.scenes) {
+      const content = [
+        ...scene.narrative,
+        scene.problem,
+        scene.explanation,
+        scene.fact.text,
+        scene.factExplanation,
+        ...scene.example.steps.map((step) => step.text),
+        ...scene.sources.map((source) => source.url),
+      ];
+      if (content.some((text) => !markdown.includes(text)))
+        errors.push(`Agent view: incomplete topic ${scene.id}`);
     }
   }
 });
@@ -132,5 +140,5 @@ if (errors.length) {
   process.exitCode = 1;
 } else
   console.log(
-    `Checked ${markdownCount} Markdown files, ${canvasCount} canvas and ${htmlCount} HTML pages: internal links and resources resolve.`,
+    `Checked ${markdownCount} Markdown files, ${htmlCount} HTML pages: internal links and resources resolve.`,
   );

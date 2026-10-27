@@ -28,7 +28,7 @@ jobs:
         with:
           path: .cache/quartz
           key: quartz-${{ runner.os }}-${{ hashFiles('site/quartz-revision.txt') }}
-      - name: Build site from the Obsidian vault
+      - name: Build learning site
         run: node site/build.mjs
       - name: Check material links and generated pages
         run: node site/check.mjs
