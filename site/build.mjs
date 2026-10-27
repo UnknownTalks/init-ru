@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { renderStoryMap } from "./render-map.mjs";
 
 // Keep the Obsidian vault at the repository root. Quartz and its generated
 // content live in an ignored cache; no copies of lesson sources are maintained.
@@ -55,6 +56,7 @@ await cp(
   path.join(root, "site/custom.scss"),
   path.join(cache, "quartz/styles/custom.scss"),
 );
+run(process.execPath, [path.join(root, "site/build-story.mjs")], root);
 const content = path.join(cache, "content");
 const { slug: headingSlug } = await import(
   path.join(cache, "node_modules/github-slugger/index.js")
@@ -183,12 +185,27 @@ async function finishLinks(directory) {
         /href="([^"#?]*\/demos\/[^"#?.]+)([#?][^"]*)?"/g,
         'href="$1.html$2" data-router-ignore',
       )
-      .replace(/href="([^"#?]*\.canvas)([#?][^"]*)?"/g, 'href="$1.html$2"');
+      .replace(
+        /href="([^"#?]*\.canvas)([#?][^"]*)?"/g,
+        'href="$1.html$2" data-router-ignore',
+      );
     if (html !== fixed) await writeFile(filename, fixed);
   }
 }
 await finishLinks(path.join(root, "public"));
-await cp(path.join(cache, "LICENSE.txt"), path.join(root, "public/static/quartz-license.txt"));
+await cp(
+  path.join(root, "site/map.css"),
+  path.join(root, "public/static/story-map.css"),
+);
+await cp(
+  path.join(root, "site/map.js"),
+  path.join(root, "public/static/story-map.js"),
+);
+await renderStoryMap(root);
+await cp(
+  path.join(cache, "LICENSE.txt"),
+  path.join(root, "public/static/quartz-license.txt"),
+);
 if (process.argv.includes("--serve")) {
   const { createServer } = await import("node:http");
   const { default: serve } = await import(

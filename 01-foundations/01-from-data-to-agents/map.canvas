@@ -1,60 +1,728 @@
 {
-	"nodes":[
-		{"id":"g-data","type":"group","x":-40,"y":-100,"width":540,"height":1040,"label":"Данные • 6 мин • 10%","color":"5"},
-		{"id":"g-processing","type":"group","x":560,"y":-100,"width":540,"height":1040,"label":"Обработка • 6 мин • 10%","color":"4"},
-		{"id":"g-llm","type":"group","x":1160,"y":-100,"width":2940,"height":1040,"label":"Создание и устройство LLM • 33 мин • 55%","color":"6"},
-		{"id":"g-agents","type":"group","x":4160,"y":-100,"width":1740,"height":1040,"label":"Современные агенты • 15 мин • 25%","color":"2"},
-		{"id":"g-milestones","type":"group","x":1160,"y":-790,"width":2940,"height":500,"label":"Исторические вехи • раскрываем на 12:00–18:00","color":"3"},
-		{"id":"data","type":"text","x":0,"y":0,"width":460,"height":245,"text":"## Данные\n**00:00–06:00**\n\nТексты, код, изображения и следы действий.\nЧто доступно для обучения и что остаётся во внешней среде.\n\n[Открыть пояснения](01-foundations/01-from-data-to-agents/notes/data.md)","color":"5"},
-		{"id":"data-note","type":"file","x":0,"y":330,"width":460,"height":540,"file":"01-foundations/01-from-data-to-agents/notes/data.md","subpath":"#Суть","color":"5"},
-		{"id":"processing","type":"text","x":600,"y":0,"width":460,"height":245,"text":"## Обработка\n**06:00–12:00**\n\nИзвлечение → отбор → удаление повторов → выборки.\nКак подготовка меняет обучающий сигнал.\n\n[Открыть пояснения](01-foundations/01-from-data-to-agents/notes/processing.md)","color":"4"},
-		{"id":"processing-note","type":"file","x":600,"y":330,"width":460,"height":540,"file":"01-foundations/01-from-data-to-agents/notes/processing.md","subpath":"#Суть","color":"4"},
-		{"id":"history","type":"text","x":1200,"y":0,"width":460,"height":245,"text":"## Путь к LLM\n**12:00–18:00**\n\nПравила, статистика, нейросети и Transformer.\nНесколько линий развития сходятся вместе.\n\n[Открыть пояснения](01-foundations/01-from-data-to-agents/notes/history.md)","color":"6"},
-		{"id":"history-note","type":"file","x":1200,"y":330,"width":460,"height":540,"file":"01-foundations/01-from-data-to-agents/notes/history.md","subpath":"#Суть","color":"6"},
-		{"id":"training","type":"text","x":1800,"y":0,"width":460,"height":245,"text":"## Создание LLM\n**18:00–25:00**\n\nАрхитектура + данные + вычисления.\nПредобучение → post-training → оценка.\n\n[Открыть пояснения](01-foundations/01-from-data-to-agents/notes/training.md)","color":"6"},
-		{"id":"training-note","type":"file","x":1800,"y":330,"width":460,"height":540,"file":"01-foundations/01-from-data-to-agents/notes/training.md","subpath":"#Суть","color":"6"},
-		{"id":"tokens","type":"text","x":2400,"y":0,"width":460,"height":245,"text":"## Токены • демонстрация\n**25:00–33:00**\n\nТекст → токены → ID → векторы.\nРусский, английский и код на реальном токенизаторе.\n\n[Открыть пояснения](01-foundations/01-from-data-to-agents/notes/tokens.md)","color":"6"},
-		{"id":"tokens-note","type":"file","x":2400,"y":330,"width":460,"height":540,"file":"01-foundations/01-from-data-to-agents/notes/tokens.md","subpath":"#Суть","color":"6"},
-		{"id":"llm","type":"text","x":3000,"y":0,"width":460,"height":245,"text":"## Устройство LLM\n**33:00–40:00**\n\nEmbeddings + порядок + блоки Transformer.\nAttention, MLP и оценки следующего токена.\n\n[Открыть пояснения](01-foundations/01-from-data-to-agents/notes/llm.md)","color":"6"},
-		{"id":"llm-note","type":"file","x":3000,"y":330,"width":460,"height":540,"file":"01-foundations/01-from-data-to-agents/notes/llm.md","subpath":"#Суть","color":"6"},
-		{"id":"generation","type":"text","x":3600,"y":0,"width":460,"height":245,"text":"## Генерация\n**40:00–45:00**\n\nКонтекст → распределение → выбор → повторение.\nПараметры модели и контекст — разные вещи.\n\n[Открыть пояснения](01-foundations/01-from-data-to-agents/notes/generation.md)","color":"6"},
-		{"id":"generation-note","type":"file","x":3600,"y":330,"width":460,"height":540,"file":"01-foundations/01-from-data-to-agents/notes/generation.md","subpath":"#Суть","color":"6"},
-		{"id":"agents","type":"text","x":4200,"y":0,"width":460,"height":245,"text":"## Агентный цикл\n**45:00–51:00**\n\nЗадача → действие → инструмент → результат.\nПриложение управляет выполнением и проверками.\n\n[Открыть пояснения](01-foundations/01-from-data-to-agents/notes/agents.md)","color":"2"},
-		{"id":"agents-note","type":"file","x":4200,"y":330,"width":460,"height":540,"file":"01-foundations/01-from-data-to-agents/notes/agents.md","subpath":"#Суть","color":"2"},
-		{"id":"applications","type":"text","x":4800,"y":0,"width":460,"height":245,"text":"## Задачи агентов\n**51:00–57:00**\n\nРазработка, QA, CI, документы, исследования, обучение.\nДля каждой задачи — свой способ проверки.\n\n[Открыть пояснения](01-foundations/01-from-data-to-agents/notes/applications.md)","color":"2"},
-		{"id":"applications-note","type":"file","x":4800,"y":330,"width":460,"height":540,"file":"01-foundations/01-from-data-to-agents/notes/applications.md","subpath":"#Суть","color":"2"},
-		{"id":"outlook","type":"text","x":5400,"y":0,"width":460,"height":245,"text":"## Перспективы\n**57:00–60:00**\n\nБолее длинные задачи, новые инструменты и обратная связь.\nГипотезы проверяем на своей практике.\n\n[Открыть пояснения](01-foundations/01-from-data-to-agents/notes/outlook.md)","color":"2"},
-		{"id":"outlook-note","type":"file","x":5400,"y":330,"width":460,"height":540,"file":"01-foundations/01-from-data-to-agents/notes/outlook.md","subpath":"#Суть","color":"2"},
-		{"id":"milestone-0","type":"text","x":1200,"y":-690,"width":500,"height":290,"color":"3","text":"## 1955 · AI до массового интернета\n\nЯзык, правила и нейронные сети.\nНе одна линия развития.\n\nИсточники — в заметке «Историческая линия»."},
-		{"id":"milestone-1","type":"text","x":1780,"y":-690,"width":500,"height":290,"color":"3","text":"## 2003 · Нейросетевая языковая модель\n\nОбучаем представления слов\nвместе с вероятностями последовательностей.\n\nИсточники — в заметке «Историческая линия»."},
-		{"id":"milestone-2","type":"text","x":2360,"y":-690,"width":500,"height":290,"color":"3","text":"## 2017 · Transformer\n\nAttention и новый способ\nобрабатывать последовательности.\n\nИсточники — в заметке «Историческая линия»."},
-		{"id":"milestone-3","type":"text","x":2940,"y":-690,"width":500,"height":290,"color":"3","text":"## 2020 · Масштабирование\n\nДанные, параметры и вычисления\nрассматриваем вместе.\n\nИсточники — в заметке «Историческая линия»."},
-		{"id":"milestone-4","type":"text","x":3520,"y":-690,"width":500,"height":290,"color":"3","text":"## 2022 · Инструкции и действия\n\nPost-training для поведения помощника.\nReAct: действия и наблюдения.\n\nИсточники — в заметке «Историческая линия»."}
-	],
-	"edges":[
-		{"id":"detail-data","fromNode":"data","fromSide":"bottom","toNode":"data-note","toSide":"top","label":"Пояснение","toEnd":"none","color":"5"},
-		{"id":"detail-processing","fromNode":"processing","fromSide":"bottom","toNode":"processing-note","toSide":"top","label":"Пояснение","toEnd":"none","color":"4"},
-		{"id":"route-processing","fromNode":"data","fromSide":"right","toNode":"processing","toSide":"left","toEnd":"arrow"},
-		{"id":"detail-history","fromNode":"history","fromSide":"bottom","toNode":"history-note","toSide":"top","label":"Пояснение","toEnd":"none","color":"6"},
-		{"id":"route-history","fromNode":"processing","fromSide":"right","toNode":"history","toSide":"left","toEnd":"arrow"},
-		{"id":"detail-training","fromNode":"training","fromSide":"bottom","toNode":"training-note","toSide":"top","label":"Пояснение","toEnd":"none","color":"6"},
-		{"id":"route-training","fromNode":"history","fromSide":"right","toNode":"training","toSide":"left","toEnd":"arrow"},
-		{"id":"detail-tokens","fromNode":"tokens","fromSide":"bottom","toNode":"tokens-note","toSide":"top","label":"Пояснение","toEnd":"none","color":"6"},
-		{"id":"route-tokens","fromNode":"training","fromSide":"right","toNode":"tokens","toSide":"left","toEnd":"arrow"},
-		{"id":"detail-llm","fromNode":"llm","fromSide":"bottom","toNode":"llm-note","toSide":"top","label":"Пояснение","toEnd":"none","color":"6"},
-		{"id":"route-llm","fromNode":"tokens","fromSide":"right","toNode":"llm","toSide":"left","toEnd":"arrow"},
-		{"id":"detail-generation","fromNode":"generation","fromSide":"bottom","toNode":"generation-note","toSide":"top","label":"Пояснение","toEnd":"none","color":"6"},
-		{"id":"route-generation","fromNode":"llm","fromSide":"right","toNode":"generation","toSide":"left","toEnd":"arrow"},
-		{"id":"detail-agents","fromNode":"agents","fromSide":"bottom","toNode":"agents-note","toSide":"top","label":"Пояснение","toEnd":"none","color":"2"},
-		{"id":"route-agents","fromNode":"generation","fromSide":"right","toNode":"agents","toSide":"left","toEnd":"arrow"},
-		{"id":"detail-applications","fromNode":"applications","fromSide":"bottom","toNode":"applications-note","toSide":"top","label":"Пояснение","toEnd":"none","color":"2"},
-		{"id":"route-applications","fromNode":"agents","fromSide":"right","toNode":"applications","toSide":"left","toEnd":"arrow"},
-		{"id":"detail-outlook","fromNode":"outlook","fromSide":"bottom","toNode":"outlook-note","toSide":"top","label":"Пояснение","toEnd":"none","color":"2"},
-		{"id":"route-outlook","fromNode":"applications","fromSide":"right","toNode":"outlook","toSide":"left","toEnd":"arrow"},
-		{"id":"time-1","fromNode":"milestone-0","fromSide":"right","toNode":"milestone-1","toSide":"left","label":"далее во времени"},
-		{"id":"time-2","fromNode":"milestone-1","fromSide":"right","toNode":"milestone-2","toSide":"left","label":"далее во времени"},
-		{"id":"time-3","fromNode":"milestone-2","fromSide":"right","toNode":"milestone-3","toSide":"left","label":"далее во времени"},
-		{"id":"time-4","fromNode":"milestone-3","fromSide":"right","toNode":"milestone-4","toSide":"left","label":"далее во времени"},
-		{"id":"history-branch","fromNode":"history","fromSide":"top","toNode":"milestone-0","toSide":"bottom","label":"Раскрыть историю","color":"3"}
-	]
+  "nodes": [
+    {
+      "id": "group-data",
+      "type": "group",
+      "x": -36,
+      "y": -110,
+      "width": 1432,
+      "height": 3410,
+      "label": "01 · Мы оставили следы",
+      "color": "5"
+    },
+    {
+      "id": "ordinary-question",
+      "type": "file",
+      "x": 0,
+      "y": 0,
+      "width": 1360,
+      "height": 900,
+      "file": "01-foundations/01-from-data-to-agents/assets/story/01-ordinary-question.svg",
+      "color": "5"
+    },
+    {
+      "id": "ordinary-question-sources",
+      "type": "text",
+      "x": 0,
+      "y": 924,
+      "width": 1360,
+      "height": 124,
+      "text": "**01 · Этот вопрос выглядел слишком простым.**\n\n[Реальный вопрос · Stack Overflow · 2009](https://stackoverflow.com/questions/480214/how-do-i-remove-duplicates-from-a-list-while-preserving-order)"
+    },
+    {
+      "id": "internet-textbook",
+      "type": "file",
+      "x": 0,
+      "y": 1120,
+      "width": 1360,
+      "height": 900,
+      "file": "01-foundations/01-from-data-to-agents/assets/story/02-internet-textbook.svg",
+      "color": "5"
+    },
+    {
+      "id": "internet-textbook-sources",
+      "type": "text",
+      "x": 0,
+      "y": 2044,
+      "width": 1360,
+      "height": 124,
+      "text": "**02 · Мы написали учебник. Не договариваясь.**\n\n[The Pile · GitHub и Stack Exchange в составе корпуса · 2020](https://arxiv.org/html/2101.00027v1#S2.S8)"
+    },
+    {
+      "id": "signal-not-noise",
+      "type": "file",
+      "x": 0,
+      "y": 2240,
+      "width": 1360,
+      "height": 900,
+      "file": "01-foundations/01-from-data-to-agents/assets/story/03-signal-not-noise.svg",
+      "color": "5"
+    },
+    {
+      "id": "signal-not-noise-sources",
+      "type": "text",
+      "x": 0,
+      "y": 3164,
+      "width": 1360,
+      "height": 124,
+      "text": "**03 · Но повторить интернет — ещё не научиться.**\n\n[FineWeb · 2024](https://arxiv.org/abs/2406.17557) · [Удаление дубликатов · 2021](https://arxiv.org/abs/2107.06499)"
+    },
+    {
+      "id": "group-ideas",
+      "type": "group",
+      "x": 1564,
+      "y": -110,
+      "width": 1432,
+      "height": 6770,
+      "label": "02 · Как научить машину",
+      "color": "3"
+    },
+    {
+      "id": "write-the-rules",
+      "type": "file",
+      "x": 1600,
+      "y": 0,
+      "width": 1360,
+      "height": 900,
+      "file": "01-foundations/01-from-data-to-agents/assets/story/04-write-the-rules.svg",
+      "color": "3"
+    },
+    {
+      "id": "write-the-rules-sources",
+      "type": "text",
+      "x": 1600,
+      "y": 924,
+      "width": 1360,
+      "height": 124,
+      "text": "**04 · Первая мысль: запишем все правила.**\n\n[Дартмутское предложение · 1955](https://www-formal.stanford.edu/jmc/history/dartmouth/dartmouth.html)"
+    },
+    {
+      "id": "learn-frequencies",
+      "type": "file",
+      "x": 1600,
+      "y": 1120,
+      "width": 1360,
+      "height": 900,
+      "file": "01-foundations/01-from-data-to-agents/assets/story/05-learn-frequencies.svg",
+      "color": "3"
+    },
+    {
+      "id": "learn-frequencies-sources",
+      "type": "text",
+      "x": 1600,
+      "y": 2044,
+      "width": 1360,
+      "height": 124,
+      "text": "**05 · А если правила спрятаны в примерах?**\n\n[От n-грамм к нейросетевой модели · Bengio et al. · 2003](https://www.jmlr.org/papers/v3/bengio03a.html)"
+    },
+    {
+      "id": "learn-representations",
+      "type": "file",
+      "x": 1600,
+      "y": 2240,
+      "width": 1360,
+      "height": 900,
+      "file": "01-foundations/01-from-data-to-agents/assets/story/06-learn-representations.svg",
+      "color": "3"
+    },
+    {
+      "id": "learn-representations-sources",
+      "type": "text",
+      "x": 1600,
+      "y": 3164,
+      "width": 1360,
+      "height": 124,
+      "text": "**06 · Похожие задачи могут делиться опытом.**\n\n[Нейросетевая языковая модель · 2003](https://www.jmlr.org/papers/v3/bengio03a.html) · [Seq2seq · 2014](https://arxiv.org/abs/1409.3215)"
+    },
+    {
+      "id": "attention",
+      "type": "file",
+      "x": 1600,
+      "y": 3360,
+      "width": 1360,
+      "height": 900,
+      "file": "01-foundations/01-from-data-to-agents/assets/story/07-attention.svg",
+      "color": "3"
+    },
+    {
+      "id": "attention-sources",
+      "type": "text",
+      "x": 1600,
+      "y": 4284,
+      "width": 1360,
+      "height": 124,
+      "text": "**07 · Не сжимать всё в одну подсказку.**\n\n[Bahdanau, Cho, Bengio · attention для перевода · 2014](https://arxiv.org/abs/1409.0473)"
+    },
+    {
+      "id": "transformer",
+      "type": "file",
+      "x": 1600,
+      "y": 4480,
+      "width": 1360,
+      "height": 900,
+      "file": "01-foundations/01-from-data-to-agents/assets/story/08-transformer.svg",
+      "color": "3"
+    },
+    {
+      "id": "transformer-sources",
+      "type": "text",
+      "x": 1600,
+      "y": 5404,
+      "width": 1360,
+      "height": 124,
+      "text": "**08 · 2017. Изменили способ считать.**\n\n[Attention Is All You Need · 2017](https://arxiv.org/abs/1706.03762)"
+    },
+    {
+      "id": "scale",
+      "type": "file",
+      "x": 1600,
+      "y": 5600,
+      "width": 1360,
+      "height": 900,
+      "file": "01-foundations/01-from-data-to-agents/assets/story/09-scale.svg",
+      "color": "3"
+    },
+    {
+      "id": "scale-sources",
+      "type": "text",
+      "x": 1600,
+      "y": 6524,
+      "width": 1360,
+      "height": 124,
+      "text": "**09 · Одной архитектуры оказалось мало.**\n\n[Scaling Laws · 2020](https://arxiv.org/abs/2001.08361) · [Few-shot learning · 2020](https://arxiv.org/abs/2005.14165)"
+    },
+    {
+      "id": "group-llm",
+      "type": "group",
+      "x": 3164,
+      "y": -110,
+      "width": 1432,
+      "height": 5650,
+      "label": "03 · Что происходит внутри",
+      "color": "6"
+    },
+    {
+      "id": "training",
+      "type": "file",
+      "x": 3200,
+      "y": 0,
+      "width": 1360,
+      "height": 900,
+      "file": "01-foundations/01-from-data-to-agents/assets/story/10-training.svg",
+      "color": "6"
+    },
+    {
+      "id": "training-sources",
+      "type": "text",
+      "x": 3200,
+      "y": 924,
+      "width": 1360,
+      "height": 124,
+      "text": "**10 · Миллиарды задач с готовой подсказкой.**\n\n[Нейросетевое языковое моделирование · 2003](https://www.jmlr.org/papers/v3/bengio03a.html) · [Баланс данных и вычислений · 2022](https://arxiv.org/abs/2203.15556)"
+    },
+    {
+      "id": "tokens",
+      "type": "file",
+      "x": 3200,
+      "y": 1120,
+      "width": 1360,
+      "height": 900,
+      "file": "01-foundations/01-from-data-to-agents/assets/story/11-tokens.svg",
+      "color": "6"
+    },
+    {
+      "id": "tokens-sources",
+      "type": "text",
+      "x": 3200,
+      "y": 2044,
+      "width": 1360,
+      "height": 124,
+      "text": "**11 · Для модели здесь не два слова.**\n\n[Токенизаторы и числовые ID](https://huggingface.co/learn/llm-course/en/chapter2/4) · [Исходный токенизатор примера](https://huggingface.co/Qwen/Qwen2.5-0.5B)"
+    },
+    {
+      "id": "inside-llm",
+      "type": "file",
+      "x": 3200,
+      "y": 2240,
+      "width": 1360,
+      "height": 900,
+      "file": "01-foundations/01-from-data-to-agents/assets/story/12-inside-llm.svg",
+      "color": "6"
+    },
+    {
+      "id": "inside-llm-sources",
+      "type": "text",
+      "x": 3200,
+      "y": 3164,
+      "width": 1360,
+      "height": 124,
+      "text": "**12 · Внутри — преобразования чисел.**\n\n[Архитектуры Transformer](https://huggingface.co/learn/llm-course/en/chapter1/6)"
+    },
+    {
+      "id": "generation",
+      "type": "file",
+      "x": 3200,
+      "y": 3360,
+      "width": 1360,
+      "height": 900,
+      "file": "01-foundations/01-from-data-to-agents/assets/story/13-generation.svg",
+      "color": "6"
+    },
+    {
+      "id": "generation-sources",
+      "type": "text",
+      "x": 3200,
+      "y": 4284,
+      "width": 1360,
+      "height": 124,
+      "text": "**13 · Код рождается продолжением контекста.**\n\n[Стратегии генерации](https://huggingface.co/docs/transformers/generation_strategies)"
+    },
+    {
+      "id": "instruction-following",
+      "type": "file",
+      "x": 3200,
+      "y": 4480,
+      "width": 1360,
+      "height": 900,
+      "file": "01-foundations/01-from-data-to-agents/assets/story/14-instruction-following.svg",
+      "color": "6"
+    },
+    {
+      "id": "instruction-following-sources",
+      "type": "text",
+      "x": 3200,
+      "y": 5404,
+      "width": 1360,
+      "height": 124,
+      "text": "**14 · Продолжать текст и помогать — разные задачи.**\n\n[InstructGPT · обучение по человеческой обратной связи · 2022](https://arxiv.org/abs/2203.02155)"
+    },
+    {
+      "id": "group-code",
+      "type": "group",
+      "x": 4764,
+      "y": -110,
+      "width": 1432,
+      "height": 3410,
+      "label": "04 · Почему получается код",
+      "color": "4"
+    },
+    {
+      "id": "why-code-works",
+      "type": "file",
+      "x": 4800,
+      "y": 0,
+      "width": 1360,
+      "height": 900,
+      "file": "01-foundations/01-from-data-to-agents/assets/story/15-why-code-works.svg",
+      "color": "4"
+    },
+    {
+      "id": "why-code-works-sources",
+      "type": "text",
+      "x": 4800,
+      "y": 924,
+      "width": 1360,
+      "height": 124,
+      "text": "**15 · Почему это часто работает именно с кодом?**\n\n[Исследование генерации кода · 2021](https://arxiv.org/abs/2107.03374)"
+    },
+    {
+      "id": "execution",
+      "type": "file",
+      "x": 4800,
+      "y": 1120,
+      "width": 1360,
+      "height": 900,
+      "file": "01-foundations/01-from-data-to-agents/assets/story/16-execution.svg",
+      "color": "4"
+    },
+    {
+      "id": "execution-sources",
+      "type": "text",
+      "x": 4800,
+      "y": 2044,
+      "width": 1360,
+      "height": 124,
+      "text": "**16 · У кода есть преимущество: его можно запустить.**\n\n[Python · порядок элементов dict](https://docs.python.org/3/library/stdtypes.html#dict) · [Оценка функциональной корректности · HumanEval · 2021](https://arxiv.org/abs/2107.03374)"
+    },
+    {
+      "id": "historical-proof",
+      "type": "file",
+      "x": 4800,
+      "y": 2240,
+      "width": 1360,
+      "height": 900,
+      "file": "01-foundations/01-from-data-to-agents/assets/story/17-historical-proof.svg",
+      "color": "4"
+    },
+    {
+      "id": "historical-proof-sources",
+      "type": "text",
+      "x": 4800,
+      "y": 3164,
+      "width": 1360,
+      "height": 124,
+      "text": "**17 · Поворот: измерять результат исполнения.**\n\n[Codex / HumanEval · исходная работа · 2021](https://arxiv.org/abs/2107.03374) · [AlphaCode · поиск, фильтрация и новые задачи · 2022](https://deepmind.google/blog/competitive-programming-with-alphacode/)"
+    },
+    {
+      "id": "group-agents",
+      "type": "group",
+      "x": 6364,
+      "y": -110,
+      "width": 1432,
+      "height": 2290,
+      "label": "05 · Когда текст стал действием",
+      "color": "2"
+    },
+    {
+      "id": "agent-loop",
+      "type": "file",
+      "x": 6400,
+      "y": 0,
+      "width": 1360,
+      "height": 900,
+      "file": "01-foundations/01-from-data-to-agents/assets/story/18-agent-loop.svg",
+      "color": "2"
+    },
+    {
+      "id": "agent-loop-sources",
+      "type": "text",
+      "x": 6400,
+      "y": 924,
+      "width": 1360,
+      "height": 124,
+      "text": "**18 · Следующий ответ может быть действием.**\n\n[ReAct · действия и наблюдения · 2022](https://arxiv.org/abs/2210.03629)"
+    },
+    {
+      "id": "beyond-code",
+      "type": "file",
+      "x": 6400,
+      "y": 1120,
+      "width": 1360,
+      "height": 900,
+      "file": "01-foundations/01-from-data-to-agents/assets/story/19-beyond-code.svg",
+      "color": "2"
+    },
+    {
+      "id": "beyond-code-sources",
+      "type": "text",
+      "x": 6400,
+      "y": 2044,
+      "width": 1360,
+      "height": 124,
+      "text": "**19 · Тот же цикл работает за пределами кода.**\n\n[GAIA · исследование задач с инструментами · 2023](https://arxiv.org/abs/2311.12983)"
+    },
+    {
+      "id": "group-decisions",
+      "type": "group",
+      "x": 7964,
+      "y": -110,
+      "width": 1432,
+      "height": 4530,
+      "label": "06 · А если нужен только выбор?",
+      "color": "1"
+    },
+    {
+      "id": "classification-before-chat",
+      "type": "file",
+      "x": 8000,
+      "y": 0,
+      "width": 1360,
+      "height": 900,
+      "file": "01-foundations/01-from-data-to-agents/assets/story/20-classification-before-chat.svg",
+      "color": "1"
+    },
+    {
+      "id": "classification-before-chat-sources",
+      "type": "text",
+      "x": 8000,
+      "y": 924,
+      "width": 1360,
+      "height": 124,
+      "text": "**20 · Выбирать класс машины умели давно.**\n\n[AlexNet · классификация и GPU · 2012](https://papers.nips.cc/paper_files/paper/2012/hash/c399862d3b9d6b76c8436e924a68c45b-Abstract.html)"
+    },
+    {
+      "id": "bounded-decision",
+      "type": "file",
+      "x": 8000,
+      "y": 1120,
+      "width": 1360,
+      "height": 900,
+      "file": "01-foundations/01-from-data-to-agents/assets/story/21-bounded-decision.svg",
+      "color": "1"
+    },
+    {
+      "id": "bounded-decision-sources",
+      "type": "text",
+      "x": 8000,
+      "y": 2044,
+      "width": 1360,
+      "height": 124,
+      "text": "**21 · Генерировать строку — только один выход.**\n\n[OpenAI · принцип Decisions API](https://developers.openai.com/api/docs/guides/decisions) · [TypeSafe · типизированные решения](https://docs.typesafe.ai/introduction)"
+    },
+    {
+      "id": "calibration",
+      "type": "file",
+      "x": 8000,
+      "y": 2240,
+      "width": 1360,
+      "height": 900,
+      "file": "01-foundations/01-from-data-to-agents/assets/story/22-calibration.svg",
+      "color": "1"
+    },
+    {
+      "id": "calibration-sources",
+      "type": "text",
+      "x": 8000,
+      "y": 3164,
+      "width": 1360,
+      "height": 124,
+      "text": "**22 · Вероятность — обещание о серии случаев.**\n\n[TypeSafe · смысл вероятностей и confidence](https://docs.typesafe.ai/confidence) · [Калибровка нейросетей · 2017](https://arxiv.org/abs/1706.04599)"
+    },
+    {
+      "id": "why-now-decisions",
+      "type": "file",
+      "x": 8000,
+      "y": 3360,
+      "width": 1360,
+      "height": 900,
+      "file": "01-foundations/01-from-data-to-agents/assets/story/23-why-now-decisions.svg",
+      "color": "1"
+    },
+    {
+      "id": "why-now-decisions-sources",
+      "type": "text",
+      "x": 8000,
+      "y": 4284,
+      "width": 1360,
+      "height": 124,
+      "text": "**23 · Почему эта ветка стала заметна сейчас?**\n\n[TypeSafe · исходное объявление Jev · 15 сентября 2026](https://typesafe.ai/blog/introducing-system-one-models-and-jev) · [OpenAI · официальный принцип ограниченных ответов](https://developers.openai.com/api/docs/guides/decisions)"
+    }
+  ],
+  "edges": [
+    {
+      "id": "within-internet-textbook",
+      "fromNode": "ordinary-question",
+      "fromSide": "bottom",
+      "toNode": "internet-textbook",
+      "toSide": "top",
+      "color": "5",
+      "label": "следующая идея"
+    },
+    {
+      "id": "within-signal-not-noise",
+      "fromNode": "internet-textbook",
+      "fromSide": "bottom",
+      "toNode": "signal-not-noise",
+      "toSide": "top",
+      "color": "5",
+      "label": "следующая идея"
+    },
+    {
+      "id": "within-learn-frequencies",
+      "fromNode": "write-the-rules",
+      "fromSide": "bottom",
+      "toNode": "learn-frequencies",
+      "toSide": "top",
+      "color": "3",
+      "label": "следующая идея"
+    },
+    {
+      "id": "within-learn-representations",
+      "fromNode": "learn-frequencies",
+      "fromSide": "bottom",
+      "toNode": "learn-representations",
+      "toSide": "top",
+      "color": "3",
+      "label": "следующая идея"
+    },
+    {
+      "id": "within-attention",
+      "fromNode": "learn-representations",
+      "fromSide": "bottom",
+      "toNode": "attention",
+      "toSide": "top",
+      "color": "3",
+      "label": "следующая идея"
+    },
+    {
+      "id": "within-transformer",
+      "fromNode": "attention",
+      "fromSide": "bottom",
+      "toNode": "transformer",
+      "toSide": "top",
+      "color": "3",
+      "label": "следующая идея"
+    },
+    {
+      "id": "within-scale",
+      "fromNode": "transformer",
+      "fromSide": "bottom",
+      "toNode": "scale",
+      "toSide": "top",
+      "color": "3",
+      "label": "следующая идея"
+    },
+    {
+      "id": "chapter-ideas",
+      "fromNode": "ordinary-question",
+      "fromSide": "right",
+      "toNode": "write-the-rules",
+      "toSide": "left",
+      "label": "следующий вопрос",
+      "color": "3"
+    },
+    {
+      "id": "within-tokens",
+      "fromNode": "training",
+      "fromSide": "bottom",
+      "toNode": "tokens",
+      "toSide": "top",
+      "color": "6",
+      "label": "следующая идея"
+    },
+    {
+      "id": "within-inside-llm",
+      "fromNode": "tokens",
+      "fromSide": "bottom",
+      "toNode": "inside-llm",
+      "toSide": "top",
+      "color": "6",
+      "label": "следующая идея"
+    },
+    {
+      "id": "within-generation",
+      "fromNode": "inside-llm",
+      "fromSide": "bottom",
+      "toNode": "generation",
+      "toSide": "top",
+      "color": "6",
+      "label": "следующая идея"
+    },
+    {
+      "id": "within-instruction-following",
+      "fromNode": "generation",
+      "fromSide": "bottom",
+      "toNode": "instruction-following",
+      "toSide": "top",
+      "color": "6",
+      "label": "следующая идея"
+    },
+    {
+      "id": "chapter-llm",
+      "fromNode": "write-the-rules",
+      "fromSide": "right",
+      "toNode": "training",
+      "toSide": "left",
+      "label": "следующий вопрос",
+      "color": "6"
+    },
+    {
+      "id": "within-execution",
+      "fromNode": "why-code-works",
+      "fromSide": "bottom",
+      "toNode": "execution",
+      "toSide": "top",
+      "color": "4",
+      "label": "следующая идея"
+    },
+    {
+      "id": "within-historical-proof",
+      "fromNode": "execution",
+      "fromSide": "bottom",
+      "toNode": "historical-proof",
+      "toSide": "top",
+      "color": "4",
+      "label": "следующая идея"
+    },
+    {
+      "id": "chapter-code",
+      "fromNode": "training",
+      "fromSide": "right",
+      "toNode": "why-code-works",
+      "toSide": "left",
+      "label": "следующий вопрос",
+      "color": "4"
+    },
+    {
+      "id": "within-beyond-code",
+      "fromNode": "agent-loop",
+      "fromSide": "bottom",
+      "toNode": "beyond-code",
+      "toSide": "top",
+      "color": "2",
+      "label": "следующая идея"
+    },
+    {
+      "id": "chapter-agents",
+      "fromNode": "why-code-works",
+      "fromSide": "right",
+      "toNode": "agent-loop",
+      "toSide": "left",
+      "label": "следующий вопрос",
+      "color": "2"
+    },
+    {
+      "id": "within-bounded-decision",
+      "fromNode": "classification-before-chat",
+      "fromSide": "bottom",
+      "toNode": "bounded-decision",
+      "toSide": "top",
+      "color": "1",
+      "label": "следующая идея"
+    },
+    {
+      "id": "within-calibration",
+      "fromNode": "bounded-decision",
+      "fromSide": "bottom",
+      "toNode": "calibration",
+      "toSide": "top",
+      "color": "1",
+      "label": "следующая идея"
+    },
+    {
+      "id": "within-why-now-decisions",
+      "fromNode": "calibration",
+      "fromSide": "bottom",
+      "toNode": "why-now-decisions",
+      "toSide": "top",
+      "color": "1",
+      "label": "следующая идея"
+    },
+    {
+      "id": "chapter-decisions",
+      "fromNode": "agent-loop",
+      "fromSide": "right",
+      "toNode": "classification-before-chat",
+      "toSide": "left",
+      "label": "следующий вопрос",
+      "color": "1"
+    },
+    {
+      "id": "branch-classification",
+      "fromNode": "learn-representations",
+      "fromSide": "right",
+      "toNode": "classification-before-chat",
+      "toSide": "top",
+      "color": "1",
+      "label": "параллельная ветка: выбирать класс"
+    },
+    {
+      "id": "branch-code",
+      "fromNode": "generation",
+      "fromSide": "right",
+      "toNode": "why-code-works",
+      "toSide": "left",
+      "color": "4",
+      "label": "язык с исполнимой семантикой"
+    },
+    {
+      "id": "branch-feedback",
+      "fromNode": "execution",
+      "fromSide": "right",
+      "toNode": "agent-loop",
+      "toSide": "bottom",
+      "color": "2",
+      "label": "вернуть результат следующему шагу"
+    }
+  ]
 }
