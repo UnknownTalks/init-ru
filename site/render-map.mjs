@@ -31,8 +31,9 @@ export async function renderStoryMap(root) {
 <header class="topbar"><a class="brand" href="./">UNKNOWN<span>TALKS</span><small>/ init-ru</small></a><nav id="chapters" aria-label="Этапы от данных до агентов"></nav><a class="glossary-link" href="../../glossary.html" target="_blank">Словарь</a><a class="agent-link" href="agent.html">Для агента</a><button id="overview" aria-label="Показать всю карту">Вся карта <kbd>O</kbd></button><button id="fullscreen" aria-label="Полный экран">↗</button></header>
 <div class="location-bar"><button id="history-back" disabled>← Назад по переходам</button><nav id="breadcrumbs" aria-label="Вы находитесь здесь"></nav></div>
 <main id="stage" aria-label="Интерактивная карта" tabindex="0"><div id="world"><svg id="connections" aria-hidden="true"></svg><div id="scenes"></div></div><div class="zoom"><button id="zoom-in" aria-label="Приблизить">+</button><button id="zoom-out" aria-label="Отдалить">−</button></div></main>
-<footer class="transport"><div class="current"><div id="chapter-label"></div><div id="scene-title" aria-live="polite"></div></div><button id="route-start">К началу: очередь заявок</button></footer>
+<footer class="transport"><div class="current"><div id="chapter-label"></div><div id="scene-title" aria-live="polite"></div></div><button id="route-start">К выбору тем</button></footer>
 <aside id="position-panel"><strong>Вы на карте</strong><svg id="minimap" aria-label="Схема тем и текущая позиция"></svg><span id="position-caption"></span></aside>
+<span id="study-storage-status" role="status"></span>
 <div id="travel-status" role="status" hidden></div>
 <dialog id="term-dialog"><button id="term-close" aria-label="Закрыть определение">×</button><h2 id="term-title"></h2><p id="term-definition"></p><p id="term-example"></p><div id="term-actions"></div></dialog>
 <div id="hint">Выбирайте вопросы на карточке <span>·</span> O — вся карта <span>·</span> колесо — масштаб</div>

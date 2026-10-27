@@ -14,7 +14,7 @@ export async function renderGlossary(root) {
   const cards = glossary.terms
     .map(
       (term) =>
-        `<article id="${term.id}" data-search="${esc([term.id, term.title, ...term.aliases, term.definition].join(" ").toLowerCase())}"><h2>${esc(term.title)}</h2><p>${esc(term.definition)}</p><p class="example"><strong>Пример.</strong> ${esc(term.example)}</p><a href="${lesson}/map.html#${term.topic}">Открыть связанную тему →</a> · <a href="${esc(term.source)}" target="_blank" rel="noopener noreferrer">Источник ↗</a></article>`,
+        `<article id="${term.id}" data-search="${esc([term.id, term.title, ...term.aliases, term.definition].join(" ").toLowerCase())}"><h2>${esc(term.title)}</h2><p>${esc(term.definition)}</p><p class="example"><strong>Пример.</strong> ${esc(term.example)}</p><a href="${esc(term.source)}" target="_blank" rel="noopener noreferrer">Источник ↗</a></article>`,
     )
     .join("\n");
   await writeFile(

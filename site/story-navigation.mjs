@@ -1,25 +1,16 @@
 export function cardNavigation(story, scene) {
   const byId = new Map(story.scenes.map((item) => [item.id, item]));
-  const basicIndex = story.basics.indexOf(scene.id);
-  const backId = scene.parent || story.basics[basicIndex - 1];
+  const backId = scene.parent;
   const ids = story.scenes
     .filter((item) => item.parent === scene.id)
     .map((item) => item.id);
-  if (basicIndex >= 0 && basicIndex < story.basics.length - 1)
-    ids.unshift(story.basics[basicIndex + 1]);
-  ids.push(...(scene.links || []));
   const targets = [...new Set(ids)].map((id) => {
     const target = byId.get(id);
     if (!target) throw new Error(`Unknown link from ${scene.id}: ${id}`);
     return {
       id,
       title: target.title,
-      kind:
-        target.parent === scene.id
-          ? "detail"
-          : basicIndex >= 0 && id === story.basics[basicIndex + 1]
-            ? "route"
-            : "related",
+      kind: "detail",
     };
   });
   return {

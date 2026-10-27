@@ -28,6 +28,107 @@
   const visited = new Set(trail);
   const miniNodes = new Map();
   const termsById = new Map(data.glossary.map((term) => [term.id, term]));
+  const progressKey = "unknowntalks:init-ru:lesson-01:completed:v1";
+  let completed = new Set();
+  try {
+    const saved = JSON.parse(localStorage.getItem(progressKey) || "[]");
+    if (Array.isArray(saved))
+      completed = new Set(saved.filter((id) => byId.has(id)));
+  } catch {}
+  const descendants = new Map();
+  function subtree(id) {
+    if (!descendants.has(id))
+      descendants.set(id, [
+        id,
+        ...data.scenes
+          .filter((scene) => scene.parent === id)
+          .flatMap((scene) => subtree(scene.id)),
+      ]);
+    return descendants.get(id);
+  }
+  function progress(id) {
+    const ids = subtree(id),
+      done = ids.filter((id) => completed.has(id)).length;
+    return {
+      done,
+      total: ids.length,
+      status:
+        done === 0 ? "unstarted" : done === ids.length ? "done" : "partial",
+    };
+  }
+  function renderProgress() {
+    for (const scene of data.scenes) {
+      const value = progress(scene.id),
+        entry = entries.get(scene.id);
+      if (entry) {
+        entry.card.dataset.progress = value.status;
+        entry.card.querySelector(".study-check").checked = completed.has(
+          scene.id,
+        );
+        entry.card.querySelector(".study-branch").textContent =
+          ` · Ветка ${value.done}/${value.total}`;
+      }
+      const mini = miniNodes.get(scene.id);
+      if (mini) {
+        mini.dataset.progress = value.status;
+        mini.setAttribute(
+          "aria-label",
+          `${scene.shortTitle}: изучено ${value.done} из ${value.total}`,
+        );
+      }
+    }
+    for (const link of document.querySelectorAll(".card-links [data-target]")) {
+      const value = progress(link.dataset.target);
+      link.dataset.progress = value.status;
+      link.dataset.count = `${value.done}/${value.total}`;
+      link.title =
+        {
+          unstarted: "Не начато",
+          partial: "Изучено частично",
+          done: "Ветка изучена",
+        }[value.status] + `: ${value.done} из ${value.total} карточек`;
+      link.setAttribute("aria-label", link.textContent + ". " + link.title);
+    }
+    for (const button of document.querySelectorAll("[data-chapter]")) {
+      const root = data.scenes.find(
+          (scene) =>
+            scene.chapter === button.dataset.chapter && scene.level === 1,
+        ),
+        value = progress(root.id);
+      button.dataset.progress = value.status;
+      button.dataset.count = `${value.done}/${value.total}`;
+      button.title = `${root.shortTitle}: изучено ${value.done} из ${value.total}`;
+    }
+    const scene = data.scenes[index],
+      value = progress(scene.id);
+    document.getElementById("position-caption").textContent =
+      scene.shortTitle + ` · ${value.done}/${value.total}`;
+    document.getElementById("chapter-label").textContent =
+      data.chapters.find((c) => c.id === scene.chapter).title +
+      ` · Ветка ${value.done}/${value.total} · Всего изучено ${completed.size}/${data.scenes.length}`;
+  }
+  function setCompleted(id, checked) {
+    checked ? completed.add(id) : completed.delete(id);
+    try {
+      localStorage.setItem(progressKey, JSON.stringify([...completed]));
+    } catch {
+      document.getElementById("study-storage-status").textContent =
+        "Браузер не разрешает сохранить отметки. До закрытия страницы они останутся здесь.";
+    }
+    renderProgress();
+  }
+  addEventListener("storage", (event) => {
+    if (event.key === progressKey) {
+      try {
+        const value = JSON.parse(event.newValue || "[]");
+        completed = new Set(
+          Array.isArray(value) ? value.filter((id) => byId.has(id)) : [],
+        );
+        renderProgress();
+      } catch {}
+    }
+  });
+
   const termDialog = document.getElementById("term-dialog");
   function openTerm(id) {
     const term = termsById.get(id);
@@ -37,18 +138,11 @@
       "Пример: " + term.example;
     const actions = document.getElementById("term-actions");
     actions.replaceChildren();
-    const topic = document.createElement("button");
-    topic.textContent =
-      "К теме: " + data.scenes[byId.get(term.topic)].shortTitle;
-    topic.addEventListener("click", () => {
-      termDialog.close();
-      focus(byId.get(term.topic));
-    });
     const source = document.createElement("a");
     source.href = "../../glossary.html#" + term.id;
     source.target = "_blank";
     source.textContent = "В общем словаре ↗";
-    actions.append(topic, source);
+    actions.append(source);
     if (!termDialog.open) termDialog.showModal();
   }
   document
@@ -75,21 +169,6 @@
     }
   });
 
-  function route() {
-    const current = data.scenes[index];
-    return current.level === 1
-      ? data.basics.map((id) => byId.get(id))
-      : data.scenes
-          .map((scene, i) => ({ scene, i }))
-          .filter(({ scene }) => scene.parent === current.parent)
-          .map(({ i }) => i);
-  }
-  function move(delta) {
-    const list = route(),
-      position = list.indexOf(index),
-      next = list[position + delta];
-    if (next !== undefined) focus(next);
-  }
   const chapterColors = [
     "#6de4d2",
     "#f6ce77",
@@ -133,7 +212,21 @@
     const heading = document.createElement("h2");
     heading.className = "card-title";
     heading.textContent = scene.title;
-    card.append(kicker, heading);
+    const branch = document.createElement("span");
+    branch.className = "study-branch";
+    kicker.append(branch);
+    const studied = document.createElement("label");
+    studied.className = "study-toggle";
+    const check = document.createElement("input");
+    check.type = "checkbox";
+    check.className = "study-check";
+    check.setAttribute("aria-label", "Эта карточка изучена");
+    check.addEventListener("change", () =>
+      setCompleted(scene.id, check.checked),
+    );
+    studied.append(check, document.createTextNode("Эта карточка изучена"));
+    studied.addEventListener("click", (event) => event.stopPropagation());
+    card.append(kicker, heading, studied);
     const tabList = document.createElement("div");
     tabList.className = "card-tabs";
     tabList.setAttribute("role", "tablist");
@@ -282,17 +375,12 @@
     }
     const navigation = document.createElement("nav");
     navigation.className = "card-links";
-    navigation.setAttribute("aria-label", "Связанные темы");
+    navigation.setAttribute("aria-label", "Вложенные карточки темы");
     for (const target of scene.navigation.targets) {
       const link = document.createElement("a");
       link.href = "#" + target.id;
       link.dataset.target = target.id;
-      const relation = {
-        route: "Далее по пути",
-        detail: "Разбор",
-        related: "Связанная тема",
-      }[target.kind];
-      link.textContent = relation + ": " + target.title;
+      link.textContent = target.title;
       link.dataset.kind = target.kind;
       link.addEventListener("click", (event) => {
         event.preventDefault();
@@ -303,8 +391,9 @@
     }
     const navLabel = document.createElement("div");
     navLabel.className = "card-navigation-label";
-    navLabel.textContent =
-      "Продолжить основную линию или выбрать связанный разбор:";
+    navLabel.textContent = scene.navigation.targets.length
+      ? "Карточки этой темы · серый: не начато · жёлтый: частично · зелёный: изучено"
+      : "Это последняя карточка в этой ветке. Отметьте изучение и вернитесь к родительской теме.";
     card.append(navLabel, navigation);
     card.addEventListener("click", (event) => {
       if (!dragged && overview) focus(scene.number - 1);
@@ -541,8 +630,8 @@
     const breadcrumbs = document.getElementById("breadcrumbs");
     breadcrumbs.replaceChildren();
     const home = document.createElement("button");
-    home.textContent = "Встреча 1";
-    home.addEventListener("click", () => focus(byId.get(data.basics[0])));
+    home.textContent = "Темы встречи";
+    home.addEventListener("click", () => showOverview());
     breadcrumbs.append(home);
     for (const item of chain) {
       const divider = document.createElement("span");
@@ -610,6 +699,7 @@
         String(button.dataset.chapter === scene.chapter),
       );
     updateLocation(scene);
+    renderProgress();
     fit(scene, animate, changed ? origin : null);
   }
   document.getElementById("history-back").addEventListener("click", () => {
@@ -617,7 +707,7 @@
   });
   document
     .getElementById("route-start")
-    .addEventListener("click", () => focus(byId.get(data.basics[0])));
+    .addEventListener("click", () => showOverview());
   addEventListener("popstate", (event) => {
     if (event.state?.trail) {
       trail = event.state.trail;
@@ -683,19 +773,28 @@
     }
     if (["ArrowRight", "PageDown", " "].includes(event.key)) {
       event.preventDefault();
-      move(1);
+      entries
+        .get(data.scenes[index].id)
+        .card.querySelector(".card-links a")
+        ?.focus();
     }
     if (["ArrowLeft", "PageUp"].includes(event.key)) {
       event.preventDefault();
-      move(-1);
+      const parent = data.scenes[index].parent;
+      if (parent) focus(byId.get(parent));
     }
     if (event.key === "Home") {
       event.preventDefault();
-      focus(byId.get(data.basics[0]));
+      let root = data.scenes[index];
+      while (root.parent) root = data.scenes[byId.get(root.parent)];
+      focus(byId.get(root.id));
     }
     if (event.key === "End") {
       event.preventDefault();
-      focus(byId.get(data.basics.at(-1)));
+      entries
+        .get(data.scenes[index].id)
+        .card.querySelector(".card-links a:last-child")
+        ?.focus();
     }
     if (event.key.toLowerCase() === "o" || event.key === "щ") {
       event.preventDefault();
@@ -728,7 +827,7 @@
   stage.addEventListener("pointerdown", (event) => {
     if (
       event.target.closest(
-        ".card-links,.card-back,.card-tabs,.card-panel a,.term-link,input,button",
+        ".card-links,.card-back,.card-tabs,.card-panel a,.term-link,.study-toggle,input,button",
       )
     )
       return;

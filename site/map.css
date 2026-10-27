@@ -901,3 +901,102 @@ body.overview #hint {
     animation: none;
   }
 }
+
+.study-toggle {
+  position: absolute;
+  top: 57px;
+  right: 64px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  background: #1c2830;
+  border: 1px solid #4e646b;
+  border-radius: 9px;
+  font-size: 17px;
+  cursor: pointer;
+}
+.study-check {
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  accent-color: #72e2b4;
+  cursor: pointer;
+}
+.study-branch {
+  font-size: 14px;
+  color: #afc0ca;
+  font-weight: 400;
+}
+.card-links a {
+  position: relative;
+  padding-right: 67px;
+}
+.card-links a::after {
+  content: attr(data-count);
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 13px;
+  color: #b3bfd0;
+  padding: 2px 5px;
+  border-radius: 5px;
+  background: #293141;
+}
+.card-links a[data-progress="unstarted"] {
+  border-left: 4px solid #6c7685;
+}
+.card-links a[data-progress="partial"] {
+  border-left: 4px solid #e9c45b;
+  background: #342f1c;
+}
+.card-links a[data-progress="done"] {
+  border-left: 4px solid #72e2b4;
+  background: #18372d;
+}
+.card-links a[data-progress="partial"]::after {
+  background: #6c5720;
+  color: #fff1b6;
+}
+.card-links a[data-progress="done"]::after {
+  background: #2a634b;
+  color: #c1ffe2;
+}
+#minimap rect[data-progress="unstarted"] {
+  fill: #414b60;
+}
+#minimap rect[data-progress="partial"] {
+  fill: #edc65e;
+}
+#minimap rect[data-progress="done"] {
+  fill: #73dfac;
+}
+#minimap rect.current {
+  stroke: #f1fffc;
+  stroke-width: 110;
+}
+#chapters button[data-progress="partial"] {
+  box-shadow: inset 0 -3px #e9c45b;
+}
+#chapters button[data-progress="done"] {
+  box-shadow: inset 0 -3px #72e2b4;
+}
+.scene[data-progress="partial"] {
+  border-color: #b89c4c;
+}
+.scene[data-progress="done"] {
+  border-color: #58ad86;
+}
+#study-storage-status:not(:empty) {
+  position: fixed;
+  bottom: 115px;
+  left: 24px;
+  max-width: 450px;
+  padding: 12px;
+  background: #443922;
+  color: #ffebbb;
+  border-radius: 8px;
+  font-size: 13px;
+  z-index: 5;
+}
