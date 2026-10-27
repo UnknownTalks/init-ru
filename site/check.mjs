@@ -14,72 +14,98 @@ const story = JSON.parse(
     await readFile(path.join(root, "glossary.json"), "utf8"),
   );
 const errors = [],
-  chapters = new Map(story.chapters.map((chapter) => [chapter.id, chapter])),
-  extras = new Map(story.extras.map((extra) => [extra.id, extra])),
-  topics = new Set([...chapters.keys(), ...extras.keys()]),
-  terms = new Map(glossary.terms.map((term) => [term.id, term]));
+  chapters = new Map(story.chapters.map((c) => [c.id, c])),
+  characters = new Map(story.characters.map((c) => [c.id, c])),
+  terms = new Map(glossary.terms.map((t) => [t.id, t]));
 const require = (ok, message) => {
   if (!ok) errors.push(message);
 };
-require(story.schemaVersion === 3, "Wrong story version");
+const events = new Map(),
+  threads = new Map(),
+  questions = new Map();
+for (const c of story.chapters) {
+  for (const e of [...c.intro, ...c.outro]) {
+    require(!events.has(e.id), "Duplicate event " + e.id);
+    events.set(e.id, { event: e, chapter: c });
+  }
+  for (const t of c.threads) {
+    require(!threads.has(t.id), "Duplicate thread " + t.id);
+    threads.set(t.id, t);
+    for (const e of t.messages) {
+      require(!events.has(e.id), "Duplicate event " + e.id);
+      events.set(e.id, { event: e, chapter: c, thread: t });
+    }
+  }
+  for (const q of c.checks) {
+    require(!questions.has(q.id), "Duplicate check " + q.id);
+    questions.set(q.id, q);
+  }
+}
+require(story.schemaVersion === 4, "Wrong schema");
 require(chapters.size === story.chapters.length, "Duplicate chapter IDs");
-require(extras.size === story.extras.length, "Duplicate optional IDs");
-require(topics.size === chapters.size + extras.size, "Duplicate topic IDs");
-require(terms.size === glossary.terms.length, "Duplicate glossary IDs");
 require(JSON.stringify(story.basics) ===
   JSON.stringify([...chapters.keys()]), "Main order differs");
-require(JSON.stringify(story.groups.flatMap((group) => group.chapters)) ===
-  JSON.stringify(story.basics), "Skill map differs from main line");
-for (const chapter of story.chapters) {
-  const team = chapter.messages.find((m) => m.speaker === "team");
-  require(chapter.title &&
-    chapter.messages.some((m) => m.speaker === "sasha") &&
-    team, "Missing narrator " + chapter.id);
-  require(chapter.messages.every(
-    (m) =>
-      ["sasha", "team"].includes(m.speaker) &&
-      m.paragraphs.length &&
-      m.paragraphs.every((p) => typeof p === "string" && p.length > 20),
-  ), "Missing prose " + chapter.id);
-  require(chapter.decision.afterTeamParagraph > 0 &&
-    chapter.decision.afterTeamParagraph <
-      team.paragraphs.length, "Invalid narrative pause " + chapter.id);
-  require(chapter.decision.prompt &&
-    chapter.decision.options.length >= 2 &&
-    chapter.decision.options.every(
-      (o) => o.label && o.reply.length > 80,
-    ), "Incomplete choice branch " + chapter.id);
-  const prose = chapter.messages.flatMap((m) => m.paragraphs).join(" ");
-  require(!/\d|Python|dict\.|\bID\b/.test(
-    prose,
-  ), "Numeric or programming prerequisite " + chapter.id);
-  require(prose.split(/\s+/).length > 110, "Narrative too short " + chapter.id);
-  require(chapter.terms.every((id) => terms.has(id)), "Unknown term " +
-    chapter.id);
-  require(chapter.sources.length, "Missing sources " + chapter.id);
+for (const c of story.chapters) {
+  require(c.title &&
+    c.elapsed &&
+    c.intro.length &&
+    c.outro.length &&
+    c.sources.length, "Incomplete chapter " + c.id);
+  require(c.decision.options.length >= 2 &&
+    c.decision.options.every(
+      (o) => o.label && o.reply,
+    ), "Missing shared-path choices " + c.id);
+  require(c.terms.every((id) => terms.has(id)), "Unknown chapter term " + c.id);
+  for (const part of ["problem", "attempts", "resolution"])
+    require(c.arc[part]?.length &&
+      c.arc[part].every(
+        (id) => events.get(id)?.chapter.id === c.id && !events.get(id)?.thread,
+      ), "Missing core causal arc " + part + " " + c.id);
+  for (const q of c.checks) {
+    require(q.question &&
+      q.options.length >= 2 &&
+      Number.isInteger(q.correct) &&
+      q.options[q.correct] &&
+      q.explanation, "Incomplete assessment " + q.id);
+    require(q.references.length >= 2 &&
+      q.references.every((id) =>
+        events.has(id),
+      ), "Broken forwarded reference " + q.id);
+    require(q.terms.every((id) => terms.has(id)), "Unknown check term " + q.id);
+  }
 }
-for (const extra of story.extras) {
-  require(extra.title.startsWith("+ ") &&
-    chapters.has(extra.parent), "Invalid optional parent " + extra.id);
-  require(extra.paragraphs.length &&
-    extra.sources.length &&
-    extra.terms.every((id) => terms.has(id)), "Incomplete optional text " +
-    extra.id);
+for (const [id, { event: e }] of events) {
+  require(["message", "narration", "visual"].includes(
+    e.type,
+  ), "Unknown event type " + id);
+  if (e.type === "message")
+    require(characters.has(e.speaker) &&
+      e.paragraphs.length &&
+      e.time &&
+      e.paragraphs.every((p) => p.length > 10), "Invalid speaker/prose/time " +
+      id);
+  if (e.type === "visual")
+    require(e.items.length && e.title && e.caption, "Unlabelled visual " + id);
 }
-for (const term of glossary.terms) {
-  require(term.definition &&
-    term.example &&
-    term.source &&
-    topics.has(term.topic), "Incomplete glossary " + term.id);
-  require(![
-    "id",
-    "list",
-    "queue",
-    "dictionary",
-    "sorting",
-    "function",
-  ].includes(term.id), "Unrelated programming term " + term.id);
+const tokenVisual = events.get("tokens-pieces").event;
+require(tokenVisual.items.join("") ===
+  "Проверьте микрофон.", "Token pieces do not reconstruct text");
+const covered = new Set([...questions.values()].flatMap((q) => q.terms));
+for (const t of glossary.terms)
+  require(t.definition &&
+    t.example &&
+    t.source &&
+    (chapters.has(t.topic) || threads.has(t.topic)) &&
+    covered.has(t.id), "Missing definition/topic/check " + t.id);
+function checkTree(node) {
+  if (node.children) {
+    require(node.children.length > 1, "Not a branching skill tree " + node.id);
+    for (const c of node.children) checkTree(c);
+  } else
+    require(node.chapters.every((id) => chapters.has(id)) &&
+      node.terms.every((id) => terms.has(id)), "Broken skill leaf " + node.id);
 }
+checkTree(story.skillTree);
 const exported = JSON.parse(
   await readFile(path.join(out, lesson, "story.json"), "utf8"),
 );
@@ -90,22 +116,21 @@ require(markdown ===
   (await readFile(
     path.join(out, "llms-full.txt"),
     "utf8",
-  )), "Plain-text exports differ");
-for (const chapter of story.chapters) {
-  const values = [
-    ...chapter.messages.flatMap((m) => m.paragraphs),
-    chapter.decision.prompt,
-    ...chapter.decision.options.flatMap((o) => [o.label, o.reply]),
-    ...chapter.sources.map((s) => s.url),
-  ];
-  require(values.every((value) =>
-    markdown.includes(value),
-  ), "Incomplete agent chapter " + chapter.id);
-}
-for (const extra of story.extras)
-  require(extra.paragraphs.every((p) =>
+  )), "Text exports differ");
+for (const [id, { event: e }] of events)
+  require((e.paragraphs || [e.text || e.title, e.caption || ""]).every((p) =>
     markdown.includes(p),
-  ), "Incomplete agent extra " + extra.id);
+  ), "Incomplete exported event " + id);
+for (const q of questions.values())
+  require([q.question, q.explanation, ...q.options, ...q.references].every(
+    (v) => markdown.includes(v),
+  ), "Incomplete exported check " + q.id);
+for (const c of chapters.values())
+  require([
+    ...c.decision.options.flatMap((o) => [o.label, o.reply]),
+    ...c.sources.map((s) => s.url),
+  ].every((v) => markdown.includes(v)), "Incomplete exported choice/source " +
+    c.id);
 let mdCount = 0,
   htmlCount = 0;
 async function walk(dir, visit) {
@@ -164,5 +189,5 @@ if (errors.length) {
   process.exitCode = 1;
 } else
   console.log(
-    `Checked prose narrative, interactive pauses, skill map, optional branches, glossary, complete agent exports, ${mdCount} Markdown files and ${htmlCount} HTML pages.`,
+    `Checked causal arcs, cast, internal threads, branching skill tree, complete concept assessments, forwarded sources, token assembly, agent exports, ${mdCount} Markdown files and ${htmlCount} HTML pages.`,
   );

@@ -1,7 +1,6 @@
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import { createHash } from "node:crypto";
-
 export async function renderLesson(root) {
   const lesson = "01-foundations/01-from-data-to-agents";
   const story = JSON.parse(
@@ -9,9 +8,6 @@ export async function renderLesson(root) {
   );
   const glossary = JSON.parse(
     await readFile(path.join(root, "glossary.json"), "utf8"),
-  );
-  const materials = JSON.parse(
-    await readFile(path.join(root, lesson, "materials.json"), "utf8"),
   );
   const data = JSON.stringify({
     ...story,
@@ -22,20 +18,19 @@ export async function renderLesson(root) {
     .update(await readFile(path.join(root, "site/lesson.css")))
     .digest("hex")
     .slice(0, 12);
-  const directory = path.join(root, "public", lesson);
-  await mkdir(directory, { recursive: true });
-  const html = `<!doctype html>
-<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#212121"><title>${story.title} · UnknownTalks</title><link rel="stylesheet" href="../../static/lesson.css?v=${revision}"></head>
-<body>
-<header class="app-header"><a class="brand" href="./" aria-label="К материалам встречи">UnknownTalks <span>/ init-ru</span></a><nav aria-label="Материалы"><button id="skills-open">Карта знаний <span id="header-progress"></span></button><a href="../../glossary.html" target="_blank">Словарь</a><button id="reading-open" aria-label="Настройки чтения">Чтение</button></nav></header>
-<main id="transcript"><div class="book-heading"><h1>От данных до агента</h1><p>Саша хотел просто выбрать наушники. Команда взялась помочь. Получилось не сразу.</p><button class="text-button" id="about-open">Об этой истории и источниках</button></div><div id="messages"></div><div id="end-marker"></div></main>
-<div class="composer-wrap"><button id="jump" hidden>К продолжению ↓</button><section id="composer" aria-label="Ваш ход в разговоре"></section><p class="composer-note" id="composer-note">Выбирайте вопросы вместо ввода текста. Это подготовленная история.</p></div>
-<dialog id="skills"><header class="dialog-heading"><h2>Карта знаний</h2><button data-close aria-label="Закрыть карту">×</button></header><p id="skills-summary"></p><progress id="skills-progress" aria-label="Изученные главы"></progress><p class="muted small">Отмечайте изученное сами. Чтение и выбор ответа не ставят отметку автоматически. Всё сохраняется в этом браузере.</p><div id="skill-groups"></div><p class="muted small">Разборы «+» необязательны и не входят в основной прогресс.</p></dialog>
-<dialog id="reading"><header class="dialog-heading"><h2>Как читать</h2><button data-close aria-label="Закрыть настройки">×</button></header><label for="speed">Появление ответа команды</label><select id="speed"><option value="normal">Постепенно</option><option value="fast">Быстрее</option><option value="instant">Сразу</option></select><p class="muted">Ответ можно раскрыть сразу в любой момент.</p><button id="book-mode" class="wide">Показать весь текст</button><p class="muted small">Для чтения как книги. Отметки изучения остаются вашими.</p><button id="chat-mode" class="wide">Вернуться к интерактивному прохождению</button><p id="storage-message" role="status"></p></dialog>
-<dialog id="detail"><header class="dialog-heading"><h2 id="detail-title"></h2><button data-close aria-label="Закрыть разбор">×</button></header><div id="detail-body"></div></dialog>
-<dialog id="about"><header class="dialog-heading"><h2>Одна история, разные открытия</h2><button data-close aria-label="Закрыть описание">×</button></header><p>Саша, команда и товары вымышлены. Команда объединяет работу разных исследователей, а порядок событий помогает понять зависимости между идеями. Это не буквальная история изобретения всех технологий одной компанией.</p><p>Механизмы настоящие. У каждой главы есть первичные источники; исторические подробности вынесены в разбор «+». Показанные границы токенов проверены настоящим токенизатором.</p><p>Вопросы внизу продолжают подготовленный сценарий. Живая модель здесь не подключена.</p><p><a href="materials.html">Материалы учебного примера</a> · <a href="agent.html">Полный текст для агента</a></p></dialog>
-<p class="sr-only" id="announcement" role="status"></p><script id="lesson-data" type="application/json">${data}</script><script src="../../static/lesson.js?v=${revision}"></script></body></html>`;
-  for (const name of [
+  const out = path.join(root, "public", lesson);
+  await mkdir(out, { recursive: true });
+  const html = `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#202122"><title>${story.title} · UnknownTalks</title><link rel="stylesheet" href="../../static/lesson.css?v=${revision}"></head><body>
+ <header class="app-header"><a class="brand" href="./">UnknownTalks <span>/ init-ru</span></a><nav aria-label="Материалы истории"><button id="preferences-open">Темы</button><a href="../../glossary.html" target="_blank">Словарь</a><button id="settings-open" aria-label="Настройки переписки">⋯</button></nav></header>
+ <main class="conversation"><section class="opening"><p class="eyebrow">Учебная переписка</p><h1>От данных до агента</h1><p>Саша хотел просто выбрать наушники. Команда взялась помочь. Получилось не сразу.</p><details id="preferences"><summary>Что хотите разобрать сейчас?</summary><p class="muted small">Основной разговор понятен сам по себе. Внутренние чаты добавляют детали по выбранным направлениям; любой из них можно раскрыть позже.</p><label class="track"><input type="checkbox" checked disabled><span><strong>Основная переписка</strong><small>Саша, Анна — глава AI-команды, и позже помощник</small></span></label><div id="track-options"></div></details><button id="start" class="start">Открыть переписку</button><p id="route-summary" class="small muted" hidden></p></section>
+ <button id="return-inline" class="text-button" hidden>Вернуться к прохождению</button><section id="messages" aria-label="Переписка Саши и команды"></section><div id="typing-status" role="status" class="sr-only"></div><div id="playback-controls" hidden><button id="reveal-now">Показать сообщения сразу</button><button id="pause">Пауза</button></div>
+ <section id="final-check" hidden><h2>Что осталось в памяти?</h2><p>Можно проверить связи между понятиями. При ошибке Нина перешлёт сообщения, где проблема привела к решению.</p><button id="all-checks">Проверить всю тему</button><div id="final-check-body"></div></section>
+ <footer class="story-footer"><button id="progress-open" aria-label="Открыть дерево навыков"><span><strong id="progress-label">История ещё не началась</strong><span class="small muted">Дерево навыков ↗</span></span><progress id="story-progress" max="100" value="0"></progress></button><p class="small muted">Полоса показывает продвижение по основной переписке. Проверка понимания учитывается отдельно.</p><p class="small"><a href="agent.html">Для своего агента</a> · <button id="about-open" class="text-button">О персонажах и источниках</button></p><p id="storage-message" class="small" role="status"></p></footer></main>
+ <dialog id="skills"><header class="dialog-heading"><h2>Дерево навыков</h2><button data-close aria-label="Закрыть дерево">×</button></header><p id="skill-summary"></p><p class="small muted">Ветви связаны с понятиями, а не порядком глав. «Проверено» означает верный ответ на вопросы этой ветви, а не гарантию владения навыком.</p><div id="skill-tree"></div></dialog>
+ <dialog id="settings"><header class="dialog-heading"><h2>Переписка</h2><button data-close aria-label="Закрыть настройки">×</button></header><label for="pace">Появление сообщений</label><select id="pace"><option value="normal">Как в мессенджере</option><option value="fast">Быстрее</option><option value="instant">Без ожидания</option></select><p class="muted small">Точки означают подготовленную анимацию набора. История не подключена к живой модели.</p><button id="read-all" class="wide">Открыть всю переписку</button><button id="back-to-chat" class="wide">Вернуться к прохождению</button><a href="agent.md">Полный текст и все внутренние чаты</a></dialog>
+ <dialog id="about"><header class="dialog-heading"><h2>О персонажах</h2><button data-close aria-label="Закрыть описание">×</button></header><div id="cast"></div><p>Это постановочная переписка: персонажи, товары, сроки и проверки в сюжете вымышлены. Идеи и первичные источники настоящие. Команда не изобрела все технологии ради покупки: она воспроизводит подходы разных исследователей на одной понятной задаче. Время сообщений задаёт ритм истории, а не длительность реального обучения больших моделей.</p><p>Разделение ролей условное: в настоящих командах обязанности пересекаются. <a href="https://deepmind.google/careers/" target="_blank" rel="noopener noreferrer">Пример описания исследовательских и инженерных ролей</a>.</p><p><a href="materials.html">Материалы учебного примера</a> · <a href="agent.html">Материалы для агента</a></p></dialog>
+ <button id="jump" hidden>К новым сообщениям ↓</button><script id="lesson-data" type="application/json">${data}</script><script src="../../static/lesson.js?v=${revision}"></script></body></html>`;
+  for (const file of [
     "chat.html",
     "story.html",
     "dialog.html",
@@ -43,36 +38,36 @@ export async function renderLesson(root) {
     "map.canvas.html",
     "formats.html",
   ])
-    await writeFile(path.join(directory, name), html);
-  const esc = (value) =>
-    String(value)
+    await writeFile(path.join(out, file), html);
+  const materials = JSON.parse(
+    await readFile(path.join(root, lesson, "materials.json"), "utf8"),
+  );
+  const esc = (s) =>
+    String(s)
       .replaceAll("&", "&amp;")
       .replaceAll("<", "&lt;")
       .replaceAll('"', "&quot;");
   await writeFile(
-    path.join(directory, "materials.html"),
-    `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Материалы истории</title><link rel="stylesheet" href="../../static/lesson.css?v=${revision}"></head><body><main class="document"><a href="chat.html">← К истории</a><h1>Материалы учебного примера</h1><p>${esc(materials.notice)}</p>${materials.materials.map((item) => `<article id="${item.id}"><p class="eyebrow">${esc(item.kind)}</p><h2>${esc(item.title)}</h2><p>${esc(item.text)}</p></article>`).join("")}</main></body></html>`,
+    path.join(out, "materials.html"),
+    `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Материалы истории</title><link rel="stylesheet" href="../../static/lesson.css?v=${revision}"></head><body><main class="conversation"><a href="chat.html">← К переписке</a><h1>Материалы учебного примера</h1><p>${esc(materials.notice)}</p>${materials.materials.map((m) => `<article id="${m.id}"><h2>${esc(m.title)}</h2><p>${esc(m.text)}</p></article>`).join("")}</main></body></html>`,
   );
-  const notes = {
+  await mkdir(path.join(out, "notes"), { recursive: true });
+  for (const [name, id] of Object.entries({
     data: "data",
     processing: "data-quality",
-    history: "history",
+    history: "patterns-research",
     training: "training",
     tokens: "tokens",
     llm: "vectors",
     generation: "generation",
-    code: "tools",
+    code: "generation-coding",
     agents: "agent",
     applications: "agent",
     outlook: "ending",
-    decisions: "decisions",
-  };
-  await mkdir(path.join(directory, "notes"), { recursive: true });
-  for (const [name, id] of Object.entries(notes)) {
-    const target = `../chat.html#${id}`;
+    decisions: "agent-decisions",
+  }))
     await writeFile(
-      path.join(directory, "notes", name + ".html"),
-      `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=${target}"><title>Тема в истории</title></head><body><a href="${target}">Открыть объяснение</a></body></html>`,
+      path.join(out, "notes", name + ".html"),
+      `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=../chat.html#${id}"><title>Объяснение в переписке</title></head><body><a href="../chat.html#${id}">Открыть объяснение</a></body></html>`,
     );
-  }
 }

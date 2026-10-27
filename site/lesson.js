@@ -1,655 +1,1012 @@
 (() => {
   "use strict";
-  const data = JSON.parse(document.getElementById("lesson-data").textContent);
-  const chapters = data.chapters;
-  const byId = new Map(chapters.map((chapter) => [chapter.id, chapter]));
-  const extras = new Map(data.extras.map((extra) => [extra.id, extra]));
-  const terms = new Map(data.glossary.map((term) => [term.id, term]));
-  const key = "unknowntalks:init-ru:prose-chat:v3";
-  const $ = (id) => document.getElementById(id);
-  const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const defaults = {
-    version: 3,
-    opened: 1,
+  const $ = (id) => document.getElementById(id),
+    data = JSON.parse($("lesson-data").textContent);
+  const chapters = data.chapters,
+    byChapter = new Map(chapters.map((c) => [c.id, c])),
+    people = new Map(data.characters.map((p) => [p.id, p]));
+  const messages = new Map(),
+    threads = new Map(),
+    questions = new Map();
+  for (const c of chapters) {
+    for (const e of [...c.intro, ...c.outro])
+      messages.set(e.id, { event: e, chapter: c });
+    for (const t of c.threads) {
+      threads.set(t.id, { thread: t, chapter: c });
+      for (const e of t.messages)
+        messages.set(e.id, { event: e, chapter: c, thread: t });
+    }
+    for (const q of c.checks) questions.set(q.id, { question: q, chapter: c });
+  }
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches,
+    key = "unknowntalks:init-ru:messenger:v4";
+  const state = {
+    version: 4,
+    started: false,
+    tracks: [],
+    expanded: [],
+    collapsed: [],
     choices: {},
-    completed: [],
-    extrasDone: [],
-    speed: reducedMotion ? "instant" : "normal",
-    book: false,
+    seen: [],
+    answers: {},
+    pace: reduced ? "instant" : "normal",
   };
-  let state = { ...defaults },
-    storageAvailable = true;
+  const known = new Set([
+    ...messages.keys(),
+    ...chapters.flatMap((c) => [
+      c.id + "--heading",
+      c.id + "--sent",
+      c.id + "--reply",
+      c.id + "--supplement",
+      c.id + "--choice",
+    ]),
+  ]);
+  let storage = true;
   try {
     const saved = JSON.parse(localStorage.getItem(key));
-    if (saved?.version === 3) {
-      state.opened = Number.isInteger(saved.opened)
-        ? Math.max(1, Math.min(chapters.length, saved.opened))
-        : 1;
-      state.choices = Object.fromEntries(
-        chapters
-          .filter(
-            (c) =>
-              Number.isInteger(saved.choices?.[c.id]) &&
-              c.decision.options[saved.choices[c.id]],
-          )
-          .map((c) => [c.id, saved.choices[c.id]]),
-      );
-      state.completed = Array.isArray(saved.completed)
-        ? [...new Set(saved.completed.filter((id) => byId.has(id)))]
-        : [];
-      state.extrasDone = Array.isArray(saved.extrasDone)
-        ? [...new Set(saved.extrasDone.filter((id) => extras.has(id)))]
-        : [];
-      state.speed = ["normal", "fast", "instant"].includes(saved.speed)
-        ? saved.speed
-        : defaults.speed;
-      state.book = saved.book === true;
+    if (saved?.version === 4) {
+      state.started = saved.started === true;
+      for (const field of ["tracks", "expanded", "collapsed", "seen"])
+        if (Array.isArray(saved[field]))
+          state[field] = [
+            ...new Set(
+              saved[field].filter(
+                (id) =>
+                  typeof id === "string" &&
+                  (field === "tracks"
+                    ? data.tracks.some((t) => t.id === id)
+                    : field === "seen"
+                      ? known.has(id)
+                      : threads.has(id)),
+              ),
+            ),
+          ];
+      for (const c of chapters)
+        if (
+          Number.isInteger(saved.choices?.[c.id]) &&
+          c.decision.options[saved.choices[c.id]]
+        )
+          state.choices[c.id] = saved.choices[c.id];
+      for (const [id, { question: q }] of questions)
+        if (Array.isArray(saved.answers?.[id]))
+          state.answers[id] = saved.answers[id]
+            .filter((i) => Number.isInteger(i) && q.options[i] !== undefined)
+            .slice(-30);
+      if (["normal", "fast", "instant"].includes(saved.pace))
+        state.pace = saved.pace;
     }
   } catch {
-    storageAvailable = false;
+    /* A damaged saved value starts a fresh conversation. */
   }
-  let stream = null,
-    frame = null,
-    following = false;
-  const sections = new Map();
-  while (
-    state.opened < chapters.length &&
-    state.choices[chapters[state.opened - 1].id] !== undefined
-  )
-    state.opened++;
+  const seen = new Set(state.seen),
+    mounted = new Map(),
+    parentNodes = new Map(),
+    quizSessions = new Map(),
+    introduced = new Set();
+  let timer = null,
+    busy = null,
+    paused = false,
+    readAll = false,
+    explicitQuiz = false,
+    following = false,
+    programmaticScroll = false;
+  const el = (tag, cls, text) => {
+    const n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text !== undefined) n.textContent = text;
+    return n;
+  };
+  function button(label, action, cls = "") {
+    const b = el("button", cls, label);
+    b.type = "button";
+    b.addEventListener("click", action);
+    return b;
+  }
+  function paragraph(text) {
+    const p = el("p");
+    for (const [i, part] of text.split("**").entries()) {
+      if (i % 2) p.append(el("strong", "", part));
+      else p.append(document.createTextNode(part));
+    }
+    return p;
+  }
   function save() {
+    state.seen = [...seen];
     try {
       localStorage.setItem(key, JSON.stringify(state));
     } catch {
-      storageAvailable = false;
+      storage = false;
     }
-    $("storage-message").textContent = storageAvailable
+    $("storage-message").textContent = storage
       ? ""
-      : "Браузер не разрешил сохранить состояние. Отметки работают до закрытия страницы.";
+      : "Браузер не разрешил сохранить прохождение. Здесь оно работает до закрытия страницы.";
   }
-  function el(tag, className, text) {
-    const node = document.createElement(tag);
-    if (className) node.className = className;
-    if (text !== undefined) node.textContent = text;
-    return node;
-  }
-  function button(text, action, className = "") {
-    const node = el("button", className, text);
-    node.type = "button";
-    node.addEventListener("click", action);
-    return node;
-  }
-  function richParagraph(text, pending = false) {
-    const p = el("p");
-    const segments = [];
-    for (const [i, part] of text.split("**").entries()) {
-      const node = document.createTextNode(pending ? "" : part);
-      if (i % 2) {
-        const strong = el("strong");
-        strong.append(node);
-        p.append(strong);
-      } else p.append(node);
-      if (part) segments.push({ node, text: part, paragraph: p });
-    }
-    p.hidden = pending;
-    return { p, segments };
-  }
-  function message(speaker, paragraphs, pending = false) {
-    const node = el("article", "message " + speaker);
-    node.setAttribute(
-      "aria-label",
-      speaker === "sasha"
-        ? "Саша"
-        : speaker === "reader"
-          ? "Ваш вопрос"
-          : "Команда разработки",
+  function threadOpen(t) {
+    return (
+      state.expanded.includes(t.id) ||
+      (state.tracks.includes(t.track) && !state.collapsed.includes(t.id))
     );
-    node.append(el("div", "speaker", node.getAttribute("aria-label")));
-    const segments = [];
-    for (const text of paragraphs) {
-      const { p, segments: parts } = richParagraph(text, pending);
-      node.append(p);
-      segments.push(...parts);
-    }
-    return { node, segments };
   }
-  function nearBottom() {
-    return document.documentElement.scrollHeight - innerHeight - scrollY < 150;
-  }
-  function scrollEnd(behavior = "auto") {
-    window.scrollTo({
-      top: document.documentElement.scrollHeight,
-      behavior: reducedMotion ? "auto" : behavior,
-    });
-  }
-  function updateJump() {
-    $("jump").hidden = nearBottom();
-  }
-  function flushStream() {
-    if (!stream) return;
-    const current = stream;
-    cancelAnimationFrame(frame);
-    stream = null;
-    for (const segment of current.segments) {
-      segment.paragraph.hidden = false;
-      segment.node.data = segment.text;
-    }
-    current.node.classList.remove("streaming");
-    current.node.removeAttribute("aria-busy");
-    current.done();
-    if (following) scrollEnd();
-    updateJump();
-  }
-  function animate(result, done) {
-    if (state.speed === "instant" || reducedMotion) {
-      for (const part of result.segments) {
-        part.paragraph.hidden = false;
-        part.node.data = part.text;
-      }
-      done();
-      return;
-    }
-    stream = {
-      ...result,
-      done,
-      index: 0,
-      offset: 0,
-      credit: 0,
-      previous: performance.now(),
-    };
-    result.node.classList.add("streaming");
-    result.node.setAttribute("aria-busy", "true");
-    renderComposer();
-    function tick(now) {
-      if (!stream) return;
-      const rate = state.speed === "fast" ? 650 : 210;
-      stream.credit += (Math.min(now - stream.previous, 80) * rate) / 1000;
-      stream.previous = now;
-      let count = Math.floor(stream.credit);
-      stream.credit -= count;
-      while (count > 0 && stream.index < stream.segments.length) {
-        const part = stream.segments[stream.index];
-        const take = Math.min(count, part.text.length - stream.offset);
-        stream.offset += take;
-        count -= take;
-        part.paragraph.hidden = false;
-        part.node.data = part.text.slice(0, stream.offset);
-        if (stream.offset >= part.text.length) {
-          stream.index++;
-          stream.offset = 0;
-        }
-      }
-      if (following) scrollEnd();
-      if (stream.index === stream.segments.length) {
-        flushStream();
-        return;
-      }
-      frame = requestAnimationFrame(tick);
-    }
-    frame = requestAnimationFrame(tick);
-  }
-  function studiedLabel(id, optional = false) {
-    const label = el("label", "study");
-    const input = el("input");
-    input.type = "checkbox";
-    input.checked = (optional ? state.extrasDone : state.completed).includes(
-      id,
+  function activeQuestion(q) {
+    return (
+      !q.track ||
+      state.tracks.includes(q.track) ||
+      q.references.some((id) => {
+        const t = messages.get(id)?.thread;
+        return t && threadOpen(t);
+      })
     );
-    input.dataset.study = id;
-    input.addEventListener("change", () => {
-      const target = optional ? "extrasDone" : "completed";
-      state[target] = input.checked
-        ? [...new Set([...state[target], id])]
-        : state[target].filter((item) => item !== id);
-      document.querySelectorAll("input[data-study]").forEach((other) => {
-        if (other.dataset.study === id) other.checked = input.checked;
-      });
-      document.querySelectorAll("button[data-extra]").forEach((other) => {
-        other.classList.toggle(
-          "done",
-          state.extrasDone.includes(other.dataset.extra),
+  }
+  function currentTimeline(all = readAll) {
+    if (!state.started && !all) return [];
+    const events = [];
+    for (const c of chapters) {
+      events.push(
+        { id: c.id + "--heading", type: "heading", chapter: c },
+        ...c.intro,
+      );
+      const selected = c.decision.options[state.choices[c.id]];
+      if (!selected && !all) {
+        events.push({ id: c.id + "--choice", type: "choice", chapter: c });
+        break;
+      }
+      if (selected)
+        events.push(
+          {
+            id: c.id + "--sent",
+            type: "message",
+            speaker: "sasha",
+            paragraphs: [selected.label],
+            time: c.sentTime,
+            outgoing: true,
+          },
+          {
+            id: c.id + "--reply",
+            type: "message",
+            speaker: c.decision.responder,
+            paragraphs: [selected.reply],
+            time: c.replyTime,
+          },
         );
+      events.push(...c.outro, {
+        id: c.id + "--supplement",
+        type: "supplement",
+        chapter: c,
       });
-      save();
-      renderSkills();
-    });
-    label.append(
-      input,
-      document.createTextNode(optional ? "Разбор изучен" : "Глава изучена"),
-    );
-    return label;
+      for (const t of c.threads)
+        if (threadOpen(t))
+          for (const e of t.messages)
+            events.push({ ...e, parent: t.id, optional: true });
+    }
+    return events;
   }
-  function sourceList(sources) {
-    const list = el("ul", "sources-list");
-    for (const source of sources) {
+  const coreIds = new Set(
+    chapters
+      .flatMap((c) => [
+        ...c.intro,
+        ...c.outro,
+        { id: c.id + "--sent" },
+        { id: c.id + "--reply" },
+      ])
+      .map((e) => e.id),
+  );
+  function updateProgress() {
+    const n = [...coreIds].filter((id) => seen.has(id)).length,
+      percent = Math.round((n / coreIds.size) * 100);
+    $("story-progress").value = percent;
+    $("progress-label").textContent = readAll
+      ? "Открыта вся переписка"
+      : state.started
+        ? `Путь по истории · ${percent}%`
+        : "История ещё не началась";
+    $("progress-open").title = "Открыть дерево навыков";
+    $("start").hidden = state.started || readAll;
+    $("return-inline").hidden = !readAll;
+    $("route-summary").hidden = !state.started && !readAll;
+    const selected = data.tracks
+      .filter((t) => state.tracks.includes(t.id))
+      .map((t) => t.title.toLowerCase());
+    $("route-summary").textContent =
+      "Читаете основной диалог" +
+      (selected.length
+        ? " и внутренние чаты: " + selected.join(", ")
+        : ". Внутренние чаты можно раскрывать по ходу.");
+    const finished =
+      state.started &&
+      chapters.every((c) => state.choices[c.id] !== undefined) &&
+      seen.has(chapters.at(-1).id + "--supplement");
+    $("final-check").hidden = !(finished || readAll || explicitQuiz);
+  }
+  function nameOf(id) {
+    return people.get(id)?.name || id;
+  }
+  function bubble(event, forwarded = false) {
+    const person = people.get(event.speaker),
+      node = el(
+        "article",
+        "message " +
+          (event.speaker === "sasha" ? "outgoing" : "incoming") +
+          " tone-" +
+          (person?.tone || "neutral"),
+      );
+    node.dataset.speaker = event.speaker;
+    node.setAttribute("aria-label", nameOf(event.speaker));
+    const meta = el("header", "message-meta");
+    meta.append(el("span", "sender", nameOf(event.speaker)));
+    const time = el("time", "", event.time || "");
+    meta.append(time);
+    node.append(meta);
+    if (person && !forwarded && !introduced.has(person.id)) {
+      node.append(el("span", "role", person.role));
+      introduced.add(person.id);
+    }
+    meta.querySelector(".sender").title = person?.role || "";
+    for (const p of event.paragraphs || []) node.append(paragraph(p));
+    return node;
+  }
+  function diagram(event) {
+    const fig = el("figure", "visual visual-" + event.kind);
+    fig.setAttribute("aria-label", event.title);
+    fig.append(el("figcaption", "", event.title));
+    const items = el("div", "visual-items");
+    for (const [i, item] of event.items.entries()) {
+      if (typeof item === "string") {
+        if (i && ["flow", "cycle", "merge"].includes(event.kind))
+          items.append(el("span", "visual-arrow", "→"));
+        const part = el("span", "visual-item", item);
+        if (event.kind === "tokens")
+          part.title = item.startsWith(" ") ? "В начале сохранён пробел" : item;
+        items.append(part);
+      } else {
+        const part = el("div", "visual-pair");
+        part.append(el("strong", "", item.label), el("span", "", item.text));
+        items.append(part);
+      }
+    }
+    fig.append(items, el("p", "small muted", event.caption));
+    return fig;
+  }
+  function sourceLinks(c) {
+    const details = el("details", "sources");
+    details.append(el("summary", "", "Источники и понятия"));
+    const termLinks = el("p", "small");
+    for (const [i, id] of c.terms.entries()) {
+      if (i) termLinks.append(" · ");
+      const t = data.glossary.find((t) => t.id === id);
+      if (t) {
+        const a = el("a", "", t.title);
+        a.href = "../../glossary.html#" + id;
+        a.target = "_blank";
+        termLinks.append(a);
+      }
+    }
+    details.append(termLinks);
+    const ul = el("ul");
+    for (const s of c.sources) {
       const li = el("li"),
-        a = el("a", "", source.label);
-      a.href = source.url;
+        a = el("a", "", s.label);
+      a.href = s.url;
       a.target = "_blank";
       a.rel = "noopener noreferrer";
       li.append(a);
-      list.append(li);
+      ul.append(li);
     }
-    return list;
+    details.append(ul);
+    return details;
   }
-  function showDialog(id) {
-    const dialog = $(id);
-    if (!dialog.open) dialog.showModal();
-  }
-  function detail(title) {
-    $("detail-title").textContent = title;
-    $("detail-body").replaceChildren();
-    return $("detail-body");
-  }
-  function openExtra(id) {
-    const extra = extras.get(id);
-    if (!extra) return;
-    const body = detail(extra.title);
-    body.append(
-      el(
-        "p",
-        "muted small",
-        "Необязательный разбор к главе «" +
-          byId.get(extra.parent).title +
-          "». Закройте его, чтобы вернуться в ту же точку разговора.",
-      ),
-    );
-    for (const paragraph of extra.paragraphs)
-      body.append(richParagraph(paragraph).p);
-    if (id === "token-boundaries") {
-      const a = el("a", "", "Попробовать настоящий токенизатор ↗");
-      a.href = "demos/tokens.html";
-      a.target = "_blank";
-      body.append(a);
-    }
-    body.append(studiedLabel(id, true), sourceList(extra.sources));
-    showDialog("detail");
-  }
-  function openTerms(chapter) {
-    const body = detail("Понятия этой главы");
-    for (const id of chapter.terms) {
-      const term = terms.get(id);
-      const section = el("section", "term-def");
-      section.append(
-        el("h3", "", term.title),
-        el("p", "", term.definition),
-        el("p", "small", term.example),
+  function supplement(c) {
+    const node = el("section", "chapter-supplement");
+    node.dataset.chapter = c.id;
+    for (const t of c.threads) {
+      const d = el("details", "internal-thread");
+      d.dataset.thread = t.id;
+      d.open = threadOpen(t);
+      const summary = el("summary");
+      summary.append(
+        el(
+          "span",
+          "thread-label",
+          "Внутренний чат · " + data.tracks.find((x) => x.id === t.track).title,
+        ),
+        el("strong", "", t.title),
       );
-      body.append(section);
-    }
-    const a = el("a", "", "Открыть весь словарь ↗");
-    a.href = "../../glossary.html";
-    a.target = "_blank";
-    body.append(a);
-    showDialog("detail");
-  }
-  function footer(chapter) {
-    const node = el("footer", "chapter-footer");
-    node.append(studiedLabel(chapter.id));
-    const links = el("div", "chapter-links");
-    links.append(
-      button("Источники", () => {
-        detail("На чём основана глава").append(sourceList(chapter.sources));
-        showDialog("detail");
-      }),
-    );
-    if (chapter.terms.length)
-      links.append(button("Понятия этой главы", () => openTerms(chapter)));
-    node.append(links);
-    const optional = data.extras.filter((extra) => extra.parent === chapter.id);
-    if (optional.length) {
-      const list = el("div", "optional-list");
-      for (const extra of optional) {
-        const b = button(extra.title, () => openExtra(extra.id), "extra-link");
-        b.dataset.extra = extra.id;
-        b.classList.toggle("done", state.extrasDone.includes(extra.id));
-        list.append(b);
-      }
-      node.append(list);
-    }
-    return node;
-  }
-  function resolution(chapter, section, pending = false) {
-    const selected = chapter.decision.options[state.choices[chapter.id]];
-    if (selected) section.append(message("reader", [selected.label]).node);
-    const rest = chapter.messages
-      .find((m) => m.speaker === "team")
-      .paragraphs.slice(chapter.decision.afterTeamParagraph);
-    const result = message(
-      "team",
-      selected ? [selected.reply, ...rest] : rest,
-      pending,
-    );
-    section.append(result.node);
-    return result;
-  }
-  function appendIntroduction(chapter, pending = false) {
-    const section = el("section", "chapter");
-    section.id = chapter.id;
-    const heading = el("header", "chapter-heading");
-    const group = data.groups.find((g) => g.chapters.includes(chapter.id));
-    heading.append(
-      el("p", "eyebrow", group.title),
-      el("h2", "", chapter.title),
-    );
-    section.append(heading);
-    $("messages").append(section);
-    sections.set(chapter.id, section);
-    for (const item of chapter.messages.filter((m) => m.speaker === "sasha"))
-      section.append(message("sasha", item.paragraphs).node);
-    const intro = chapter.messages
-      .find((m) => m.speaker === "team")
-      .paragraphs.slice(0, chapter.decision.afterTeamParagraph);
-    const start = message("team", intro, pending);
-    section.append(start.node);
-    return { section, start };
-  }
-  function introductionReady() {
-    renderComposer();
-    $("announcement").textContent =
-      "Ответ команды готов. Можно выбрать вопрос.";
-    updateJump();
-  }
-  function renderTranscript(animateLast = false) {
-    if (stream) {
-      cancelAnimationFrame(frame);
-      stream = null;
-    }
-    sections.clear();
-    $("messages").replaceChildren();
-    const count = state.book ? chapters.length : state.opened;
-    for (let i = 0; i < count; i++) {
-      const chapter = chapters[i];
-      const pending =
-        animateLast &&
-        i === count - 1 &&
-        !state.book &&
-        state.choices[chapter.id] === undefined;
-      const { section, start } = appendIntroduction(chapter, pending);
-      if (
-        state.book ||
-        i < count - 1 ||
-        state.choices[chapter.id] !== undefined
-      ) {
-        resolution(chapter, section);
-        section.append(footer(chapter));
-      }
-      if (pending) animate(start, introductionReady);
-    }
-    renderComposer();
-    renderSkills();
-  }
-  function choose(index) {
-    if (stream || state.book) return;
-    const chapter = chapters[state.opened - 1];
-    if (state.choices[chapter.id] !== undefined) return;
-    state.choices[chapter.id] = index;
-    save();
-    // Keep the scroll position: the selected question and answer grow below the
-    // paragraph the reader just finished instead of moving the reader to its end.
-    following = false;
-    const result = resolution(chapter, sections.get(chapter.id), true);
-    animate(result, () => {
-      sections.get(chapter.id).append(footer(chapter));
-      if (state.opened < chapters.length) nextChapter();
-      else {
-        renderComposer();
-        $("announcement").textContent = "История закончилась.";
-      }
-      updateJump();
-    });
-  }
-  function nextChapter() {
-    if (stream || state.opened >= chapters.length) return;
-    state.opened++;
-    save();
-    const current = chapters[state.opened - 1];
-    const { start } = appendIntroduction(current, true);
-    renderSkills();
-    animate(start, introductionReady);
-  }
-  function renderComposer() {
-    const node = $("composer");
-    node.replaceChildren();
-    $("composer-note").textContent = state.book
-      ? "Режим чтения. Отметки сохраняются только по вашему выбору."
-      : "Выбирайте вопросы вместо ввода текста. Это подготовленная история.";
-    if (stream) {
-      const controls = el("div", "stream-controls");
-      controls.append(
-        el("span", "", "Команда отвечает…"),
-        button("Показать сразу", flushStream),
-      );
-      node.append(controls);
-      return;
-    }
-    if (state.book) {
-      const controls = el("div", "book-controls");
-      controls.append(
-        el("span", "", "Весь рассказ открыт"),
-        button("Карта знаний", () => {
-          renderSkills();
-          showDialog("skills");
-        }),
-      );
-      node.append(controls);
-      return;
-    }
-    const chapter = chapters[state.opened - 1];
-    const choices = el("div", "choices");
-    if (state.choices[chapter.id] === undefined) {
-      node.append(el("p", "composer-prompt", chapter.title));
-      chapter.decision.options.forEach((option, index) =>
-        choices.append(button(option.label, () => choose(index))),
-      );
-    } else if (state.opened < chapters.length) {
-      choices.append(button("Продолжить разговор", nextChapter));
-    } else {
-      node.append(
+      d.append(
+        summary,
         el(
           "p",
-          "composer-prompt",
-          "История закончилась. Впереди — анатомия агента.",
+          "small muted thread-context",
+          "Раньше в этот день · детали можно пропустить без потери основного разговора.",
         ),
       );
-      choices.append(
-        button("Посмотреть, что уже изучено", () => {
-          renderSkills();
-          showDialog("skills");
-        }),
-      );
-    }
-    node.append(choices);
-  }
-  function renderSkills() {
-    const n = state.completed.length;
-    $("header-progress").textContent = `${n} / ${chapters.length}`;
-    $("skills-summary").textContent =
-      `Изучено ${n} из ${chapters.length} глав. Осталось ${chapters.length - n}.`;
-    $("skills-progress").max = chapters.length;
-    $("skills-progress").value = n;
-    const content = $("skill-groups");
-    content.replaceChildren();
-    for (const group of data.groups) {
-      const section = el("section", "skill-group");
-      const done = group.chapters.filter((id) =>
-        state.completed.includes(id),
-      ).length;
-      section.append(
-        el("h3", "", group.title + ` · ${done} / ${group.chapters.length}`),
-        el("p", "", group.skill),
-      );
-      const list = el("ol", "skill-path");
-      for (const id of group.chapters) {
-        const chapter = byId.get(id),
-          index = chapters.indexOf(chapter),
-          li = el("li");
-        const completed = state.completed.includes(id),
-          opened = state.book || index < state.opened;
-        li.classList.toggle("studied", completed);
-        li.classList.toggle(
-          "current",
-          !state.book && index === state.opened - 1,
-        );
-        const b = button(chapter.title, () => {
-          $("skills").close();
-          navigate(id);
-        });
-        li.append(
-          b,
-          el(
-            "span",
-            "chapter-state",
-            completed
-              ? "Изучено ✓"
-              : opened
-                ? "Открыто · без отметки"
-                : "Впереди",
-          ),
-        );
-        const children = data.extras.filter((extra) => extra.parent === id);
-        if (children.length) {
-          const sub = el("div", "optional-branch");
-          const count = children.filter((extra) =>
-            state.extrasDone.includes(extra.id),
-          ).length;
-          sub.append(
-            el(
-              "span",
-              "optional-state",
-              (count === children.length ? "✓" : count ? "◐" : "+") +
-                ` Необязательные разборы · ${count} / ${children.length}`,
-            ),
-          );
-          for (const extra of children)
-            sub.append(
-              button(extra.title, () => {
-                $("skills").close();
-                openExtra(extra.id);
-              }),
-            );
-          li.append(sub);
-        }
-        list.append(li);
+      const body = el("div", "thread-messages");
+      parentNodes.set(t.id, body);
+      d.append(body);
+      if (t.id === "tokens-bpe") {
+        const a = el("a", "small", "Проверить текст настоящим токенизатором ↗");
+        a.href = "demos/tokens.html";
+        a.target = "_blank";
+        d.append(a);
       }
-      section.append(list);
-      content.append(section);
+      d.addEventListener("toggle", () => {
+        const desired = threadOpen(t);
+        if (d.open === desired) return;
+        if (d.open) {
+          state.expanded = [...new Set([...state.expanded, t.id])];
+          state.collapsed = state.collapsed.filter((id) => id !== t.id);
+        } else {
+          state.expanded = state.expanded.filter((id) => id !== t.id);
+          state.collapsed = [...new Set([...state.collapsed, t.id])];
+        }
+        save();
+        sync();
+      });
+      node.append(d);
+    }
+    const check = el("details", "knowledge-check");
+    check.dataset.quiz = c.id;
+    const count = c.checks.filter(activeQuestion).length;
+    check.append(
+      el(
+        "summary",
+        "",
+        `Проверить понимание · ${count} ${count === 1 ? "вопрос" : "вопроса"}`,
+      ),
+    );
+    const body = el("div", "quiz-body");
+    check.append(body);
+    check.addEventListener("toggle", () => {
+      if (check.open && !quizSessions.has(c.id))
+        startQuiz(c.id, c.checks.filter(activeQuestion), body);
+    });
+    node.append(check, sourceLinks(c));
+    return node;
+  }
+  function showChoice(c) {
+    const node = el("section", "reply-options");
+    node.setAttribute("aria-label", "Варианты сообщения Саши");
+    node.append(el("p", "small muted", "Саша может написать…"));
+    for (const [i, option] of c.decision.options.entries())
+      node.append(button(option.label, () => choose(c, i), "reply-option"));
+    return node;
+  }
+  function mount(event, mark = true) {
+    if (mounted.has(event.id)) return;
+    let node;
+    if (event.type === "heading") {
+      node = el("section", "chapter-heading");
+      node.dataset.chapter = event.chapter.id;
+      node.append(
+        el("span", "elapsed", event.chapter.elapsed),
+        el("h2", "", event.chapter.title),
+      );
+    } else if (event.type === "message") node = bubble(event);
+    else if (event.type === "narration")
+      node = el("p", "narration", event.text);
+    else if (event.type === "visual") node = diagram(event);
+    else if (event.type === "choice") node = showChoice(event.chapter);
+    else if (event.type === "supplement") node = supplement(event.chapter);
+    else return;
+    node.id = event.id;
+    node.classList.add("new-message");
+    (event.parent ? parentNodes.get(event.parent) : $("messages"))?.append(
+      node,
+    );
+    mounted.set(event.id, node);
+    if (mark && event.type !== "choice") {
+      seen.add(event.id);
+      save();
+    }
+    updateProgress();
+  }
+  function stopTimer() {
+    clearTimeout(timer);
+    timer = null;
+    if (busy) {
+      busy.typing?.remove();
+      busy = null;
     }
   }
-  function navigate(rawId) {
-    const aliases = { "whole-story": "human-search", rules: "patterns" };
-    const id = aliases[rawId] || rawId;
-    if (extras.has(id)) {
-      openExtra(id);
-      return;
-    }
-    const chapter = byId.get(id);
-    if (!chapter) return;
-    flushStream();
-    const index = chapters.indexOf(chapter);
-    if (!state.book && index >= state.opened) {
-      state.opened = index + 1;
-      save();
-      renderTranscript();
-    }
-    history.replaceState(null, "", "#" + id);
-    sections.get(id)?.scrollIntoView({
-      behavior: reducedMotion ? "auto" : "smooth",
-      block: "start",
+  function controls() {
+    const pending = currentTimeline().some((e) => !mounted.has(e.id));
+    $("playback-controls").hidden = readAll || (!busy && !paused && !pending);
+    $("pause").textContent = paused ? "Продолжить" : "Пауза";
+  }
+  function scrollFollow() {
+    if (!following || programmaticScroll) return;
+    programmaticScroll = true;
+    window.scrollTo({
+      top: document.documentElement.scrollHeight,
+      behavior: "auto",
+    });
+    requestAnimationFrame(() => {
+      programmaticScroll = false;
     });
   }
-  document
-    .querySelectorAll("[data-close]")
-    .forEach((b) =>
-      b.addEventListener("click", () => b.closest("dialog").close()),
-    );
-  document.querySelectorAll("dialog").forEach((dialog) =>
-    dialog.addEventListener("click", (event) => {
-      if (event.target === dialog) {
-        const r = dialog.getBoundingClientRect();
-        if (
-          event.clientX < r.left ||
-          event.clientX > r.right ||
-          event.clientY < r.top ||
-          event.clientY > r.bottom
-        )
-          dialog.close();
+  function nearBottom() {
+    return document.documentElement.scrollHeight - scrollY - innerHeight < 180;
+  }
+  function updateJump() {
+    $("jump").hidden = nearBottom() || !state.started;
+  }
+  function typingFor(event) {
+    const who = event.type === "message" ? nameOf(event.speaker) : null;
+    const n = el("div", who ? "typing" : "time-passing");
+    if (who) {
+      n.append(el("span", "small", who + " печатает"));
+      const dots = el("span", "typing-dots");
+      dots.setAttribute("aria-hidden", "true");
+      for (let i = 0; i < 3; i++) dots.append(el("i"));
+      n.append(dots);
+    } else
+      n.textContent = event.type === "heading" ? event.chapter.elapsed : "…";
+    $("typing-status").textContent = who
+      ? who + " печатает сообщение"
+      : n.textContent;
+    return n;
+  }
+  function advance() {
+    if (busy || paused || readAll) {
+      controls();
+      return;
+    }
+    const event = currentTimeline().find((e) => !mounted.has(e.id));
+    if (!event) {
+      controls();
+      updateProgress();
+      updateJump();
+      return;
+    }
+    if (
+      seen.has(event.id) ||
+      event.type === "choice" ||
+      event.type === "supplement" ||
+      event.outgoing ||
+      state.pace === "instant"
+    ) {
+      mount(event);
+      scrollFollow();
+      advance();
+      return;
+    }
+    const target = event.parent ? parentNodes.get(event.parent) : $("messages");
+    const typing = typingFor(event);
+    target?.append(typing);
+    busy = { event, typing };
+    controls();
+    scrollFollow();
+    const length = event.paragraphs?.join(" ").length || 120;
+    const delay =
+      state.pace === "fast"
+        ? 70
+        : event.type === "message"
+          ? Math.min(1250, 380 + length * 1.3)
+          : event.type === "heading"
+            ? 850
+            : 320;
+    timer = setTimeout(() => {
+      typing.remove();
+      busy = null;
+      mount(event);
+      scrollFollow();
+      advance();
+    }, delay);
+  }
+  function refreshCheckFilters() {
+    for (const c of chapters) {
+      const d = document.querySelector(`[data-quiz="${c.id}"]`);
+      if (!d) continue;
+      const qs = c.checks.filter(activeQuestion);
+      d.querySelector("summary").textContent =
+        `Проверить понимание · ${qs.length} ${qs.length === 1 ? "вопрос" : "вопроса"}`;
+      const session = quizSessions.get(c.id);
+      if (
+        session &&
+        session.qs.map((q) => q.id).join() !== qs.map((q) => q.id).join()
+      ) {
+        session.active = false;
+        clearTimeout(session.timer);
+        quizSessions.delete(c.id);
+        const body = d.querySelector(".quiz-body");
+        body.replaceChildren();
+        if (d.open) startQuiz(c.id, qs, body);
       }
-    }),
-  );
-  $("skills-open").addEventListener("click", () => {
+    }
+  }
+  function sync() {
+    stopTimer();
+    refreshCheckFilters();
+    for (const [id, { thread: t }] of threads) {
+      const body = parentNodes.get(id);
+      if (body) body.closest("details").open = threadOpen(t);
+    }
+    if (readAll) {
+      for (const e of currentTimeline(true)) mount(e, false);
+      updateProgress();
+      controls();
+      return;
+    }
+    advance();
+    updateProgress();
+    controls();
+  }
+  function revealAvailable() {
+    stopTimer();
+    for (const e of currentTimeline()) if (!mounted.has(e.id)) mount(e);
+    controls();
+    updateProgress();
+    scrollFollow();
+  }
+  function choose(c, index) {
+    if (state.choices[c.id] !== undefined || busy || readAll) return;
+    state.choices[c.id] = index;
+    save();
+    mounted.get(c.id + "--choice")?.remove();
+    mounted.delete(c.id + "--choice");
+    following = nearBottom();
+    advance();
+  }
+  function clearTranscript() {
+    stopTimer();
+    for (const q of quizSessions.values()) {
+      q.active = false;
+      clearTimeout(q.timer);
+    }
+    mounted.clear();
+    parentNodes.clear();
+    quizSessions.clear();
+    introduced.clear();
+    $("messages").replaceChildren();
+    $("final-check-body").replaceChildren();
+  }
+  function renderRestored() {
+    clearTranscript();
+    for (const e of currentTimeline()) {
+      if (readAll || seen.has(e.id)) mount(e, false);
+      else break;
+    }
+    sync();
+  }
+  function forwarded(reference) {
+    const entry = messages.get(reference);
+    if (!entry) return el("p", "", "Сообщение не найдено.");
+    const block = el("blockquote", "forwarded");
+    block.append(
+      el(
+        "p",
+        "forward-label",
+        "Переслано · " +
+          entry.chapter.title +
+          (entry.thread ? " / " + entry.thread.title : ""),
+      ),
+    );
+    const e = entry.event;
+    block.append(
+      e.type === "message"
+        ? bubble(e, true)
+        : e.type === "visual"
+          ? diagram(e)
+          : el("p", "", e.text),
+    );
+    block.append(
+      button(
+        "Показать в переписке",
+        () => navigate(reference, block),
+        "text-button",
+      ),
+    );
+    return block;
+  }
+  function quizMessage(who, text) {
+    return bubble({ speaker: who, paragraphs: [text] }, true);
+  }
+  function quizIncoming(session, text, done = () => {}) {
+    if (session.active === false) return;
+    if (state.pace === "instant") {
+      session.body.append(quizMessage("nina", text));
+      done();
+      return;
+    }
+    const typing = typingFor({ type: "message", speaker: "nina" });
+    session.body.append(typing);
+    session.timer = setTimeout(
+      () => {
+        if (session.active === false) return;
+        typing.remove();
+        session.body.append(quizMessage("nina", text));
+        done();
+      },
+      state.pace === "fast" ? 70 : Math.min(1100, 350 + text.length),
+    );
+  }
+  function startQuiz(id, qs, body) {
+    const previous = quizSessions.get(id);
+    if (previous) {
+      previous.active = false;
+      clearTimeout(previous.timer);
+    }
+    if (!qs.length) {
+      body.replaceChildren(
+        el("p", "", "Включите дополнительные темы, чтобы открыть эти вопросы."),
+      );
+      return;
+    }
+    const session = { id, qs, body, index: 0, active: true };
+    quizSessions.set(id, session);
+    body.replaceChildren();
+    quizIncoming(
+      session,
+      "Я Нина, проверяю качество. Здесь важна связь между проблемой и решением. Если ответ не сложится, вернёмся к сообщениям, где команда с этим разбиралась.",
+      () => ask(session),
+    );
+  }
+  function ask(session) {
+    if (session.index >= session.qs.length) {
+      const passed = session.qs.filter(
+        (q) => state.answers[q.id]?.at(-1) === q.correct,
+      ).length;
+      quizIncoming(
+        session,
+        `На ${passed} из ${session.qs.length} вопросов последний ответ верный. Это результат этой проверки; к объяснениям можно вернуться в любой момент.`,
+        () =>
+          session.body.append(
+            button(
+              "Пройти ещё раз",
+              () => startQuiz(session.id, session.qs, session.body),
+              "text-button",
+            ),
+          ),
+      );
+      return;
+    }
+    const q = session.qs[session.index];
+    quizIncoming(session, q.question, () => {
+      const options = el("div", "reply-options quiz-options");
+      for (const [i, label] of q.options.entries())
+        options.append(
+          button(
+            label,
+            () => {
+              options.remove();
+              session.body.append(quizMessage("sasha", label));
+              state.answers[q.id] = [...(state.answers[q.id] || []), i].slice(
+                -30,
+              );
+              save();
+              const correct = i === q.correct;
+              quizIncoming(
+                session,
+                (correct ? "Да. " : "Пока не так. ") + q.explanation,
+                () => {
+                  if (!correct) {
+                    const f = el("div", "forwards");
+                    f.append(
+                      el(
+                        "p",
+                        "small muted",
+                        "Вот переписка: проблема, попытка и решение.",
+                      ),
+                    );
+                    for (const ref of q.references) f.append(forwarded(ref));
+                    session.body.append(f);
+                  }
+                  const actions = el("div", "quiz-actions");
+                  if (!correct)
+                    actions.append(
+                      button(
+                        "Попробовать ещё раз",
+                        () => {
+                          actions.remove();
+                          ask(session);
+                        },
+                        "text-button",
+                      ),
+                    );
+                  actions.append(
+                    button(
+                      session.index + 1 === session.qs.length
+                        ? "Завершить проверку"
+                        : "Следующий вопрос",
+                      () => {
+                        actions.remove();
+                        session.index++;
+                        ask(session);
+                      },
+                      "text-button",
+                    ),
+                  );
+                  session.body.append(actions);
+                  renderSkills();
+                },
+              );
+            },
+            "reply-option",
+          ),
+        );
+      session.body.append(options);
+    });
+  }
+  function hasSeenChapter(id) {
+    const c = byChapter.get(id);
+    return c && c.outro.some((e) => seen.has(e.id));
+  }
+  function renderSkills() {
+    const active = [...questions.values()]
+      .map((x) => x.question)
+      .filter(activeQuestion);
+    const correct = active.filter(
+      (q) => state.answers[q.id]?.at(-1) === q.correct,
+    ).length;
+    $("skill-summary").textContent =
+      `Верные последние ответы: ${correct} из ${active.length} вопросов по выбранным темам.`;
+    const draw = (node) => {
+      const li = el("li", "skill-node");
+      if (node.children) {
+        li.append(el("h3", "", node.title));
+        const ul = el("ul", "skill-children");
+        for (const c of node.children) ul.append(draw(c));
+        li.append(ul);
+      } else {
+        const relevant = active.filter((q) =>
+            q.terms.some((t) => node.terms.includes(t)),
+          ),
+          passed = relevant.filter(
+            (q) => state.answers[q.id]?.at(-1) === q.correct,
+          ).length;
+        const wrong = relevant.some(
+          (q) =>
+            state.answers[q.id]?.length &&
+            state.answers[q.id].at(-1) !== q.correct,
+        );
+        const encountered = node.chapters.some(hasSeenChapter);
+        li.classList.add(
+          passed === relevant.length && relevant.length
+            ? "checked"
+            : wrong
+              ? "review"
+              : encountered
+                ? "encountered"
+                : "ahead",
+        );
+        li.append(
+          el("strong", "", node.title),
+          el(
+            "span",
+            "skill-state",
+            passed === relevant.length && relevant.length
+              ? `Проверено · ${passed}/${relevant.length}`
+              : wrong
+                ? `Стоит повторить · верно ${passed}/${relevant.length}`
+                : encountered
+                  ? `Встречалось · проверено ${passed}/${relevant.length}`
+                  : "Впереди",
+          ),
+        );
+        const actions = el("div", "skill-actions");
+        actions.append(
+          button(
+            "К объяснению",
+            () => {
+              $("skills").close();
+              navigate(node.chapters[0]);
+            },
+            "text-button",
+          ),
+        );
+        if (encountered || readAll)
+          actions.append(
+            button(
+              "Проверить",
+              () => {
+                $("skills").close();
+                openSkillQuiz(node, relevant);
+              },
+              "text-button",
+            ),
+          );
+        li.append(actions);
+      }
+      return li;
+    };
+    const root = el("ul", "skill-root");
+    for (const child of data.skillTree.children) root.append(draw(child));
+    $("skill-tree").replaceChildren(root);
+  }
+  function chapterOf(target) {
+    return (
+      byChapter.get(target) ||
+      messages.get(target)?.chapter ||
+      threads.get(target)?.chapter
+    );
+  }
+  function navigate(raw, returnTo = null) {
+    const id = data.aliases[raw] || raw,
+      c = chapterOf(id);
+    if (!c) return;
+    const thread = threads.get(id)?.thread || messages.get(id)?.thread;
+    // Existing explanations remain in place, including an open assessment.
+    // Future explanations are a preview and do not advance the saved story.
+    if (!mounted.has(c.id + "--heading")) {
+      stopTimer();
+      readAll = true;
+      renderRestored();
+    }
+    if (thread) {
+      state.expanded = [...new Set([...state.expanded, thread.id])];
+      state.collapsed = state.collapsed.filter((x) => x !== thread.id);
+      save();
+      const body = parentNodes.get(thread.id);
+      if (body) {
+        body.closest("details").open = true;
+        for (const e of thread.messages)
+          mount({ ...e, parent: thread.id, optional: true }, false);
+      }
+    }
+    const target =
+      document.getElementById(id) ||
+      document.getElementById(c.id + "--heading");
+    document.querySelector(".return-question")?.remove();
+    if (returnTo?.isConnected && target) {
+      const back = button(
+        "Вернуться к вопросу",
+        () => {
+          returnTo.scrollIntoView({ block: "center" });
+          back.remove();
+        },
+        "return-question text-button",
+      );
+      target.before(back);
+    }
+    target?.scrollIntoView({
+      behavior: reduced ? "auto" : "smooth",
+      block: "center",
+    });
+    target?.classList.add("highlight");
+    setTimeout(() => target?.classList.remove("highlight"), 2000);
+    history.replaceState(null, "", "#" + id);
+  }
+  function openSkillQuiz(node, qs) {
+    explicitQuiz = true;
+    $("final-check").hidden = false;
+    $("final-check").querySelector("h2").textContent =
+      "Проверка ветви: " + node.title;
+    startQuiz("skill-" + node.id, qs, $("final-check-body"));
+    $("final-check").scrollIntoView({ block: "start" });
+  }
+  function showDialog(id) {
+    if (!$(id).open) $(id).showModal();
+  }
+  for (const t of data.tracks) {
+    const label = el("label", "track"),
+      input = el("input");
+    input.type = "checkbox";
+    input.value = t.id;
+    input.checked = state.tracks.includes(t.id);
+    input.dataset.track = t.id;
+    const span = el("span");
+    span.append(el("strong", "", t.title), el("small", "", t.description));
+    label.append(input, span);
+    $("track-options").append(label);
+    input.addEventListener("change", () => {
+      state.tracks = input.checked
+        ? [...new Set([...state.tracks, t.id])]
+        : state.tracks.filter((x) => x !== t.id);
+      if (input.checked)
+        state.collapsed = state.collapsed.filter(
+          (id) => threads.get(id)?.thread.track !== t.id,
+        );
+      save();
+      sync();
+    });
+  }
+  for (const p of data.characters.filter(
+    (p) => !["tool", "agent"].includes(p.id),
+  )) {
+    const item = el("p");
+    item.append(
+      el("strong", "", p.name + ". "),
+      document.createTextNode(p.role),
+    );
+    $("cast").append(item);
+  }
+  $("preferences").open = !state.started;
+  $("start").addEventListener("click", () => {
+    state.started = true;
+    $("preferences").open = false;
+    save();
+    following = false;
+    sync();
+  });
+  $("preferences-open").addEventListener("click", () => {
+    $("preferences").open = !$("preferences").open;
+    $("preferences").scrollIntoView({
+      behavior: reduced ? "auto" : "smooth",
+      block: "start",
+    });
+  });
+  $("progress-open").addEventListener("click", () => {
     renderSkills();
     showDialog("skills");
   });
-  $("reading-open").addEventListener("click", () => showDialog("reading"));
+  $("settings-open").addEventListener("click", () => showDialog("settings"));
   $("about-open").addEventListener("click", () => showDialog("about"));
-  $("speed").value = state.speed;
-  $("speed").addEventListener("change", () => {
-    state.speed = $("speed").value;
-    save();
-    if (state.speed === "instant") flushStream();
+  $("reveal-now").addEventListener("click", revealAvailable);
+  $("pause").addEventListener("click", () => {
+    paused = !paused;
+    if (paused) stopTimer();
+    else advance();
+    controls();
   });
-  $("book-mode").addEventListener("click", () => {
-    flushStream();
-    state.book = true;
+  $("pace").value = state.pace;
+  $("pace").addEventListener("change", () => {
+    state.pace = $("pace").value;
     save();
-    $("reading").close();
-    renderTranscript();
+    sync();
   });
-  $("chat-mode").addEventListener("click", () => {
-    state.book = false;
-    save();
-    $("reading").close();
-    renderTranscript();
-    sections
-      .get(chapters[state.opened - 1].id)
-      .scrollIntoView({ block: "start" });
+  $("read-all").addEventListener("click", () => {
+    $("settings").close();
+    readAll = true;
+    renderRestored();
   });
+  function returnToChat() {
+    $("settings").close();
+    readAll = false;
+    renderRestored();
+    const last = [...mounted.values()].at(-1);
+    last?.scrollIntoView({ block: "end" });
+  }
+  $("back-to-chat").addEventListener("click", returnToChat);
+  $("return-inline").addEventListener("click", returnToChat);
+  $("all-checks").addEventListener("click", () =>
+    startQuiz(
+      "all",
+      [...questions.values()].map((x) => x.question).filter(activeQuestion),
+      $("final-check-body"),
+    ),
+  );
+  for (const b of document.querySelectorAll("[data-close]"))
+    b.addEventListener("click", () => b.closest("dialog").close());
+  for (const d of document.querySelectorAll("dialog"))
+    d.addEventListener("click", (e) => {
+      if (e.target === d) {
+        const r = d.getBoundingClientRect();
+        if (
+          e.clientX < r.left ||
+          e.clientX > r.right ||
+          e.clientY < r.top ||
+          e.clientY > r.bottom
+        )
+          d.close();
+      }
+    });
   $("jump").addEventListener("click", () => {
     following = true;
-    scrollEnd("smooth");
+    window.scrollTo({
+      top: document.documentElement.scrollHeight,
+      behavior: reduced ? "auto" : "smooth",
+    });
   });
-  let lastScroll = scrollY;
+  let previous = scrollY;
   addEventListener(
     "scroll",
     () => {
-      if (scrollY < lastScroll - 3) following = false;
-      lastScroll = scrollY;
+      if (!programmaticScroll && scrollY < previous - 3) following = false;
+      previous = scrollY;
       updateJump();
     },
     { passive: true },
   );
   addEventListener(
     "wheel",
-    (event) => {
-      if (event.deltaY < 0) following = false;
+    (e) => {
+      if (e.deltaY < 0) following = false;
     },
     { passive: true },
   );
   addEventListener("hashchange", () =>
     navigate(decodeURIComponent(location.hash.slice(1))),
   );
-  const observer = new ResizeObserver(() => {
-    document.documentElement.style.setProperty(
-      "--composer-height",
-      document.querySelector(".composer-wrap").offsetHeight + "px",
-    );
-    updateJump();
-  });
-  observer.observe(document.querySelector(".composer-wrap"));
   save();
-  const hasHash = location.hash.length > 1;
-  renderTranscript(
-    !hasHash &&
-      state.opened === 1 &&
-      state.choices[chapters[0].id] === undefined &&
-      !state.book,
-  );
-  if (hasHash) navigate(decodeURIComponent(location.hash.slice(1)));
-  else if (state.opened > 1 && !state.book) {
-    sections
-      .get(chapters[state.opened - 1].id)
-      .scrollIntoView({ block: "start" });
-  }
-  updateJump();
+  renderRestored();
+  renderSkills();
+  if (location.hash) navigate(decodeURIComponent(location.hash.slice(1)));
 })();
