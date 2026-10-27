@@ -1,0 +1,108 @@
+configuration:
+  pageTitle: UnknownTalks / init-ru
+  pageTitleSuffix: " · UnknownTalks"
+  enableSPA: true
+  enablePopovers: true
+  analytics: null
+  locale: ru-RU
+  baseUrl: unknowntalks.github.io/init-ru
+  ignorePatterns: []
+  theme:
+    fontOrigin: local
+    cdnCaching: false
+    typography:
+      header: system-ui
+      body: system-ui
+      code: ui-monospace
+    colors:
+      lightMode:
+        light: "#faf9f6"
+        lightgray: "#e4e1db"
+        gray: "#a8a29a"
+        darkgray: "#4c4945"
+        dark: "#25232b"
+        secondary: "#6650a4"
+        tertiary: "#3a8275"
+        highlight: "#6650a416"
+        textHighlight: "#bfa9f340"
+      darkMode:
+        light: "#15171e"
+        lightgray: "#343949"
+        gray: "#777f92"
+        darkgray: "#bac0ce"
+        dark: "#efedf6"
+        secondary: "#c2b4ff"
+        tertiary: "#83cfb9"
+        highlight: "#c2b4ff16"
+        textHighlight: "#bfa9f340"
+plugins:
+  - source: "@quartz-community/note-properties"
+    enabled: true
+    order: 1
+    options:
+      hidePropertiesView: true
+  - source: "@quartz-community/obsidian-flavored-markdown"
+    enabled: true
+    order: 10
+  - source: "@quartz-community/github-flavored-markdown"
+    enabled: true
+    order: 20
+  - source: "@quartz-community/syntax-highlighting"
+    enabled: true
+    order: 30
+  - source: "@quartz-community/crawl-links"
+    enabled: true
+    options:
+      markdownLinkResolution: relative
+    order: 40
+  - source: "@quartz-community/description"
+    enabled: true
+    order: 50
+  - source: "@quartz-community/content-index"
+    enabled: true
+    options:
+      enableSiteMap: true
+      enableRSS: false
+  - source: "@quartz-community/canvas-page"
+    enabled: true
+    options:
+      enableInteraction: true
+      minZoom: 0.08
+      maxZoom: 3
+  - source: "@quartz-community/content-page"
+    enabled: true
+  - source: "@quartz-community/folder-page"
+    enabled: true
+  - source: "@quartz-community/explorer"
+    enabled: true
+    layout:
+      position: left
+      priority: 50
+  - source: "@quartz-community/search"
+    enabled: true
+    layout:
+      position: left
+      priority: 20
+  - source: "@quartz-community/page-title"
+    enabled: true
+    layout:
+      position: left
+      priority: 10
+  - source: "@quartz-community/darkmode"
+    enabled: true
+    layout:
+      position: left
+      priority: 30
+  - source: "@quartz-community/table-of-contents"
+    enabled: true
+    layout:
+      position: right
+      priority: 10
+  - source: "@quartz-community/backlinks"
+    enabled: true
+    layout:
+      position: right
+      priority: 20
+layout:
+  byPageType:
+    canvas: {}

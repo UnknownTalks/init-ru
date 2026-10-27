@@ -1,0 +1,12 @@
+UnknownTalks token demonstration
+
+Tokenizer data: Qwen/Qwen2.5-0.5B
+Revision: 060db6499f32faf8b98477b0a26969ef7d8b9987
+Source: https://huggingface.co/Qwen/Qwen2.5-0.5B/tree/060db6499f32faf8b98477b0a26969ef7d8b9987
+License: Apache License 2.0; see QWEN-LICENSE.txt.
+
+Runtime: Hugging Face Tokenizers.js 0.2.0
+Source: https://github.com/huggingface/tokenizers.js
+License: Apache License 2.0; see TOKENIZERS-LICENSE.txt.
+The runtime is bundled as tokenizers.js; tokenizer JSON is wrapped as qwen-tokenizer.js.
+No model weights are included.
