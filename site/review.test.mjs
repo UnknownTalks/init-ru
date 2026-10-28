@@ -182,3 +182,43 @@ test("local HTTP injection, origin checks and UTF-8 persistence", async (t) => {
   });
   assert.equal(blocked, 403);
 });
+
+test("deleting is reversible, preserves the block, and excludes feedback from the agent report", async (t) => {
+  const store = new ReviewStore(await temporary(t));
+  const original = await store.create({
+    ...input(),
+    anchor: { ...input().anchor, kind: "block" },
+  });
+  const deleted = await store.update(original.id, {
+    status: "deleted",
+    baseUpdatedAt: original.updatedAt,
+  });
+  assert.equal(deleted.previousStatus, "open");
+  assert.deepEqual(deleted.anchor, original.anchor);
+  assert(!reviewMarkdown(await store.read()).includes(original.body));
+  await assert.rejects(
+    store.update(original.id, { body: "editing a deleted item" }),
+    { status: 409 },
+  );
+  const restored = await store.update(original.id, {
+    status: deleted.previousStatus,
+    baseUpdatedAt: deleted.updatedAt,
+  });
+  assert.equal(restored.status, "open");
+  assert.equal(restored.deletedAt, undefined);
+  assert.match(
+    reviewMarkdown(await store.read()),
+    /Тут нужно объяснить причину/,
+  );
+  const closed = await store.update(original.id, {
+    status: "resolved",
+    resolution: "Original resolution",
+  });
+  const trashed = await store.update(original.id, { status: "deleted" });
+  assert.equal(trashed.previousStatus, "resolved");
+  const recovered = await store.update(original.id, {
+    status: trashed.previousStatus,
+  });
+  assert.equal(recovered.resolution, closed.resolution);
+  assert.equal(recovered.resolvedAt, closed.resolvedAt);
+});

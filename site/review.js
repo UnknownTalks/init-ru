@@ -10,20 +10,16 @@
   host.style.cssText =
     "position:fixed;inset:0;z-index:2147483000;pointer-events:none";
   const shadow = host.attachShadow({ mode: "open" });
-  shadow.innerHTML = `<link rel="stylesheet" href="/__review/review.css"><div id="outline" hidden></div><span id="pin" hidden></span><button id="selection" hidden>＋ Комментарий к выделению</button><button id="toggle" aria-expanded="false">Рецензия <span id="count">0</span></button><div id="picking" hidden>Нажмите на нужный элемент · Esc — отмена</div><section id="panel" aria-label="Локальные замечания" hidden><header><strong>Локальная рецензия</strong><button id="close" aria-label="Свернуть замечания">×</button></header><p class="intro">Выделите текст или выберите элемент. Замечания сохраняются в файл на этом компьютере.</p><div class="actions"><button id="pick">Выбрать элемент</button><button id="page">К странице в целом</button></div><form id="editor" hidden><p id="target-title"></p><blockquote id="quote" hidden></blockquote><label for="category">Что изменить</label><select id="category"><option value="content">Текст</option><option value="explanation">Объяснение / логика</option><option value="ui">Интерфейс</option><option value="other">Другое</option></select><label for="body">Замечание</label><textarea id="body" rows="5" maxlength="20000" placeholder="Что не так и какого результата хочется…"></textarea><p id="draft-status" class="muted small"></p><div class="actions"><button id="save" type="submit">Сохранить</button><button id="cancel" type="button">Отменить</button></div></form><p id="status" role="status"></p><div class="list-header"><select id="filter" aria-label="Какие замечания показать"><option value="open">Открытые</option><option value="resolved">Готовые</option><option value="all">Все</option></select><button id="refresh">Обновить</button></div><input id="search" type="search" aria-label="Найти замечание" placeholder="Найти по тексту, месту или номеру…"><div id="comments"></div><footer><button id="export-json">Скачать JSON</button><button id="export-md">Текст для агента</button><p id="file" class="small muted"></p></footer></section>`;
+  shadow.innerHTML = `<link rel="stylesheet" href="/__review/review.css"><div id="outline" hidden></div><span id="pin" hidden></span><button id="selection" hidden>＋ Комментировать выделение</button><button id="toggle" aria-expanded="false">Рецензия <span id="count">0</span></button><div id="picking" hidden>Нажмите на нужный блок · Esc — отмена</div><section id="panel" aria-label="Список правок" hidden><header><strong>Правки</strong><button id="close" aria-label="Свернуть замечания">×</button></header><p class="intro">Выберите блок или выделите текст, затем напишите комментарий.</p><div class="actions"><button id="pick">Прокомментировать блок</button><button id="pick-ui">Элемент интерфейса</button><button id="page">Общее замечание</button></div><form id="editor" hidden><p id="target-title"></p><blockquote id="quote" hidden></blockquote><label for="body">Комментарий</label><textarea id="body" rows="4" maxlength="20000" placeholder="Ваш комментарий…"></textarea><p id="draft-status" class="muted small"></p><div class="actions"><button id="save" type="submit">Сохранить</button><button id="cancel" type="button">Отменить</button></div></form><p id="status" role="status"></p><div id="undo" hidden><span id="undo-label"></span><button id="undo-delete">Отменить удаление</button></div><div class="list-header"><select id="filter" aria-label="Какие правки показать"><option value="all">Все</option><option value="open">Открытые</option><option value="resolved">Закрытые</option><option value="deleted">Удалённые</option></select><button id="refresh">Обновить</button></div><input id="search" type="search" aria-label="Найти правку" placeholder="Найти правку…"><div id="comments"></div></section>`;
   const $ = (id) => shadow.getElementById(id);
-  const categories = {
-    content: "Текст",
-    explanation: "Объяснение",
-    ui: "Интерфейс",
-    other: "Другое",
-  };
   const draftKey = "unknowntalks:local-review:draft:v1";
   const state = {
     comments: [],
     file: "",
     open: false,
     picking: false,
+    pickMode: "block",
+    lastDeleted: null,
     draft: null,
     selection: null,
     target: null,
@@ -102,15 +98,12 @@
   function persistDraft() {
     if (state.draft) {
       state.draft.body = $("body").value;
-      state.draft.category = $("category").value;
     }
     try {
       if (state.draft)
         localStorage.setItem(draftKey, JSON.stringify(state.draft));
       else localStorage.removeItem(draftKey);
-      $("draft-status").textContent = state.draft
-        ? "Черновик сохранён в браузере. В файл попадёт после «Сохранить»."
-        : "";
+      $("draft-status").textContent = state.draft ? "Черновик сохранён." : "";
     } catch {
       $("draft-status").textContent =
         "Черновик пока только в этом окне. Сохраните его перед закрытием.";
@@ -282,14 +275,27 @@
     const draft = state.draft;
     $("editor").hidden = !draft;
     if (!draft) return;
+    const kindLabel = {
+      block: "Блок",
+      text: "Выделенный текст",
+      element: "Элемент интерфейса",
+      page: "Страница в целом",
+    }[draft.anchor.kind];
     $("target-title").textContent =
-      (draft.editingId ? draft.editingId + " · " : "") +
-      (draft.anchor.chapterTitle || draft.anchor.title) +
-      (draft.anchor.kind === "page" ? " · вся страница" : "");
-    $("quote").hidden = !draft.anchor.quote;
-    $("quote").textContent = draft.anchor.quote?.exact || "";
+      kindLabel +
+      (draft.anchor.kind === "page"
+        ? ""
+        : " · " + (draft.anchor.chapterTitle || draft.anchor.title));
+    const preview =
+      draft.anchor.quote?.exact ||
+      (draft.anchor.kind === "block"
+        ? draft.anchor.blockText
+        : draft.anchor.kind === "element"
+          ? draft.anchor.label
+          : "");
+    $("quote").hidden = !preview;
+    $("quote").textContent = preview;
     $("body").value = draft.body;
-    $("category").value = draft.category;
     $("save").textContent = draft.editingId
       ? "Сохранить изменения"
       : "Сохранить";
@@ -304,19 +310,25 @@
     state.picking = false;
     $("picking").hidden = true;
     $("pick").classList.remove("active");
+    $("pick-ui").classList.remove("active");
     document.documentElement.style.removeProperty("cursor");
   }
-  function startPicking() {
+  function startPicking(mode = "block") {
     if (state.draft?.body.trim()) {
       open();
       say("Сначала сохраните или отмените текущий комментарий.", true);
       return;
     }
     state.picking = true;
+    state.pickMode = mode;
     state.selection = null;
     $("selection").hidden = true;
     $("picking").hidden = false;
-    $("pick").classList.add("active");
+    $(mode === "block" ? "pick" : "pick-ui").classList.add("active");
+    $("picking").textContent =
+      mode === "block"
+        ? "Нажмите на нужное сообщение или схему · Esc — отмена"
+        : "Нажмите на нужную кнопку или элемент · Esc — отмена";
     open(false);
     document.documentElement.style.cursor = "crosshair";
   }
@@ -332,6 +344,12 @@
       element.closest("script, style, #ut-review-host")
     )
       return null;
+    if (state.pickMode === "block")
+      return (
+        element.closest(
+          ".message, figure, .reply-options, .chapter-heading, .track, article, .skill-node, .opening, .story-footer, .knowledge-check, .internal-thread, section, header, footer",
+        ) || element
+      );
     return (
       element.closest(
         "button, a, input, select, textarea, summary, progress, figure",
@@ -400,7 +418,10 @@
       if (!target) return;
       event.preventDefault();
       event.stopImmediatePropagation();
-      const result = snapshot(target, "element");
+      const result = snapshot(
+        target,
+        state.pickMode === "block" ? "block" : "element",
+      );
       begin(result.anchor, result.context, target);
     },
     true,
@@ -654,10 +675,73 @@
         : "Показано место замечания " + comment.id + ".",
     );
   }
+  function speakerName(id) {
+    try {
+      return (
+        JSON.parse(
+          document.getElementById("lesson-data").textContent,
+        ).characters.find((p) => p.id === id)?.name || id
+      );
+    } catch {
+      return id;
+    }
+  }
+  async function deleteComment(comment) {
+    if (state.draft?.editingId === comment.id) {
+      say(
+        "Сначала сохраните или отмените редактирование этого комментария.",
+        true,
+      );
+      return;
+    }
+    try {
+      const removed = await api("/comments/" + comment.id, {
+        method: "PATCH",
+        body: JSON.stringify({
+          status: "deleted",
+          baseUpdatedAt: comment.updatedAt,
+        }),
+      });
+      state.lastDeleted = removed;
+      if (state.selectedId === comment.id) {
+        state.target = null;
+        state.selectedId = null;
+        highlightRange = null;
+        updateOutline();
+      }
+      await refresh();
+      $("undo-label").textContent = "Комментарий удалён.";
+      $("undo").hidden = false;
+      say("");
+    } catch (e) {
+      say(e.message, true);
+    }
+  }
+  async function restoreComment(comment) {
+    try {
+      await api("/comments/" + comment.id, {
+        method: "PATCH",
+        body: JSON.stringify({
+          status: comment.previousStatus || "open",
+          baseUpdatedAt: comment.updatedAt,
+        }),
+      });
+      state.lastDeleted = null;
+      $("undo").hidden = true;
+      await refresh();
+      say("Комментарий восстановлен.");
+    } catch (e) {
+      say(e.message, true);
+    }
+  }
+  $("undo-delete").addEventListener("click", () => {
+    if (state.lastDeleted) restoreComment(state.lastDeleted);
+  });
   function renderList() {
-    const openCount = state.comments.filter((c) => c.status === "open").length;
+    const openCount = state.comments.filter(
+      (c) => c.status !== "deleted",
+    ).length;
     $("count").textContent = String(openCount);
-    $("file").textContent = state.file ? "Файл: " + state.file : "";
     const filter = $("filter").value,
       list = $("comments");
     list.replaceChildren();
@@ -665,7 +749,8 @@
     const comments = state.comments
       .filter(
         (c) =>
-          (filter === "all" || c.status === filter) &&
+          ((filter === "all" && c.status !== "deleted") ||
+            c.status === filter) &&
           [
             c.id,
             c.body,
@@ -699,66 +784,91 @@
         el(
           "span",
           "",
-          categories[c.category] + (c.status === "resolved" ? " · Готово" : ""),
+          c.status === "deleted"
+            ? "Удалено"
+            : c.status === "resolved"
+              ? "Закрыто"
+              : "",
         ),
       );
-      article.append(meta);
+      article.append(meta, el("p", "comment-body", c.body));
       article.append(
         el(
           "p",
           "location",
-          c.anchor.chapterTitle ||
-            (c.anchor.label || "").slice(0, 100) ||
-            c.anchor.title,
+          "Где: " +
+            (c.anchor.kind === "page"
+              ? "страница в целом"
+              : c.anchor.chapterTitle || c.anchor.title) +
+            (c.anchor.speaker
+              ? " · " +
+                (document.getElementById("lesson-data")
+                  ? speakerName(c.anchor.speaker)
+                  : c.anchor.speaker)
+              : ""),
         ),
       );
-      if (c.anchor.quote)
-        article.append(el("blockquote", "", c.anchor.quote.exact));
-      article.append(el("p", "comment-body", c.body));
-      if (c.resolution) article.append(el("p", "resolution", c.resolution));
+      const excerpt =
+        c.anchor.quote?.exact ||
+        (c.anchor.kind === "block"
+          ? c.anchor.blockText
+          : c.anchor.kind === "element"
+            ? c.anchor.label
+            : "");
+      if (excerpt)
+        article.append(
+          el(
+            "blockquote",
+            "",
+            excerpt.length > 260 ? excerpt.slice(0, 260) + "…" : excerpt,
+          ),
+        );
       const actions = el("div", "actions");
-      actions.append(
-        button("Показать место", () => showTarget(c)),
-        button("Изменить", async () => {
-          if (state.draft?.body.trim()) {
-            say("Сначала сохраните или отмените текущий комментарий.", true);
-            return;
-          }
-          try {
-            await refresh();
-            const current = state.comments.find((n) => n.id === c.id);
-            state.draft = {
-              ...structuredClone(current),
-              editingId: c.id,
-              baseUpdatedAt: current.updatedAt,
-            };
-            showEditor();
-            persistDraft();
-            $("body").focus();
-          } catch (e) {
-            say(e.message, true);
-          }
-        }),
-        button(c.status === "open" ? "Готово" : "Открыть снова", async () => {
-          try {
-            await api("/comments/" + c.id, {
-              method: "PATCH",
-              body: JSON.stringify({
-                status: c.status === "open" ? "resolved" : "open",
-                baseUpdatedAt: c.updatedAt,
-                resolution:
-                  c.status === "open"
-                    ? "Отмечено автором в локальной рецензии."
-                    : null,
-              }),
-            });
-            await refresh();
-            say("Статус " + c.id + " сохранён.");
-          } catch (e) {
-            say(e.message, true);
-          }
-        }),
-      );
+      if (c.status === "deleted") {
+        actions.append(button("Восстановить", () => restoreComment(c)));
+      } else {
+        actions.append(
+          button("Показать место", () => showTarget(c)),
+          button("Изменить", async () => {
+            if (state.draft?.body.trim()) {
+              say("Сначала сохраните или отмените текущий комментарий.", true);
+              return;
+            }
+            try {
+              await refresh();
+              const current = state.comments.find((n) => n.id === c.id);
+              state.draft = {
+                ...structuredClone(current),
+                editingId: c.id,
+                baseUpdatedAt: current.updatedAt,
+              };
+              showEditor();
+              persistDraft();
+              $("body").focus();
+            } catch (e) {
+              say(e.message, true);
+            }
+          }),
+          button("Удалить", () => deleteComment(c)),
+        );
+        if (c.status === "resolved")
+          actions.append(
+            button("Открыть снова", async () => {
+              try {
+                await api("/comments/" + c.id, {
+                  method: "PATCH",
+                  body: JSON.stringify({
+                    status: "open",
+                    baseUpdatedAt: c.updatedAt,
+                  }),
+                });
+                await refresh();
+              } catch (e) {
+                say(e.message, true);
+              }
+            }),
+          );
+      }
       article.append(actions);
       list.append(article);
     }
@@ -770,7 +880,6 @@
     state.saving = true;
     $("save").disabled = true;
     $("body").readOnly = true;
-    $("category").disabled = true;
     $("cancel").disabled = true;
     const draft = structuredClone(state.draft);
     try {
@@ -792,7 +901,7 @@
       clearDraft();
       state.selectedId = comment.id;
       await refresh();
-      say("Сохранено в локальный файл · " + comment.id);
+      say("Комментарий сохранён.");
       updateOutline();
     } catch (error) {
       say(
@@ -802,20 +911,19 @@
     } finally {
       state.saving = false;
       $("body").readOnly = false;
-      $("category").disabled = false;
       $("cancel").disabled = false;
       persistDraft();
     }
   });
   $("body").addEventListener("input", persistDraft);
-  $("category").addEventListener("change", persistDraft);
   $("cancel").addEventListener("click", () => {
     clearDraft();
     say("Черновик отменён.");
   });
   $("toggle").addEventListener("click", () => open(!state.open));
   $("close").addEventListener("click", () => open(false));
-  $("pick").addEventListener("click", startPicking);
+  $("pick").addEventListener("click", () => startPicking("block"));
+  $("pick-ui").addEventListener("click", () => startPicking("element"));
   $("page").addEventListener("click", () => {
     const result = snapshot(document.body, "page");
     result.anchor.blockText = "";
@@ -830,45 +938,6 @@
       .then(() => say("Список обновлён."))
       .catch((e) => say(e.message, true)),
   );
-  function download(text, name, type) {
-    const blob = new Blob([text], { type }),
-      a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = name;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-  }
-  $("export-json").addEventListener("click", async () => {
-    try {
-      const { schemaVersion, project, updatedAt, comments } = await api();
-      download(
-        JSON.stringify(
-          { schemaVersion, project, updatedAt, comments },
-          null,
-          2,
-        ),
-        "unknowntalks-local-review.json",
-        "application/json",
-      );
-    } catch (e) {
-      say(e.message, true);
-    }
-  });
-  $("export-md").addEventListener("click", async () => {
-    try {
-      const response = await fetch("/__review/export.md", {
-        cache: "no-store",
-      });
-      if (!response.ok) throw new Error("Не удалось собрать замечания.");
-      download(
-        await response.text(),
-        "unknowntalks-local-review.md",
-        "text/markdown",
-      );
-    } catch (e) {
-      say(e.message, true);
-    }
-  });
   addEventListener(
     "scroll",
     () => {

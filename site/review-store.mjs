@@ -18,7 +18,7 @@ const string = (value, max, name, required = false) => {
   return value;
 };
 function anchor(input) {
-  if (!input || !["text", "element", "page"].includes(input.kind))
+  if (!input || !["text", "block", "element", "page"].includes(input.kind))
     throw new ReviewError(400, "Invalid anchor");
   const result = { kind: input.kind };
   for (const field of [
@@ -187,7 +187,7 @@ export class ReviewStore {
     if (input.body !== undefined) string(input.body, 20000, "comment", true);
     if (
       input.status !== undefined &&
-      !["open", "resolved"].includes(input.status)
+      !["open", "resolved", "deleted"].includes(input.status)
     )
       throw new ReviewError(400, "Invalid status");
     if (input.resolution !== undefined && input.resolution !== null)
@@ -205,6 +205,16 @@ export class ReviewStore {
           409,
           "Комментарий уже изменён. Обновите список перед редактированием.",
         );
+      const previousStatus = comment.status;
+      if (
+        previousStatus === "deleted" &&
+        input.body !== undefined &&
+        !["open", "resolved"].includes(input.status)
+      )
+        throw new ReviewError(
+          409,
+          "Сначала восстановите удалённый комментарий.",
+        );
       if (input.body !== undefined) comment.body = input.body.trim();
       if (input.category !== undefined) comment.category = input.category;
       if (input.status !== undefined) comment.status = input.status;
@@ -212,7 +222,20 @@ export class ReviewStore {
       comment.updatedAt = new Date(
         Math.max(Date.now(), Date.parse(comment.updatedAt) + 1),
       ).toISOString();
-      if (input.status === "resolved") comment.resolvedAt = comment.updatedAt;
+      if (input.status === "deleted" && previousStatus !== "deleted") {
+        comment.previousStatus = previousStatus;
+        comment.deletedAt = comment.updatedAt;
+      }
+      if (
+        previousStatus === "deleted" &&
+        input.status &&
+        input.status !== "deleted"
+      ) {
+        delete comment.previousStatus;
+        delete comment.deletedAt;
+      }
+      if (input.status === "resolved" && !comment.resolvedAt)
+        comment.resolvedAt = comment.updatedAt;
       if (input.status === "open") {
         delete comment.resolvedAt;
         comment.resolution = null;
@@ -222,15 +245,16 @@ export class ReviewStore {
   }
 }
 export function reviewMarkdown(value) {
+  const active = value.comments.filter((c) => c.status !== "deleted");
   const lines = [
     "# UnknownTalks — локальные замечания",
     "",
-    `Открыто: ${value.comments.filter((c) => c.status === "open").length}. Всего: ${value.comments.length}.`,
+    `Открыто: ${value.comments.filter((c) => c.status === "open").length}. Всего: ${active.length}.`,
     "",
     "Следующая итерация выполняется только по запросу автора. Сначала читать открытые замечания; отмечать выполненными только после изменения и проверки. Сохранять нерешённые и старые замечания. Не публиковать этот файл или данные замечаний.",
     "",
   ];
-  for (const c of value.comments) {
+  for (const c of active) {
     lines.push(
       `## ${c.id} · ${c.status === "open" ? "Открыто" : "Готово"} · ${c.category}`,
       "",
