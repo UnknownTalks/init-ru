@@ -102,18 +102,58 @@
     b.addEventListener("click", action);
     return b;
   }
-  function appendReplyOption(container, option) {
-    if (
-      [...container.children].some((node) =>
-        node.classList.contains("reply-option"),
-      )
-    ) {
-      const separator = el("div", "reply-separator", "ИЛИ");
-      separator.setAttribute("role", "separator");
-      separator.setAttribute("aria-label", "или");
-      container.append(separator);
+  let replyGroup = 0;
+  function replyComposer(
+    labels,
+    onSend,
+    { quiz = false, prompt = "Ваш ответ" } = {},
+  ) {
+    const form = el("form", "reply-options" + (quiz ? " quiz-options" : ""));
+    const fieldset = el("fieldset", "reply-fieldset");
+    fieldset.append(el("legend", "reply-legend", prompt));
+    const name = "reply-" + ++replyGroup;
+    const send = el("button", "reply-send", "Отправить");
+    send.type = "submit";
+    send.disabled = true;
+    let submitted = false;
+    for (const [index, text] of labels.entries()) {
+      if (index) {
+        const separator = el("div", "reply-separator", "ИЛИ");
+        separator.setAttribute("role", "separator");
+        separator.setAttribute("aria-label", "или");
+        fieldset.append(separator);
+      }
+      const label = el("label", "reply-choice"),
+        input = el("input");
+      input.type = "radio";
+      input.name = name;
+      input.value = String(index);
+      input.setAttribute("aria-label", text);
+      input.addEventListener("change", () => {
+        send.disabled = false;
+      });
+      label.append(input, el("span", "reply-text", text));
+      fieldset.append(label);
     }
-    container.append(option);
+    const actions = el("div", "reply-actions");
+    actions.append(send);
+    form.append(fieldset, actions);
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const selected = fieldset.querySelector("input:checked");
+      if (!selected || submitted) return;
+      if (onSend(Number(selected.value)) !== false) submitted = true;
+    });
+    form.addEventListener("keydown", (event) => {
+      if (
+        event.key === "Enter" &&
+        event.target.matches('input[type="radio"]')
+      ) {
+        event.preventDefault();
+        if (!send.disabled) form.requestSubmit();
+      }
+    });
+    return form;
   }
   function paragraph(text) {
     const p = el("p");
@@ -375,15 +415,11 @@
     return node;
   }
   function showChoice(c) {
-    const node = el("section", "reply-options");
-    node.setAttribute("aria-label", "Варианты сообщения Саши");
-    node.append(el("p", "small muted", "Саша может написать…"));
-    for (const [i, option] of c.decision.options.entries())
-      appendReplyOption(
-        node,
-        button(option.label, () => choose(c, i), "reply-option"),
-      );
-    return node;
+    return replyComposer(
+      c.decision.options.map((option) => option.label),
+      (index) => choose(c, index),
+      { prompt: "Саша может написать…" },
+    );
   }
   function mount(event, mark = true) {
     if (mounted.has(event.id)) return;
@@ -553,13 +589,14 @@
     scrollFollow();
   }
   function choose(c, index) {
-    if (state.choices[c.id] !== undefined || busy || readAll) return;
+    if (state.choices[c.id] !== undefined || busy || readAll) return false;
     state.choices[c.id] = index;
     save();
     mounted.get(c.id + "--choice")?.remove();
     mounted.delete(c.id + "--choice");
     following = nearBottom();
     advance();
+    return true;
   }
   function clearTranscript() {
     stopTimer();
@@ -676,69 +713,64 @@
     }
     const q = session.qs[session.index];
     quizIncoming(session, q.question, () => {
-      const options = el("div", "reply-options quiz-options");
-      for (const [i, label] of q.options.entries())
-        appendReplyOption(
-          options,
-          button(
-            label,
+      const options = replyComposer(
+        q.options,
+        (i) => {
+          const label = q.options[i];
+
+          options.remove();
+          session.body.append(quizMessage("sasha", label));
+          state.answers[q.id] = [...(state.answers[q.id] || []), i].slice(-30);
+          save();
+          const correct = i === q.correct;
+          quizIncoming(
+            session,
+            (correct ? "Да. " : "Пока не так. ") + q.explanation,
             () => {
-              options.remove();
-              session.body.append(quizMessage("sasha", label));
-              state.answers[q.id] = [...(state.answers[q.id] || []), i].slice(
-                -30,
+              if (!correct) {
+                const f = el("div", "forwards");
+                f.append(
+                  el(
+                    "p",
+                    "small muted",
+                    "Вот переписка: проблема, попытка и решение.",
+                  ),
+                );
+                for (const ref of q.references) f.append(forwarded(ref));
+                session.body.append(f);
+              }
+              const actions = el("div", "quiz-actions");
+              if (!correct)
+                actions.append(
+                  button(
+                    "Попробовать ещё раз",
+                    () => {
+                      actions.remove();
+                      ask(session);
+                    },
+                    "text-button",
+                  ),
+                );
+              actions.append(
+                button(
+                  session.index + 1 === session.qs.length
+                    ? "Завершить проверку"
+                    : "Следующий вопрос",
+                  () => {
+                    actions.remove();
+                    session.index++;
+                    ask(session);
+                  },
+                  "text-button",
+                ),
               );
-              save();
-              const correct = i === q.correct;
-              quizIncoming(
-                session,
-                (correct ? "Да. " : "Пока не так. ") + q.explanation,
-                () => {
-                  if (!correct) {
-                    const f = el("div", "forwards");
-                    f.append(
-                      el(
-                        "p",
-                        "small muted",
-                        "Вот переписка: проблема, попытка и решение.",
-                      ),
-                    );
-                    for (const ref of q.references) f.append(forwarded(ref));
-                    session.body.append(f);
-                  }
-                  const actions = el("div", "quiz-actions");
-                  if (!correct)
-                    actions.append(
-                      button(
-                        "Попробовать ещё раз",
-                        () => {
-                          actions.remove();
-                          ask(session);
-                        },
-                        "text-button",
-                      ),
-                    );
-                  actions.append(
-                    button(
-                      session.index + 1 === session.qs.length
-                        ? "Завершить проверку"
-                        : "Следующий вопрос",
-                      () => {
-                        actions.remove();
-                        session.index++;
-                        ask(session);
-                      },
-                      "text-button",
-                    ),
-                  );
-                  session.body.append(actions);
-                  renderSkills();
-                },
-              );
+              session.body.append(actions);
+              renderSkills();
             },
-            "reply-option",
-          ),
-        );
+          );
+        },
+        { quiz: true, prompt: "Выберите ответ" },
+      );
       session.body.append(options);
     });
   }
