@@ -10,7 +10,7 @@
   host.style.cssText =
     "position:fixed;inset:0;z-index:2147483000;pointer-events:none";
   const shadow = host.attachShadow({ mode: "open" });
-  shadow.innerHTML = `<link rel="stylesheet" href="/__review/review.css"><div id="outline" hidden></div><span id="pin" hidden></span><button id="selection" hidden>＋ Комментировать выделение</button><button id="toggle" aria-expanded="false">Рецензия <span id="count">0</span></button><div id="picking" hidden>Нажмите на нужный блок · Esc — отмена</div><section id="panel" aria-label="Список правок" hidden><header><strong>Правки</strong><button id="close" aria-label="Свернуть замечания">×</button></header><p class="intro">Выберите блок или выделите текст, затем напишите комментарий.</p><div class="actions"><button id="pick">Прокомментировать блок</button><button id="pick-ui">Элемент интерфейса</button><button id="page">Общее замечание</button></div><form id="editor" hidden><p id="target-title"></p><blockquote id="quote" hidden></blockquote><label for="body">Комментарий</label><textarea id="body" rows="4" maxlength="20000" placeholder="Ваш комментарий…"></textarea><p id="draft-status" class="muted small"></p><div class="actions"><button id="save" type="submit">Сохранить</button><button id="cancel" type="button">Отменить</button></div></form><p id="status" role="status"></p><div id="undo" hidden><span id="undo-label"></span><button id="undo-delete">Отменить удаление</button></div><div class="list-header"><select id="filter" aria-label="Какие правки показать"><option value="all">Все</option><option value="open">Открытые</option><option value="resolved">Закрытые</option><option value="deleted">Удалённые</option></select><button id="refresh">Обновить</button></div><input id="search" type="search" aria-label="Найти правку" placeholder="Найти правку…"><div id="comments"></div></section>`;
+  shadow.innerHTML = `<link rel="stylesheet" href="/__review/review.css"><div id="outline" hidden></div><span id="pin" hidden></span><button id="selection" hidden>＋ Комментировать выделение</button><button id="toggle" aria-expanded="false">Рецензия <span id="count">0</span></button><div id="picking" hidden>Нажмите на нужный блок · Esc — отмена</div><section id="panel" aria-label="Список правок" hidden><header><strong>Правки</strong><button id="close" aria-label="Свернуть замечания">×</button></header><p class="intro">Выберите блок или выделите текст, затем напишите комментарий.</p><div class="actions"><button id="pick">Прокомментировать блок</button><button id="pick-ui">Элемент интерфейса</button><button id="page">Общее замечание</button></div><form id="editor" hidden><p id="target-title"></p><blockquote id="quote" hidden></blockquote><label for="body">Комментарий</label><textarea id="body" rows="4" maxlength="20000" placeholder="Ваш комментарий…"></textarea><p id="draft-status" class="muted small"></p><div class="actions"><button id="save" type="submit">Сохранить</button><button id="cancel" type="button">Отменить</button></div></form><p id="status" role="status"></p><div id="undo" hidden><span id="undo-label"></span><button id="undo-delete">Отменить удаление</button></div><div class="list-header"><select id="filter" aria-label="Какие правки показать"><option value="open">Открытые</option><option value="all">Все</option><option value="resolved">Закрытые</option><option value="deleted">Удалённые</option></select><button id="refresh">Обновить</button></div><input id="search" type="search" aria-label="Найти правку" placeholder="Найти правку…"><div id="comments"></div></section>`;
   const $ = (id) => shadow.getElementById(id);
   const draftKey = "unknowntalks:local-review:draft:v1";
   const state = {
@@ -93,6 +93,15 @@
     const data = await api();
     state.comments = data.comments;
     state.file = data.file;
+    if (
+      state.selectedId &&
+      state.comments.find((c) => c.id === state.selectedId)?.status !== "open"
+    ) {
+      state.selectedId = null;
+      state.target = null;
+      highlightRange = null;
+      updateOutline();
+    }
     renderList();
   }
   function persistDraft() {
@@ -582,6 +591,12 @@
     return range;
   }
   async function showTarget(comment) {
+    if (comment.status !== "open") {
+      say(
+        "Правка закрыта. Ниже сохранён исходный фрагмент, а переход к старому участку отключён.",
+      );
+      return;
+    }
     const a = comment.anchor;
     const normalize = (value) =>
       value.replace(/\.html$/, "").replace(/\/$/, "");
@@ -738,9 +753,7 @@
     if (state.lastDeleted) restoreComment(state.lastDeleted);
   });
   function renderList() {
-    const openCount = state.comments.filter(
-      (c) => c.status !== "deleted",
-    ).length;
+    const openCount = state.comments.filter((c) => c.status === "open").length;
     $("count").textContent = String(openCount);
     const filter = $("filter").value,
       list = $("comments");
@@ -796,7 +809,7 @@
         el(
           "p",
           "location",
-          "Где: " +
+          (c.status === "resolved" ? "Было: " : "Где: ") +
             (c.anchor.kind === "page"
               ? "страница в целом"
               : c.anchor.chapterTitle || c.anchor.title) +
@@ -826,6 +839,27 @@
       const actions = el("div", "actions");
       if (c.status === "deleted") {
         actions.append(button("Восстановить", () => restoreComment(c)));
+      } else if (c.status === "resolved") {
+        if (c.resolution)
+          article.append(el("p", "resolution", "Результат: " + c.resolution));
+        actions.append(
+          button("Открыть снова", async () => {
+            try {
+              await api("/comments/" + c.id, {
+                method: "PATCH",
+                body: JSON.stringify({
+                  status: "open",
+                  baseUpdatedAt: c.updatedAt,
+                }),
+              });
+              await refresh();
+            } catch (e) {
+              say(e.message, true);
+            }
+          }),
+        );
+
+        actions.append(button("Удалить", () => deleteComment(c)));
       } else {
         actions.append(
           button("Показать место", () => showTarget(c)),
@@ -851,23 +885,6 @@
           }),
           button("Удалить", () => deleteComment(c)),
         );
-        if (c.status === "resolved")
-          actions.append(
-            button("Открыть снова", async () => {
-              try {
-                await api("/comments/" + c.id, {
-                  method: "PATCH",
-                  body: JSON.stringify({
-                    status: "open",
-                    baseUpdatedAt: c.updatedAt,
-                  }),
-                });
-                await refresh();
-              } catch (e) {
-                say(e.message, true);
-              }
-            }),
-          );
       }
       article.append(actions);
       list.append(article);
@@ -972,7 +989,17 @@
       const comment = state.comments.find((c) => c.id === id);
       if (comment) {
         open();
-        showTarget(comment);
+        if (comment.status === "open") showTarget(comment);
+        else {
+          $("filter").value =
+            comment.status === "deleted" ? "deleted" : "resolved";
+          renderList();
+          say(
+            comment.status === "deleted"
+              ? "Правка удалена."
+              : "Правка закрыта. Исходный фрагмент сохранён в истории.",
+          );
+        }
       }
     })
     .catch((error) => say(error.message, true));
