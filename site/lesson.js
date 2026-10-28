@@ -89,6 +89,19 @@
     parentNodes = new Map(),
     quizSessions = new Map(),
     introduced = new Set();
+  // A saved choice places its preceding chapter in history, including text
+  // added by a later editorial revision. It must not replay as a new arrival.
+  for (const c of chapters)
+    if (state.choices[c.id] !== undefined)
+      for (const id of [
+        c.id + "--heading",
+        ...c.intro.map((e) => e.id),
+        c.id + "--sent",
+        c.id + "--reply",
+        ...c.outro.map((e) => e.id),
+        c.id + "--supplement",
+      ])
+        seen.add(id);
   let timer = null,
     busy = null,
     paused = false,
@@ -102,16 +115,11 @@
       for (const entry of entries) {
         const pending = unread.get(entry.target);
         if (!pending) continue;
-        clearTimeout(pending.timer);
-        if (entry.isIntersecting && !document.hidden)
+        if (entry.isIntersecting && !document.hidden && !pending.timer)
           pending.timer = setTimeout(() => {
-            unread.delete(entry.target);
-            unreadObserver.unobserve(entry.target);
-            entry.target.classList.remove("unread-message");
-            entry.target.querySelector(".unread-label").style.visibility =
-              "hidden";
+            acknowledge(entry.target);
             updateJump();
-          }, 4000);
+          }, 2000);
       }
     },
     { rootMargin: "-90px 0px -60px 0px", threshold: 0.01 },
@@ -223,7 +231,11 @@
     for (const c of chapters) {
       events.push(
         { id: c.id + "--heading", type: "heading", chapter: c },
-        ...c.intro,
+        ...c.intro.map((event, index) =>
+          c === chapters[0] && index === 0
+            ? { ...event, outgoing: true }
+            : event,
+        ),
       );
       const selected = c.decision.options[state.choices[c.id]];
       if (!selected && !all) {
@@ -280,7 +292,7 @@
         ? `Путь по истории · ${percent}%`
         : "История ещё не началась";
     $("progress-open").title = "Открыть дерево навыков";
-    $("start").hidden = state.started || readAll;
+    $("opening-composer").hidden = state.started || readAll;
     $("return-inline").hidden = !readAll;
     const finished =
       state.started &&
@@ -400,25 +412,36 @@
       const d = el("details", "internal-thread");
       d.dataset.thread = t.id;
       d.open = threadOpen(t);
-      const summary = el("summary");
-      summary.append(
-        el(
-          "span",
-          "thread-label",
-          "Внутренний чат · " + data.tracks.find((x) => x.id === t.track).title,
-        ),
-        el("strong", "", `${t.number}. ${t.title}`),
-      );
+      d.classList.add("conversation-thread");
+      const summary = threadPreview({
+        event: t.messages[0],
+        title: `${t.number}. ${t.title}`,
+        participants: t.messages
+          .filter((message) => message.speaker)
+          .map((message) => message.speaker),
+      });
+      summary.setAttribute("aria-controls", t.id);
+      const updateSummary = () => {
+        summary.setAttribute("aria-expanded", String(d.open));
+        summary.querySelector(".thread-action").textContent = d.open
+          ? "Свернуть переписку"
+          : countLabel(t.messages.length, [
+              "сообщение",
+              "сообщения",
+              "сообщений",
+            ]);
+      };
+      updateSummary();
       d.append(
         summary,
         el(
           "p",
           "small muted thread-context",
-          t.context ||
-            `День ${c.day} · Обсуждение внутри команды. Можно прочитать сейчас или вернуться позже.`,
+          t.context || `День ${c.day} · Обсуждение внутри команды.`,
         ),
       );
       const body = el("div", "thread-messages");
+      body.id = t.id;
       parentNodes.set(t.id, body);
       d.append(body);
       const references = sourceLinks({ terms: [], sources: t.sources || [] });
@@ -430,6 +453,7 @@
         d.append(a);
       }
       d.addEventListener("toggle", () => {
+        updateSummary();
         const desired = threadOpen(t);
         if (d.open === desired) return;
         if (d.open) {
@@ -444,59 +468,83 @@
       });
       node.append(d);
     }
-    const check = el("section", "knowledge-check");
+    const check = el("details", "knowledge-check conversation-thread");
     check.dataset.quiz = c.id;
-    const invitation = bubble(
-      {
+    const qs = c.checks.filter(activeQuestion);
+    const summary = threadPreview({
+      event: {
         speaker: "nina",
         paragraphs: [
-          "Я подготовила вопросы по этому разговору. Попробуйте ответить: если запутаетесь, вернёмся к нужным сообщениям.",
+          qs[0]?.question ||
+            "Включите дополнительные темы, чтобы открыть вопросы.",
         ],
       },
-      true,
-    );
-    invitation.classList.add("quiz-invitation");
-    const toggle = button(
-      "",
-      () => keepReading(() => setQuizOpen(check, body.hidden)),
-      "quiz-toggle",
-    );
-    toggle.setAttribute("aria-expanded", "false");
-    toggle.setAttribute("aria-controls", c.id + "--quiz-body");
-    invitation.append(toggle);
+      title: `Вопросы к разделу ${c.number}`,
+      participants: ["nina", "sasha"],
+    });
+    summary.setAttribute("aria-controls", c.id + "--quiz-body");
     const body = el("div", "quiz-body");
     body.id = c.id + "--quiz-body";
     body.hidden = true;
-    check.append(invitation, body);
+    check.append(summary, body);
+    check.addEventListener("toggle", () =>
+      keepReading(() => setQuizOpen(check, check.open)),
+    );
     updateQuizToggle(check);
     node.append(check);
     const references = sourceLinks(c);
     if (references) node.append(references);
     return node;
   }
+  function countLabel(count, forms) {
+    const last = count % 10,
+      tail = count % 100;
+    return `${count} ${forms[last === 1 && tail !== 11 ? 0 : last >= 2 && last <= 4 && (tail < 12 || tail > 14) ? 1 : 2]}`;
+  }
+  function threadPreview({ event, title, participants }) {
+    const summary = el("summary", "thread-summary");
+    summary.setAttribute("aria-expanded", "false");
+    const preview = bubble(event, true);
+    preview.classList.add("thread-preview");
+    const topic = el("p", "thread-topic", title);
+    preview.querySelector("header").after(topic);
+    const question = [...preview.children].find(
+      (node) => node.tagName === "P" && node !== topic,
+    );
+    question?.classList.add("preview-question");
+    const replies = el("span", "thread-replies");
+    const avatars = el("span", "thread-avatars");
+    avatars.setAttribute("aria-hidden", "true");
+    for (const id of [...new Set(participants)]) {
+      const person = people.get(id);
+      avatars.append(el("span", "avatar tone-" + person.tone, person.initial));
+    }
+    const label = el("span", "thread-action");
+    const arrow = el("span", "thread-chevron", "›");
+    arrow.setAttribute("aria-hidden", "true");
+    replies.append(avatars, label, arrow);
+    preview.append(replies);
+    summary.append(preview);
+    return summary;
+  }
   function updateQuizToggle(check) {
-    const count = byChapter
-      .get(check.dataset.quiz)
-      .checks.filter(activeQuestion).length;
-    const label =
-      count % 10 === 1 && count % 100 !== 11
-        ? "вопрос"
-        : count % 10 >= 2 &&
-            count % 10 <= 4 &&
-            (count % 100 < 12 || count % 100 > 14)
-          ? "вопроса"
-          : "вопросов";
-    const toggle = check.querySelector(".quiz-toggle");
-    toggle.textContent = check.querySelector(".quiz-body").hidden
-      ? `Раскрыть · ${count} ${label}`
-      : "Свернуть";
+    const qs = byChapter.get(check.dataset.quiz).checks.filter(activeQuestion);
+    check.querySelector(".thread-action").textContent = check.open
+      ? "Свернуть ответы"
+      : countLabel(qs.length, ["вопрос", "вопроса", "вопросов"]) +
+        " · Ответить";
+    check
+      .querySelector("summary")
+      .setAttribute("aria-expanded", String(check.open));
+    const preview = check.querySelector(".preview-question");
+    const question =
+      qs[0]?.question || "Включите дополнительные темы, чтобы открыть вопросы.";
+    if (preview.textContent !== question) preview.textContent = question;
   }
   function setQuizOpen(check, open) {
     const body = check.querySelector(".quiz-body");
+    check.open = open;
     body.hidden = !open;
-    check
-      .querySelector(".quiz-toggle")
-      .setAttribute("aria-expanded", String(open));
     updateQuizToggle(check);
     if (open && !quizSessions.has(check.dataset.quiz)) {
       const c = byChapter.get(check.dataset.quiz);
@@ -516,7 +564,13 @@
   function mountNode(event, mark) {
     if (mounted.has(event.id)) return;
     let node;
-    if (event.type === "heading") {
+    const thread = event.parent && threads.get(event.parent)?.thread;
+    if (thread?.messages[0].id === event.id)
+      node = parentNodes
+        .get(event.parent)
+        .closest("details")
+        .querySelector(".thread-preview");
+    else if (event.type === "heading") {
       node = el("section", "chapter-heading");
       node.dataset.chapter = event.chapter.id;
       const previous = chapters[chapters.indexOf(event.chapter) - 1];
@@ -536,15 +590,18 @@
     else if (event.type === "supplement") node = supplement(event.chapter);
     else return;
     node.id = event.id;
-    (event.parent ? parentNodes.get(event.parent) : $("messages"))?.append(
-      node,
-    );
+    if (!node.isConnected)
+      (event.parent ? parentNodes.get(event.parent) : $("messages"))?.append(
+        node,
+      );
     mounted.set(event.id, node);
     if (
       mark &&
       !readAll &&
       !seen.has(event.id) &&
       event.type === "message" &&
+      event.speaker !== "sasha" &&
+      !event.optional &&
       !event.outgoing
     )
       markNew(node);
@@ -609,6 +666,15 @@
     unread.set(node, { timer: null });
     unreadObserver.observe(node);
     updateJump();
+  }
+  function acknowledge(node) {
+    const pending = unread.get(node);
+    if (!pending) return;
+    clearTimeout(pending.timer);
+    unread.delete(node);
+    unreadObserver.unobserve(node);
+    node.classList.remove("unread-message");
+    node.querySelector(".unread-label")?.remove();
   }
   function jumpTarget() {
     const pending = [...unread.keys()].filter((node) => node.isConnected);
@@ -682,6 +748,8 @@
       seen.has(event.id) ||
       event.type === "choice" ||
       event.type === "supplement" ||
+      (event.parent &&
+        threads.get(event.parent)?.thread.messages[0].id === event.id) ||
       event.outgoing ||
       state.pace === "instant"
     ) {
@@ -756,6 +824,7 @@
   }
   function choose(c, index) {
     if (state.choices[c.id] !== undefined || busy || readAll) return false;
+    for (const node of [...unread.keys()]) acknowledge(node);
     state.choices[c.id] = index;
     save();
     mounted.get(c.id + "--choice")?.remove();
@@ -862,9 +931,20 @@
       );
       return;
     }
-    const session = { id, qs, body, index: 0, active: true };
+    const session = {
+      id,
+      qs,
+      body,
+      index: 0,
+      active: true,
+      inlineFirst: !!body.closest("[data-quiz]"),
+    };
     quizSessions.set(id, session);
     body.replaceChildren();
+    if (session.inlineFirst) {
+      ask(session);
+      return;
+    }
     quizIncoming(
       session,
       "Буду задавать вопросы по одному. Если ошибётесь, покажу сообщения, к которым стоит вернуться.",
@@ -894,7 +974,7 @@
       return;
     }
     const q = session.qs[session.index];
-    quizIncoming(session, q.question, () => {
+    const showOptions = () => {
       const options = replyComposer(
         q.options,
         (i) => {
@@ -958,7 +1038,11 @@
         { quiz: true, prompt: "Выберите ответ" },
       );
       session.body.append(options);
-    });
+    };
+    if (session.inlineFirst && session.index === 0) {
+      session.inlineFirst = false;
+      showOptions();
+    } else quizIncoming(session, q.question, showOptions);
   }
   function hasSeenChapter(id) {
     const c = byChapter.get(id);
@@ -1095,8 +1179,8 @@
       behavior: reduced ? "auto" : "smooth",
       block: "center",
     });
-    target?.classList.add("highlight");
-    setTimeout(() => target?.classList.remove("highlight"), 2000);
+    if (target) acknowledge(target);
+    updateJump();
     history.replaceState(null, "", "#" + id);
   }
   function openSkillQuiz(node, qs) {
@@ -1143,12 +1227,50 @@
     );
     $("cast").append(item);
   }
+  const draft = bubble(chapters[0].intro[0], true);
+  draft.classList.add("opening-draft");
+  const send = button(
+    "Отправить",
+    () => {
+      if (state.started) return;
+      state.started = true;
+      $("preferences").open = false;
+      save();
+      keepReading(() => {
+        const events = currentTimeline();
+        mount(events[0]);
+        mount(events[1]);
+        sync();
+      });
+      mounted
+        .get(chapters[0].intro[0].id)
+        .scrollIntoView({ block: "start", behavior: "instant" });
+    },
+    "reply-send",
+  );
+  send.id = "start";
+  draft.append(
+    el("p", "small muted draft-label", "Первое сообщение · от имени Саши"),
+    send,
+  );
+  $("opening-composer").append(draft);
   $("preferences").open = !state.started;
-  $("start").addEventListener("click", () => {
-    state.started = true;
-    $("preferences").open = false;
+  $("restart-chat").addEventListener("click", () => {
+    $("settings").close();
+    state.started = false;
+    state.choices = {};
+    seen.clear();
+    state.seen = [];
+    readAll = false;
+    explicitQuiz = false;
+    paused = false;
     save();
-    sync();
+    renderRestored();
+    renderSkills();
+    $("opening-composer").scrollIntoView({
+      block: "center",
+      behavior: "instant",
+    });
   });
   $("preferences-open").addEventListener("click", () => {
     $("preferences").open = !$("preferences").open;
@@ -1220,8 +1342,8 @@
       parent;
       parent = parent.parentElement
     )
-      if (parent.matches("details")) parent.open = true;
-      else if (parent.matches("[data-quiz]")) setQuizOpen(parent, true);
+      if (parent.matches("[data-quiz]")) setQuizOpen(parent, true);
+      else if (parent.matches("details")) parent.open = true;
     // One deliberate move to the FIRST unread message, never a moving bottom.
     // An immediate jump cannot be interrupted by the next incoming message.
     target.scrollIntoView({ block: "start", behavior: "instant" });
@@ -1234,6 +1356,7 @@
   document.addEventListener("visibilitychange", () => {
     for (const [node, pending] of unread) {
       clearTimeout(pending.timer);
+      pending.timer = null;
       unreadObserver.unobserve(node);
       if (!document.hidden) unreadObserver.observe(node);
     }

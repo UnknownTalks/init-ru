@@ -206,16 +206,6 @@ h3 {
   height: 17px;
   flex: none;
 }
-.start {
-  background: #d5d9dd;
-  color: #202326;
-  border: 0;
-  padding: 12px 20px;
-  margin-top: 6px;
-}
-.start:hover {
-  background: #ebedef;
-}
 #messages {
   min-height: 10px;
 }
@@ -558,10 +548,6 @@ h3 {
   margin-left: auto;
   white-space: nowrap;
 }
-.highlight {
-  outline: 2px solid #adbac8;
-  outline-offset: 5px;
-}
 #playback-controls {
   display: flex;
   align-items: center;
@@ -678,20 +664,68 @@ h3 {
   line-height: 1.6;
 }
 .internal-thread {
-  border-left: 2px solid #505d69;
+  padding: 0;
+}
+.chapter-supplement .thread-summary {
+  list-style: none;
+  cursor: pointer;
+  font-size: inherit;
+  color: var(--text);
+}
+.thread-summary::-webkit-details-marker {
+  display: none;
+}
+.thread-summary .message {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+.thread-topic {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 8px 0 12px;
+}
+.thread-replies {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--edge);
+  color: var(--name);
+  font-size: 14px;
+}
+.thread-avatars {
+  display: inline-flex;
+  padding-left: 5px;
+}
+.thread-avatars .avatar {
+  width: 24px;
+  height: 24px;
+  flex-basis: 24px;
+  margin-left: -5px;
+  border: 2px solid var(--bubble);
+  font-size: 10px;
+}
+.thread-action {
+  flex: 1;
+}
+.thread-chevron {
+  font-size: 24px;
+  line-height: 1;
+  transition: transform 160ms ease;
+}
+.conversation-thread[open] > summary .thread-chevron {
+  transform: rotate(90deg);
+}
+.thread-summary:hover .thread-action {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.conversation-thread > .thread-messages,
+.conversation-thread > .quiz-body {
+  border-left: 1px solid var(--line);
   padding-left: 16px;
-}
-.internal-thread > summary {
-  list-style-position: outside;
-  margin-left: 8px;
-}
-.thread-label {
-  display: block;
-  font-size: 11px;
-  color: #8f9ca9;
-}
-.internal-thread summary strong {
-  font-weight: 500;
+  margin-left: 14px;
 }
 .thread-context {
   margin: 14px 0;
@@ -720,11 +754,12 @@ h3 {
 .knowledge-check {
   margin: 20px 0;
 }
-.quiz-toggle {
+.opening-draft > .reply-send {
   display: block;
-  margin-top: 18px;
-  background: #353b42;
-  font-size: 14px;
+  margin: 16px 0 0 auto;
+}
+.opening-draft .draft-label {
+  margin-top: 20px;
 }
 .quiz-body {
   margin: 24px 0;
@@ -1034,9 +1069,6 @@ dialog select {
   .visual-item {
     font-size: 12px;
   }
-  .internal-thread {
-    padding-left: 11px;
-  }
   .thread-messages .message {
     max-width: 100%;
   }
@@ -1082,6 +1114,7 @@ dialog select {
   *::before,
   *::after {
     animation: none !important;
+    transition: none !important;
     scroll-behavior: auto !important;
   }
 }
