@@ -26,12 +26,21 @@
   const state = {
     version: 4,
     started: false,
+    storyComplete: false,
     tracks: [],
     expanded: [],
     collapsed: [],
     choices: {},
     seen: [],
     answers: {},
+    chapterAnswers: {},
+    encountered: [],
+    encounteredVersion: 1,
+    finalExam: {
+      revision: data.assessmentRevision,
+      status: "idle",
+      answers: {},
+    },
     pace: "normal",
     timingVersion: 1,
   };
@@ -51,6 +60,10 @@
     const saved = JSON.parse(localStorage.getItem(key));
     if (saved?.version === 4) {
       state.started = saved.started === true;
+      state.storyComplete =
+        saved.storyComplete === true ||
+        (Array.isArray(saved.seen) &&
+          saved.seen.includes(chapters.at(-1).id + "--supplement"));
       for (const field of ["tracks", "expanded", "collapsed", "seen"])
         if (Array.isArray(saved[field]))
           state[field] = [
@@ -77,6 +90,47 @@
           state.answers[id] = saved.answers[id]
             .filter((i) => Number.isInteger(i) && q.options[i] !== undefined)
             .slice(-30);
+      for (const [id, { question: q }] of questions) {
+        const answer = saved.chapterAnswers?.[id] ?? state.answers[id]?.at(-1);
+        if (Number.isInteger(answer) && q.options[answer] !== undefined)
+          state.chapterAnswers[id] = answer;
+      }
+      const previousEncounters =
+        saved.encounteredVersion === 1 ? saved.encountered : saved.seen;
+      if (Array.isArray(previousEncounters))
+        state.encountered = [
+          ...new Set(
+            previousEncounters.filter((id) => {
+              const entry = messages.get(id);
+              return (
+                entry?.event.type === "message" &&
+                (saved.encounteredVersion === 1 ||
+                  !entry.thread ||
+                  state.expanded.includes(entry.thread.id) ||
+                  state.collapsed.includes(entry.thread.id))
+              );
+            }),
+          ),
+        ];
+      if (saved.finalExam?.revision === data.assessmentRevision) {
+        const answers = {};
+        for (const [id, { question: q }] of questions) {
+          const answer = saved.finalExam.answers?.[id];
+          if (!Number.isInteger(answer) || q.options[answer] === undefined)
+            break;
+          answers[id] = answer;
+        }
+        const complete = Object.keys(answers).length === questions.size;
+        state.finalExam = {
+          revision: data.assessmentRevision,
+          status: complete
+            ? "complete"
+            : saved.finalExam.status === "active" || Object.keys(answers).length
+              ? "active"
+              : "idle",
+          answers,
+        };
+      }
       // This iteration restores conversational timing once; explicit choices made
       // with the current controls remain persistent afterwards.
       if (
@@ -89,6 +143,7 @@
     /* A damaged saved value starts a fresh conversation. */
   }
   state.tracks = data.tracks.map((track) => track.id);
+  const encountered = new Set(state.encountered);
   const seen = new Set(state.seen),
     mounted = new Map(),
     parentNodes = new Map(),
@@ -103,8 +158,9 @@
         ...c.intro.map((e) => e.id),
         c.id + "--sent",
         c.id + "--reply",
-        ...c.outro.map((e) => e.id),
-        c.id + "--supplement",
+        ...(c === chapters.at(-1) && !state.storyComplete
+          ? []
+          : [...c.outro.map((e) => e.id), c.id + "--supplement"]),
         ...c.threads.flatMap((t) => [
           t.id + "--thread",
           ...t.messages.map((e) => e.id),
@@ -115,9 +171,28 @@
     busy = null,
     paused = false,
     readAll = false,
-    explicitQuiz = false,
     restoring = false,
     readingDepth = 0;
+  const encounterObserver = new IntersectionObserver(
+    (entries) => {
+      let changed = false;
+      for (const entry of entries)
+        if (
+          entry.isIntersecting &&
+          entry.target.isConnected &&
+          !document.hidden &&
+          !encountered.has(entry.target.id)
+        ) {
+          encountered.add(entry.target.id);
+          changed = true;
+        }
+      if (changed) {
+        save();
+        if ($("skills").open) renderSkills();
+      }
+    },
+    { rootMargin: "-80px 0px -40px 0px", threshold: 0.1 },
+  );
   const unread = new Map();
   const unreadObserver = new IntersectionObserver(
     (entries) => {
@@ -278,6 +353,7 @@
   }
   function save() {
     state.seen = [...seen];
+    state.encountered = [...encountered];
     try {
       localStorage.setItem(key, JSON.stringify(state));
     } catch {
@@ -358,23 +434,28 @@
       ])
       .map((e) => e.id),
   );
+  function storyFinished() {
+    return (
+      state.started &&
+      chapters.every((c) => state.choices[c.id] !== undefined) &&
+      state.storyComplete
+    );
+  }
+  function chapterReached(c) {
+    return seen.has(c.id + "--heading") || state.choices[c.id] !== undefined;
+  }
   function updateProgress() {
     const n = [...coreIds].filter((id) => seen.has(id)).length,
       percent = Math.round((n / coreIds.size) * 100);
     $("story-progress").value = percent;
-    $("progress-label").textContent = readAll
-      ? "Открыта вся переписка"
-      : state.started
-        ? `Путь по истории · ${percent}%`
-        : "История ещё не началась";
-    $("progress-open").title = "Открыть дерево навыков";
+    $("progress-label").textContent = state.started
+      ? `История · ${percent}%`
+      : "История ещё не началась";
     $("opening-composer").hidden = state.started || readAll;
     $("return-inline").hidden = !readAll;
-    const finished =
-      state.started &&
-      chapters.every((c) => state.choices[c.id] !== undefined) &&
-      seen.has(chapters.at(-1).id + "--supplement");
-    $("final-check").hidden = !(finished || readAll || explicitQuiz);
+    $("final-check").hidden = !(storyFinished() || readAll);
+    updateFinalControls();
+    updateTimeline();
   }
   function nameOf(id) {
     return people.get(id)?.name || id;
@@ -601,6 +682,10 @@
   function threadPreview({ event, title, participants }) {
     const preview = bubble(event, true);
     preview.classList.add("thread-preview");
+    if (event.id) {
+      preview.id = event.id;
+      encounterObserver.observe(preview);
+    }
     const topic = el("p", "thread-topic", title);
     preview.querySelector("header").after(topic);
     const question = [...preview.children].find(
@@ -694,6 +779,7 @@
         node,
       );
     mounted.set(event.id, node);
+    if (event.type === "message") encounterObserver.observe(node);
     if (
       mark &&
       !readAll &&
@@ -706,6 +792,8 @@
       markNew(node);
     if (mark && event.type !== "choice") {
       seen.add(event.id);
+      if (event.id === chapters.at(-1).id + "--supplement")
+        state.storyComplete = true;
       save();
     }
     updateProgress();
@@ -921,6 +1009,7 @@
     parentNodes.clear();
     quizSessions.clear();
     introduced.clear();
+    encounterObserver.disconnect();
     for (const pending of unread.values()) clearTimeout(pending.timer);
     unread.clear();
     unreadObserver.disconnect();
@@ -937,6 +1026,7 @@
     }
     restoring = false;
     sync();
+    restoreFinalExam();
   }
   function forwarded(reference) {
     const entry = messages.get(reference);
@@ -1021,7 +1111,7 @@
       // Keep local answers as a reviewed conversation after a reload.
       while (session.index < qs.length) {
         const q = qs[session.index],
-          answer = state.answers[q.id]?.at(-1);
+          answer = state.chapterAnswers[q.id];
         if (!Number.isInteger(answer)) break;
         if (session.index) body.append(quizMessage("nina", q.question));
         body.append(
@@ -1035,6 +1125,29 @@
       if (session.index === qs.length)
         body.append(quizMessage("nina", quizResult(session)));
       else ask(session);
+      return;
+    }
+    while (session.index < qs.length) {
+      const q = qs[session.index],
+        answer = state.finalExam.answers[q.id];
+      if (!Number.isInteger(answer)) break;
+      body.append(
+        quizMessage("nina", q.question),
+        quizMessage("sasha", q.options[answer]),
+        quizMessage("nina", answerFeedback(q, answer)),
+      );
+      if (answer !== q.correct) appendReferences(body, q);
+      session.index++;
+    }
+    if (session.index === qs.length) {
+      body.append(
+        quizMessage("nina", quizResult(session)),
+        examRestartAction(),
+      );
+      return;
+    }
+    if (session.index) {
+      ask(session);
       return;
     }
     quizIncoming(
@@ -1060,25 +1173,26 @@
   }
   function quizResult(session) {
     const passed = session.qs.filter(
-      (q) => state.answers[q.id]?.at(-1) === q.correct,
+      (q) =>
+        (session.isChapter
+          ? state.chapterAnswers[q.id]
+          : state.finalExam.answers[q.id]) === q.correct,
     ).length;
     return session.isChapter
       ? "Все вопросы этой главы разобраны. Здесь остаются ваши ответы и объяснения. Проверить себя ещё раз можно в общей проверке в конце истории."
-      : `На ${passed} из ${session.qs.length} вопросов последний ответ верный. Это результат этой проверки; к объяснениям можно вернуться в любой момент.`;
+      : `Итоговая проверка завершена: верно ${passed} из ${session.qs.length}. Это отдельный результат проверки по всей истории. Разборы по главам сохранены отдельно; теперь итоговую проверку можно пройти заново целиком.`;
   }
   function ask(session) {
     if (session.index >= session.qs.length) {
+      if (!session.isChapter) {
+        state.finalExam.status = "complete";
+        save();
+        updateFinalControls();
+        updateTimeline();
+        renderSkills();
+      }
       quizIncoming(session, quizResult(session), () => {
-        if (session.isChapter) return;
-        const actions = el("div", "quiz-actions");
-        actions.append(
-          button(
-            "Пройти ещё раз",
-            () => startQuiz(session.id, session.qs, session.body),
-            "quiz-next",
-          ),
-        );
-        session.body.append(actions);
+        if (!session.isChapter) session.body.append(examRestartAction());
       });
       return;
     }
@@ -1087,29 +1201,28 @@
       const options = replyComposer(
         q.options,
         (i) => {
+          if (
+            session.isChapter
+              ? Number.isInteger(state.chapterAnswers[q.id])
+              : state.finalExam.status !== "active" ||
+                Number.isInteger(state.finalExam.answers[q.id])
+          )
+            return false;
           const label = q.options[i];
-
           options.remove();
           session.body.append(quizMessage("sasha", label));
-          state.answers[q.id] = [...(state.answers[q.id] || []), i].slice(-30);
+          if (session.isChapter) {
+            state.chapterAnswers[q.id] = i;
+            state.answers[q.id] = [...(state.answers[q.id] || []), i].slice(
+              -30,
+            );
+          } else state.finalExam.answers[q.id] = i;
           save();
+          updateFinalControls();
           const correct = i === q.correct;
           quizIncoming(session, answerFeedback(q, i), () => {
             if (!correct) appendReferences(session.body, q);
             const actions = el("div", "quiz-actions");
-            if (!correct && !session.isChapter)
-              actions.append(
-                button(
-                  "Попробовать ещё раз",
-                  () => {
-                    keepReading(() => {
-                      actions.remove();
-                      ask(session);
-                    });
-                  },
-                  "quiz-retry",
-                ),
-              );
             actions.append(
               button(
                 session.index + 1 === session.qs.length
@@ -1138,43 +1251,85 @@
       showOptions();
     } else quizIncoming(session, q.question, showOptions);
   }
-  function hasSeenChapter(id) {
-    const c = byChapter.get(id);
-    return c && c.outro.some((e) => seen.has(e.id));
-  }
+  const conceptMessages = new Map(
+    data.glossary.map((term) => [term.id, new Set()]),
+  );
+  for (const [id, { event }] of messages)
+    if (event.type === "message") {
+      for (const match of (event.paragraphs || [])
+        .join(" ")
+        .matchAll(/\*\*(.*?)\*\*/g)) {
+        const term = data.glossary.find((term) =>
+          [term.title, ...term.aliases].some(
+            (name) =>
+              name.toLocaleLowerCase("ru") === match[1].toLocaleLowerCase("ru"),
+          ),
+        );
+        if (term) conceptMessages.get(term.id).add(id);
+      }
+    }
+  for (const term of data.glossary)
+    if (!conceptMessages.get(term.id).size) {
+      const candidates = [...messages.values()].filter(
+        ({ event, chapter, thread }) =>
+          event.type === "message" &&
+          (thread?.id === term.topic || (!thread && chapter.id === term.topic)),
+      );
+      const matches = candidates.filter(({ event }) =>
+        [term.title, ...term.aliases].some((name) =>
+          event.paragraphs
+            .join(" ")
+            .toLocaleLowerCase("ru")
+            .includes(name.toLocaleLowerCase("ru")),
+        ),
+      );
+      for (const { event } of matches.length ? matches : candidates.slice(0, 1))
+        conceptMessages.get(term.id).add(event.id);
+    }
   function renderSkills() {
-    const active = [...questions.values()].map((x) => x.question);
-    const correct = active.filter(
-      (q) => state.answers[q.id]?.at(-1) === q.correct,
+    const all = [...questions.values()].map((x) => x.question),
+      local = all.filter((q) =>
+        Number.isInteger(state.chapterAnswers[q.id]),
+      ).length;
+    const finalCorrect = all.filter(
+      (q) => state.finalExam.answers[q.id] === q.correct,
     ).length;
     $("skill-summary").textContent =
-      `Верные последние ответы: ${correct} из ${active.length} вопросов по выбранным темам.`;
+      `Разборы по главам: ${local}/${all.length} ответов. Итоговая проверка: ${Object.keys(state.finalExam.answers).length}/${all.length}${state.finalExam.status === "complete" ? `, завершена: верно ${finalCorrect}/${all.length}` : ", не завершена"}.`;
     const draw = (node) => {
       const li = el("li", "skill-node");
+      li.dataset.skill = node.id;
       if (node.children) {
         li.append(el("h3", "", node.title));
-        const ul = el("ul", "skill-children");
-        for (const c of node.children) ul.append(draw(c));
-        li.append(ul);
+        const list = el("ul", "skill-children");
+        for (const child of node.children) list.append(draw(child));
+        li.append(list);
       } else {
-        const relevant = active.filter((q) =>
-            q.terms.some((t) => node.terms.includes(t)),
-          ),
-          passed = relevant.filter(
-            (q) => state.answers[q.id]?.at(-1) === q.correct,
-          ).length;
-        const wrong = relevant.some(
-          (q) =>
-            state.answers[q.id]?.length &&
-            state.answers[q.id].at(-1) !== q.correct,
+        const relevant = all.filter((q) =>
+          q.terms.some((term) => node.terms.includes(term)),
         );
-        const encountered = node.chapters.some(hasSeenChapter);
+        const planned = new Set(
+          node.terms.flatMap((term) => [...(conceptMessages.get(term) || [])]),
+        );
+        const met = [...planned].filter((id) => encountered.has(id)).length;
+        const localDone = relevant.filter((q) =>
+          Number.isInteger(state.chapterAnswers[q.id]),
+        ).length;
+        const finalDone = relevant.filter((q) =>
+          Number.isInteger(state.finalExam.answers[q.id]),
+        ).length;
+        const correct = relevant.filter(
+          (q) => state.finalExam.answers[q.id] === q.correct,
+        ).length;
+        const complete = state.finalExam.status === "complete";
+        const verified =
+          complete && relevant.length && correct === relevant.length;
         li.classList.add(
-          passed === relevant.length && relevant.length
+          verified
             ? "checked"
-            : wrong
+            : complete && correct < relevant.length
               ? "review"
-              : encountered
+              : met
                 ? "encountered"
                 : "ahead",
         );
@@ -1183,17 +1338,35 @@
           el(
             "span",
             "skill-state",
-            passed === relevant.length && relevant.length
-              ? `Проверено · ${passed}/${relevant.length}`
-              : wrong
-                ? `Стоит повторить · верно ${passed}/${relevant.length}`
-                : encountered
-                  ? `Встречалось · проверено ${passed}/${relevant.length}`
+            verified
+              ? "Подтверждено в итоговой проверке"
+              : complete && correct < relevant.length
+                ? "Есть вопросы для повторного разбора"
+                : met
+                  ? "Встречалось в диалогах"
                   : "Впереди",
           ),
         );
-        const actions = el("div", "skill-actions");
-        actions.append(
+        const counts = el("div", "skill-counts");
+        counts.append(
+          el(
+            "span",
+            "skill-encounters",
+            `Встречи в диалогах: ${met}/${planned.size}`,
+          ),
+          el(
+            "span",
+            "skill-local",
+            `Разборы глав: ${localDone}/${relevant.length}`,
+          ),
+          el(
+            "span",
+            "skill-final",
+            `Итоговая проверка: ${finalDone}/${relevant.length}${complete ? `, верно ${correct}` : ""}`,
+          ),
+        );
+        li.append(
+          counts,
           button(
             "К объяснению",
             () => {
@@ -1203,24 +1376,260 @@
             "text-button",
           ),
         );
-        if (encountered || readAll)
-          actions.append(
-            button(
-              "Проверить",
-              () => {
-                $("skills").close();
-                openSkillQuiz(node, relevant);
-              },
-              "text-button",
-            ),
-          );
-        li.append(actions);
       }
       return li;
     };
     const root = el("ul", "skill-root");
     for (const child of data.skillTree.children) root.append(draw(child));
     $("skill-tree").replaceChildren(root);
+  }
+  function updateFinalControls() {
+    const all = questions.size,
+      done = Object.keys(state.finalExam.answers).length,
+      finished = storyFinished();
+    $("all-checks").disabled = !finished;
+    $("all-checks").textContent =
+      state.finalExam.status === "complete"
+        ? "Пройти итоговую проверку заново"
+        : state.finalExam.status === "active"
+          ? `Продолжить проверку · ${done}/${all}`
+          : "Начать итоговую проверку";
+    $("final-status").textContent = !finished
+      ? "Доступна после прохождения всех глав. Просмотр всей переписки не завершает историю."
+      : state.finalExam.status === "complete"
+        ? `Завершена: ${done}/${all} ответов. Новый проход начнётся с первого вопроса.`
+        : state.finalExam.status === "active"
+          ? `Сохранено ${done}/${all} ответов. Продолжить можно с текущего вопроса; перезапуск доступен после завершения.`
+          : `${all} вопросов по всей истории. Ответы в главах сюда не переносятся.`;
+  }
+  function examRestartAction() {
+    const actions = el("div", "quiz-actions");
+    actions.append(
+      button(
+        "Пройти итоговую проверку заново",
+        () => startFinalExam(true),
+        "quiz-next",
+      ),
+    );
+    return actions;
+  }
+  function startFinalExam(restart = false) {
+    if (!storyFinished() || (restart && state.finalExam.status !== "complete"))
+      return false;
+    if (state.finalExam.status === "idle" || restart) {
+      state.finalExam = {
+        revision: data.assessmentRevision,
+        status: "active",
+        answers: {},
+      };
+      save();
+      startQuiz(
+        "all",
+        [...questions.values()].map((x) => x.question),
+        $("final-check-body"),
+      );
+    } else if (!quizSessions.has("all")) restoreFinalExam();
+    updateFinalControls();
+    renderSkills();
+    const target =
+      $("final-check-body").querySelector(".reply-options") || $("final-check");
+    target.scrollIntoView({ block: "start", behavior: "instant" });
+    return true;
+  }
+  function restoreFinalExam() {
+    if (
+      storyFinished() &&
+      state.finalExam.status !== "idle" &&
+      !quizSessions.has("all")
+    )
+      startQuiz(
+        "all",
+        [...questions.values()].map((x) => x.question),
+        $("final-check-body"),
+      );
+  }
+  const timelineRows = new Map();
+  let pendingRollback = null,
+    timelineFrame = null,
+    lastTimelineChapter = null,
+    timelineNeedsAlign = false;
+  function initializeTimeline() {
+    for (const c of chapters) {
+      const row = el("li", "timeline-step");
+      row.dataset.chapter = c.id;
+      const jump = button(
+        `${c.number}. ${c.title}`,
+        () => {
+          if ($("timeline-dialog").open) $("timeline-dialog").close();
+          navigate(c.id);
+        },
+        "timeline-jump",
+      );
+      const back = button("↶", () => requestRollback(c), "timeline-back");
+      back.setAttribute(
+        "aria-label",
+        `Вернуться к началу главы ${c.number} со сбросом`,
+      );
+      back.title =
+        "Вернуться к началу этой главы со сбросом дальнейшего прохождения";
+      row.append(jump, back);
+      $("timeline-chapters").append(row);
+      timelineRows.set(c.id, { row, jump, back });
+    }
+    const layout = matchMedia("(min-width: 1280px)");
+    const place = () => {
+      if (layout.matches && $("timeline-dialog").open)
+        $("timeline-dialog").close();
+      (layout.matches ? $("timeline-dock") : $("timeline-mobile")).append(
+        $("timeline-body"),
+      );
+    };
+    place();
+    layout.addEventListener("change", place);
+    $("timeline-open").addEventListener("click", () => {
+      showDialog("timeline-dialog");
+      scheduleTimelinePosition(true);
+    });
+    $("timeline-final").addEventListener("click", () => {
+      if ($("timeline-dialog").open) $("timeline-dialog").close();
+      $("final-check").scrollIntoView({ block: "start", behavior: "instant" });
+    });
+    $("rollback-cancel").addEventListener("click", () => {
+      pendingRollback = null;
+      $("rollback-dialog").close();
+    });
+    $("rollback-confirm").addEventListener("click", () => {
+      if (!pendingRollback) return;
+      const c = pendingRollback;
+      pendingRollback = null;
+      $("rollback-dialog").close();
+      performRollback(c);
+    });
+    updateTimeline();
+  }
+  function updateTimeline() {
+    for (const c of chapters) {
+      const item = timelineRows.get(c.id);
+      if (!item) continue;
+      const reached = chapterReached(c),
+        done =
+          state.choices[c.id] !== undefined && seen.has(c.id + "--supplement");
+      item.row.classList.toggle("done", done);
+      item.row.classList.toggle("reached", reached);
+      item.jump.disabled = !reached && !readAll;
+      item.back.disabled = !reached;
+      item.jump.title = done
+        ? "История главы пройдена; вопросы учитываются отдельно"
+        : reached
+          ? "Текущая глава"
+          : "Впереди";
+    }
+    $("timeline-final").disabled = !storyFinished();
+    $("timeline-final").textContent =
+      state.finalExam.status === "complete"
+        ? "Итоговая проверка · завершена"
+        : state.finalExam.status === "active"
+          ? "Итоговая проверка · в процессе"
+          : "Итоговая проверка";
+    $("timeline-open").textContent = state.started
+      ? `Путь · ${$("story-progress").value}%`
+      : "Путь";
+    scheduleTimelinePosition();
+  }
+  function scheduleTimelinePosition(force = false) {
+    timelineNeedsAlign ||= force;
+    if (timelineFrame) return;
+    timelineFrame = requestAnimationFrame(() => {
+      timelineFrame = null;
+      let current = null;
+      for (const c of chapters) {
+        const heading = $(c.id + "--heading");
+        if (
+          heading &&
+          heading.getBoundingClientRect().top < Math.max(160, innerHeight * 0.4)
+        )
+          current = c.id;
+      }
+      for (const [id, item] of timelineRows) {
+        item.row.classList.toggle("current", id === current);
+        if (id === current) item.jump.setAttribute("aria-current", "step");
+        else item.jump.removeAttribute("aria-current");
+      }
+      if (current && (current !== lastTimelineChapter || timelineNeedsAlign)) {
+        const viewport = $("timeline-chapters");
+        if (viewport.getClientRects().length) {
+          const bounds = viewport.getBoundingClientRect(),
+            row = timelineRows.get(current).row.getBoundingClientRect();
+          if (row.top < bounds.top + 16)
+            viewport.scrollTop += row.top - bounds.top - 16;
+          else if (row.bottom > bounds.bottom - 16)
+            viewport.scrollTop += row.bottom - bounds.bottom + 16;
+        }
+      }
+      lastTimelineChapter = current;
+      timelineNeedsAlign = false;
+    });
+  }
+  function requestRollback(c) {
+    pendingRollback = c;
+    if ($("timeline-dialog").open) $("timeline-dialog").close();
+    $("rollback-target").textContent = `Глава ${c.number}: ${c.title}`;
+    $("rollback-description").textContent =
+      "Выбранные продолжения истории, встречи с понятиями и ответы этой главы и всех последующих будут сброшены. Итоговая проверка тоже будет сброшена. Всё до этой главы сохранится.";
+    showDialog("rollback-dialog");
+  }
+  function performRollback(c) {
+    const index = chapters.indexOf(c),
+      affected = new Set(chapters.slice(index).map((chapter) => chapter.id));
+    const ids = new Set();
+    for (const [id, entry] of messages)
+      if (affected.has(entry.chapter.id)) ids.add(id);
+    for (const chapter of chapters.slice(index)) {
+      delete state.choices[chapter.id];
+      for (const suffix of ["heading", "sent", "reply", "supplement", "choice"])
+        ids.add(chapter.id + "--" + suffix);
+      for (const t of chapter.threads) ids.add(t.id + "--thread");
+      for (const q of chapter.checks) {
+        delete state.chapterAnswers[q.id];
+        delete state.answers[q.id];
+      }
+    }
+    for (const id of ids) {
+      seen.delete(id);
+      encountered.delete(id);
+    }
+    state.expanded = state.expanded.filter(
+      (id) => !affected.has(threads.get(id)?.chapter.id),
+    );
+    state.collapsed = state.collapsed.filter(
+      (id) => !affected.has(threads.get(id)?.chapter.id),
+    );
+    state.finalExam = {
+      revision: data.assessmentRevision,
+      status: "idle",
+      answers: {},
+    };
+    state.started = index !== 0;
+    state.storyComplete = false;
+    readAll = false;
+    paused = false;
+    save();
+    renderRestored();
+    if (index) {
+      stopTimer();
+      mount({ id: c.id + "--heading", type: "heading", chapter: c });
+      sync();
+      $(c.id + "--heading").scrollIntoView({
+        block: "start",
+        behavior: "instant",
+      });
+    } else
+      $("opening-composer").scrollIntoView({
+        block: "center",
+        behavior: "instant",
+      });
+    renderSkills();
+    updateProgress();
   }
   function chapterOf(target) {
     return (
@@ -1275,14 +1684,6 @@
     updateJump();
     history.replaceState(null, "", "#" + id);
   }
-  function openSkillQuiz(node, qs) {
-    explicitQuiz = true;
-    $("final-check").hidden = false;
-    $("final-check").querySelector("h2").textContent =
-      "Проверка ветви: " + node.title;
-    startQuiz("skill-" + node.id, qs, $("final-check-body"));
-    $("final-check").scrollIntoView({ block: "start" });
-  }
   function showDialog(id) {
     if (!$(id).open) $(id).showModal();
   }
@@ -1324,22 +1725,10 @@
   $("opening-composer").append(draft);
   $("restart-chat").addEventListener("click", () => {
     $("settings").close();
-    state.started = false;
-    state.choices = {};
-    seen.clear();
-    state.seen = [];
-    readAll = false;
-    explicitQuiz = false;
-    paused = false;
-    save();
-    renderRestored();
-    renderSkills();
-    $("opening-composer").scrollIntoView({
-      block: "center",
-      behavior: "instant",
-    });
+    requestRollback(chapters[0]);
   });
   $("progress-open").addEventListener("click", () => {
+    if ($("timeline-dialog").open) $("timeline-dialog").close();
     renderSkills();
     showDialog("skills");
   });
@@ -1373,11 +1762,7 @@
   $("back-to-chat").addEventListener("click", returnToChat);
   $("return-inline").addEventListener("click", returnToChat);
   $("all-checks").addEventListener("click", () =>
-    startQuiz(
-      "all",
-      [...questions.values()].map((x) => x.question),
-      $("final-check-body"),
-    ),
+    startFinalExam(state.finalExam.status === "complete"),
   );
   for (const b of document.querySelectorAll("[data-close]"))
     b.addEventListener("click", () => b.closest("dialog").close());
@@ -1420,7 +1805,14 @@
     target.focus({ preventScroll: true });
     updateJump();
   });
-  addEventListener("scroll", updateJump, { passive: true });
+  addEventListener(
+    "scroll",
+    () => {
+      updateJump();
+      scheduleTimelinePosition();
+    },
+    { passive: true },
+  );
   addEventListener("resize", updateJump, { passive: true });
   document.addEventListener("visibilitychange", () => {
     for (const [node, pending] of unread) {
@@ -1435,6 +1827,7 @@
     navigate(decodeURIComponent(location.hash.slice(1))),
   );
   save();
+  initializeTimeline();
   renderRestored();
   renderSkills();
   if (location.hash) navigate(decodeURIComponent(location.hash.slice(1)));
