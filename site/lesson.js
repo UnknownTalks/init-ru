@@ -29,7 +29,8 @@
     choices: {},
     seen: [],
     answers: {},
-    pace: reduced ? "instant" : "normal",
+    pace: "normal",
+    timingVersion: 1,
   };
   const known = new Set([
     ...messages.keys(),
@@ -72,7 +73,12 @@
           state.answers[id] = saved.answers[id]
             .filter((i) => Number.isInteger(i) && q.options[i] !== undefined)
             .slice(-30);
-      if (["normal", "fast", "instant"].includes(saved.pace))
+      // This iteration restores conversational timing once; explicit choices made
+      // with the current controls remain persistent afterwards.
+      if (
+        saved.timingVersion === state.timingVersion &&
+        ["normal", "fast", "instant"].includes(saved.pace)
+      )
         state.pace = saved.pace;
     }
   } catch {
@@ -480,6 +486,11 @@
   function updateJump() {
     $("jump").hidden = nearBottom() || !state.started;
   }
+  function messageDelay(text) {
+    return state.pace === "fast"
+      ? Math.min(500, 200 + text.length * 0.4)
+      : Math.min(1600, 650 + text.length * 1.4);
+  }
   function typingFor(event) {
     const who = event.type === "message" ? nameOf(event.speaker) : null;
     const n = el("div", who ? "typing" : "time-passing");
@@ -526,15 +537,14 @@
     busy = { event, typing };
     controls();
     scrollFollow();
-    const length = event.paragraphs?.join(" ").length || 120;
     const delay =
-      state.pace === "fast"
-        ? 70
-        : event.type === "message"
-          ? Math.min(1250, 380 + length * 1.3)
+      event.type === "message"
+        ? messageDelay(event.paragraphs.join(" "))
+        : state.pace === "fast"
+          ? 220
           : event.type === "heading"
             ? 850
-            : 320;
+            : 400;
     timer = setTimeout(() => {
       typing.remove();
       busy = null;
@@ -661,15 +671,12 @@
     }
     const typing = typingFor({ type: "message", speaker: "nina" });
     session.body.append(typing);
-    session.timer = setTimeout(
-      () => {
-        if (session.active === false) return;
-        typing.remove();
-        session.body.append(quizMessage("nina", text));
-        done();
-      },
-      state.pace === "fast" ? 70 : Math.min(1100, 350 + text.length),
-    );
+    session.timer = setTimeout(() => {
+      if (session.active === false) return;
+      typing.remove();
+      session.body.append(quizMessage("nina", text));
+      done();
+    }, messageDelay(text));
   }
   function startQuiz(id, qs, body) {
     const previous = quizSessions.get(id);
@@ -700,14 +707,17 @@
       quizIncoming(
         session,
         `На ${passed} из ${session.qs.length} вопросов последний ответ верный. Это результат этой проверки; к объяснениям можно вернуться в любой момент.`,
-        () =>
-          session.body.append(
+        () => {
+          const actions = el("div", "quiz-actions");
+          actions.append(
             button(
               "Пройти ещё раз",
               () => startQuiz(session.id, session.qs, session.body),
-              "text-button",
+              "quiz-next",
             ),
-          ),
+          );
+          session.body.append(actions);
+        },
       );
       return;
     }
@@ -748,7 +758,7 @@
                       actions.remove();
                       ask(session);
                     },
-                    "text-button",
+                    "quiz-retry",
                   ),
                 );
               actions.append(
@@ -761,7 +771,7 @@
                     session.index++;
                     ask(session);
                   },
-                  "text-button",
+                  "quiz-next",
                 ),
               );
               session.body.append(actions);
