@@ -172,18 +172,6 @@ await cp(
   path.join(root, "public/static/quartz-license.txt"),
 );
 if (process.argv.includes("--serve")) {
-  const { createServer } = await import("node:http");
-  const { default: serve } = await import(
-    path.join(cache, "node_modules/serve-handler/src/index.js")
-  );
-  createServer((request, response) => {
-    if (request.url === "/init-ru" || request.url.startsWith("/init-ru/"))
-      request.url = request.url.slice("/init-ru".length) || "/";
-    return serve(request, response, {
-      public: path.join(root, "public"),
-      cleanUrls: !request.url.split("?")[0].includes("/demos/"),
-    });
-  }).listen(8080, "127.0.0.1", () =>
-    console.log("Preview: http://127.0.0.1:8080/init-ru/"),
-  );
+  const { startPreview } = await import("./serve.mjs");
+  await startPreview({ root });
 }

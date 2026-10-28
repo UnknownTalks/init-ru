@@ -32,6 +32,8 @@ jobs:
         run: node site/build.mjs
       - name: Check material links and generated pages
         run: node site/check.mjs
+      - name: Check local review storage and isolation
+        run: node --test site/review.test.mjs
       - uses: actions/upload-pages-artifact@v3
         with:
           path: public
