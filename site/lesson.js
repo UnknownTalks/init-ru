@@ -62,6 +62,7 @@
       c.id + "--sent",
       c.id + "--reply",
       c.id + "--supplement",
+      c.id + "--resources",
       c.id + "--choice",
     ]),
   ]);
@@ -78,21 +79,25 @@
         if (Array.isArray(saved[field]))
           state[field] = [
             ...new Set(
-              saved[field].filter(
-                (id) =>
-                  typeof id === "string" &&
-                  (field === "tracks"
-                    ? data.tracks.some((t) => t.id === id)
-                    : field === "seen"
-                      ? known.has(id)
-                      : threads.has(id)),
-              ),
+              saved[field]
+                .map((id) => (field === "seen" ? data.aliases[id] || id : id))
+                .filter(
+                  (id) =>
+                    typeof id === "string" &&
+                    (field === "tracks"
+                      ? data.tracks.some((t) => t.id === id)
+                      : field === "seen"
+                        ? known.has(id)
+                        : threads.has(id)),
+                ),
             ),
           ];
       for (const c of chapters)
         if (
           Number.isInteger(saved.choices?.[c.id]) &&
-          c.decision.options[saved.choices[c.id]]
+          (c.decision
+            ? c.decision.options[saved.choices[c.id]]
+            : [0, 1].includes(saved.choices[c.id]))
         )
           state.choices[c.id] = saved.choices[c.id];
       for (const [id, { question: q }] of questions)
@@ -110,16 +115,18 @@
       if (Array.isArray(previousEncounters))
         state.encountered = [
           ...new Set(
-            previousEncounters.filter((id) => {
-              const entry = messages.get(id);
-              return (
-                entry?.event.type === "message" &&
-                (saved.encounteredVersion === 1 ||
-                  !entry.thread ||
-                  state.expanded.includes(entry.thread.id) ||
-                  state.collapsed.includes(entry.thread.id))
-              );
-            }),
+            previousEncounters
+              .map((id) => data.aliases[id] || id)
+              .filter((id) => {
+                const entry = messages.get(id);
+                return (
+                  entry?.event.type === "message" &&
+                  (saved.encounteredVersion === 1 ||
+                    !entry.thread ||
+                    state.expanded.includes(entry.thread.id) ||
+                    state.collapsed.includes(entry.thread.id))
+                );
+              }),
           ),
         ];
       if (saved.finalExam?.revision === data.assessmentRevision) {
@@ -162,12 +169,18 @@
   // A saved choice places its preceding chapter in history, including text
   // added by a later editorial revision. It must not replay as a new arrival.
   for (const c of chapters)
-    if (state.choices[c.id] !== undefined)
+    if (
+      state.choices[c.id] !== undefined ||
+      (!c.decision && seen.has(c.id + "--supplement"))
+    )
       for (const id of [
         c.id + "--heading",
         ...c.intro.map((e) => e.id),
         c.id + "--sent",
-        c.id + "--reply",
+        ...(c === chapters.at(-1) && !state.storyComplete
+          ? []
+          : [c.id + "--reply"]),
+        ...(c.decision ? [c.id + "--resources"] : []),
         ...(c === chapters.at(-1) && !state.storyComplete
           ? []
           : [...c.outro.map((e) => e.id), c.id + "--supplement"]),
@@ -390,52 +403,51 @@
           events.push({ ...e, parent: t.id, optional: true });
     };
     for (const c of chapters) {
+      events.push({ id: c.id + "--heading", type: "heading", chapter: c });
+      const body = c.decision ? c.intro.slice(0, -2) : c.intro;
       events.push(
-        { id: c.id + "--heading", type: "heading", chapter: c },
-        ...c.intro.map((event, index) =>
+        ...body.map((event, index) =>
           c === chapters[0] && index === 0
             ? { ...event, outgoing: true }
             : event,
         ),
       );
-      const selected = c.decision.options[state.choices[c.id]];
-      if (!selected && !all) {
-        events.push({ id: c.id + "--choice", type: "choice", chapter: c });
-        break;
-      }
-      if (selected)
-        events.push({
-          id: c.id + "--sent",
-          type: "message",
-          speaker: "sasha",
-          paragraphs: [selected.label],
-          time: c.sentTime,
-          outgoing: true,
-        });
-      for (const t of c.threads.filter((t) => t.placement === "before-reply")) {
-        events.push({
-          id: t.id + "--thread",
-          type: "thread",
-          chapter: c,
-          thread: t,
-        });
-        addMessages(t);
-      }
-      if (selected)
-        events.push({
-          id: c.id + "--reply",
-          type: "message",
-          speaker: c.decision.responder,
-          paragraphs: [selected.reply],
-          time: c.replyTime,
-        });
-      events.push(...c.outro, {
-        id: c.id + "--supplement",
+      events.push({
+        id: c.id + (c.decision ? "--resources" : "--supplement"),
         type: "supplement",
         chapter: c,
       });
-      for (const t of c.threads.filter((t) => t.placement !== "before-reply"))
-        addMessages(t);
+      for (const t of c.threads) addMessages(t);
+      if (c.decision) {
+        events.push(...c.intro.slice(-2));
+        const selected = c.decision.options[state.choices[c.id]];
+        if (!selected && !all) {
+          events.push({ id: c.id + "--choice", type: "choice", chapter: c });
+          break;
+        }
+        if (selected)
+          events.push(
+            {
+              id: c.id + "--sent",
+              type: "message",
+              speaker: "sasha",
+              paragraphs: [selected.label],
+              time: c.sentTime,
+              outgoing: true,
+            },
+            {
+              id: c.id + "--reply",
+              type: "message",
+              speaker: c.decision.responder,
+              paragraphs: [selected.reply],
+              time: c.replyTime,
+            },
+          );
+        events.push(...c.outro, {
+          id: c.id + "--supplement",
+          type: "milestone",
+        });
+      }
     }
     return events;
   }
@@ -444,15 +456,20 @@
       .flatMap((c) => [
         ...c.intro,
         ...c.outro,
-        { id: c.id + "--sent" },
-        { id: c.id + "--reply" },
+        ...(c.decision
+          ? [{ id: c.id + "--sent" }, { id: c.id + "--reply" }]
+          : []),
       ])
       .map((e) => e.id),
   );
   function storyFinished() {
     return (
       state.started &&
-      chapters.every((c) => state.choices[c.id] !== undefined) &&
+      chapters.every(
+        (c) =>
+          (!c.decision || state.choices[c.id] !== undefined) &&
+          seen.has(c.id + "--supplement"),
+      ) &&
       state.storyComplete
     );
   }
@@ -799,7 +816,10 @@
       node = el("p", "narration", event.text);
     else if (event.type === "visual") node = diagram(event);
     else if (event.type === "choice") node = showChoice(event.chapter);
-    else if (event.type === "supplement") node = supplement(event.chapter);
+    else if (event.type === "milestone") {
+      node = el("span");
+      node.hidden = true;
+    } else if (event.type === "supplement") node = supplement(event.chapter);
     else if (event.type === "thread")
       node = threadPanel(event.chapter, event.thread);
     else return;
@@ -968,6 +988,7 @@
       seen.has(event.id) ||
       event.type === "choice" ||
       event.type === "supplement" ||
+      event.type === "milestone" ||
       event.type === "thread" ||
       (event.parent &&
         threads.get(event.parent)?.thread.messages[0].id === event.id) ||
@@ -1568,7 +1589,7 @@
       const reached = group.scenes.some(chapterReached),
         done = group.scenes.every(
           (c) =>
-            state.choices[c.id] !== undefined &&
+            (!c.decision || state.choices[c.id] !== undefined) &&
             seen.has(c.id + "--supplement"),
         );
       item.row.classList.toggle("done", done);
@@ -1658,7 +1679,14 @@
       if (affected.has(entry.chapter.id)) ids.add(id);
     for (const chapter of chapters.slice(index)) {
       delete state.choices[chapter.id];
-      for (const suffix of ["heading", "sent", "reply", "supplement", "choice"])
+      for (const suffix of [
+        "heading",
+        "sent",
+        "reply",
+        "supplement",
+        "resources",
+        "choice",
+      ])
         ids.add(chapter.id + "--" + suffix);
       for (const t of chapter.threads) ids.add(t.id + "--thread");
       for (const q of chapter.checks) {

@@ -81,6 +81,19 @@ export async function renderAgentView(root) {
         ...t.sources.map((source) => `- [${source.label}](${source.url})`),
       );
   }
+  function emitCheck(q) {
+    text.push(
+      `#### ${q.question}`,
+      `Понятия: ${q.terms.join(", ") || "постановка задачи"}`,
+      q.track ? "Дополнительное направление: " + q.track : "Основная линия.",
+      ...q.options.map(
+        (o, i) => `- ${o}${i === q.correct ? " — верный ответ" : ""}`,
+      ),
+      q.explanation,
+      "При ошибке вернуться к сообщениям: " +
+        q.references.map((id) => `[${id}](#${id})`).join(" · "),
+    );
+  }
   text.push("## Полная переписка");
   for (const [index, group] of story.chapterGroups.entries()) {
     text.push(`## Глава ${index + 1} — ${group.title}`);
@@ -89,22 +102,25 @@ export async function renderAgentView(root) {
     );
     for (const c of scenes) {
       text.push(`<a id="${c.id}"></a>`, `### ${c.title} · День ${c.day}`);
-      for (const e of c.intro) emit(e);
-      text.push(`### Варианты сообщения Саши · ${c.sentTime}`);
-      for (const o of c.decision.options) text.push(`**Саша:** ${o.label}`);
-      for (const t of c.threads.filter((t) => t.placement === "before-reply"))
-        emitThread(t);
-      text.push(
-        `### Ответ: ${names.get(c.decision.responder)} · ${c.replyTime}`,
-      );
-      for (const o of c.decision.options)
+      const body = c.decision ? c.intro.slice(0, -2) : c.intro;
+      for (const e of body) emit(e);
+      for (const t of c.threads) emitThread(t);
+      if (c.decision) {
+        text.push("### Проверка понимания");
+        for (const q of scenes.flatMap((scene) => scene.checks)) emitCheck(q);
+        for (const e of c.intro.slice(-2)) emit(e);
+        text.push(`### Варианты сообщения Саши · ${c.sentTime}`);
+        for (const o of c.decision.options) text.push(`**Саша:** ${o.label}`);
         text.push(
-          `На сообщение «${o.label}»:`,
-          `**${names.get(c.decision.responder)}:** ${o.reply}`,
+          `### Ответ: ${names.get(c.decision.responder)} · ${c.replyTime}`,
         );
+        for (const o of c.decision.options)
+          text.push(
+            `На сообщение «${o.label}»:`,
+            `**${names.get(c.decision.responder)}:** ${o.reply}`,
+          );
+      }
       for (const e of c.outro) emit(e);
-      for (const t of c.threads.filter((t) => t.placement !== "before-reply"))
-        emitThread(t);
       text.push(
         "### Проблема, попытки и результат",
         ...Object.entries(c.arc).map(
@@ -119,19 +135,6 @@ export async function renderAgentView(root) {
           : []),
       );
     }
-    text.push("### Проверка понимания");
-    for (const q of scenes.flatMap((c) => c.checks))
-      text.push(
-        `#### ${q.question}`,
-        `Понятия: ${q.terms.join(", ") || "постановка задачи"}`,
-        q.track ? "Дополнительное направление: " + q.track : "Основная линия.",
-        ...q.options.map(
-          (o, i) => `- ${o}${i === q.correct ? " — верный ответ" : ""}`,
-        ),
-        q.explanation,
-        "При ошибке вернуться к сообщениям: " +
-          q.references.map((id) => `[${id}](#${id})`).join(" · "),
-      );
   }
   text.push(
     "## Словарь",
@@ -158,7 +161,7 @@ export async function renderAgentView(root) {
   await writeFile(path.join(root, "public", "llms-full.txt"), md);
   await writeFile(
     path.join(root, "public", "llms.txt"),
-    `# UnknownTalks / init-ru\n\n> Russian educational messenger story: from internet data to a language-model agent. Fictional cast, products, timestamps and development durations; real primary sources.\n\nSchema v4: chapterGroups defines six ordered navigation chapters, each referencing stable scene IDs in chapters. Local checks are collected at the end of each group. Scene records in chapters contain intro/outro events (message, narration, visual), a story decision, optional internal threads and independent checks. Characters have roles and fictional handles. All threads are available; readers open them in the conversation. Threads with placement before-reply precede the chosen response. Message attachments belong inside their parent message. Decision options change only the opening reply and rejoin the common outro. Checks contain options, the correct index, an explanation and references to actual event IDs for forwarded remediation. arc records problem/attempts/resolution references. skillTree branches by concepts, not chapter sequence. Browser story progress is separate from quiz results.\n\n- [Complete dialogue, every internal chat, question, answer and source](${base}/${lesson}/agent.md)\n- [Structured story](${base}/${lesson}/story.json)\n- [Fictional source materials](${base}/${lesson}/materials.json)\n- [Glossary](${base}/glossary.md)\n- [Structured glossary](${base}/glossary.json)\n- [Self-study prompt](${base}/${lesson}/agent-prompt)\n- [Human-facing messenger](${base}/${lesson}/chat.html)\n- [Complete plain text](${base}/llms-full.txt)\n`,
+    `# UnknownTalks / init-ru\n\n> Russian educational messenger story: from internet data to a language-model agent. Fictional cast, products, timestamps and development durations; real primary sources.\n\nSchema v5: chapterGroups defines six ordered navigation chapters, each referencing stable scene IDs in chapters. Local checks are collected at the end of each group. Scene records in chapters contain intro/outro events (message, narration, visual), an optional chapter-boundary continuation, internal threads and independent checks. Characters have roles and fictional handles. All threads are available; readers open them in the conversation. Chapter-boundary decisions follow the closing dialogue; internal chats and reviews precede that closing. Scene records without a decision continue automatically. Message attachments belong inside their parent message. Decision options change only the opening reply and rejoin the common narrative path. Checks contain options, the correct index, an explanation and references to actual event IDs for forwarded remediation. arc records problem/attempts/resolution references. skillTree branches by concepts, not chapter sequence. Browser story progress is separate from quiz results.\n\n- [Complete dialogue, every internal chat, question, answer and source](${base}/${lesson}/agent.md)\n- [Structured story](${base}/${lesson}/story.json)\n- [Fictional source materials](${base}/${lesson}/materials.json)\n- [Glossary](${base}/glossary.md)\n- [Structured glossary](${base}/glossary.json)\n- [Self-study prompt](${base}/${lesson}/agent-prompt)\n- [Human-facing messenger](${base}/${lesson}/chat.html)\n- [Complete plain text](${base}/llms-full.txt)\n`,
   );
   await writeFile(
     path.join(out, "agent.html"),

@@ -46,7 +46,7 @@ for (const c of story.chapters) {
     questions.set(q.id, q);
   }
 }
-require(story.schemaVersion === 4, "Wrong schema");
+require(story.schemaVersion === 5, "Wrong schema");
 require(chapters.size === story.chapters.length, "Duplicate chapter IDs");
 require(JSON.stringify(story.basics) ===
   JSON.stringify([...chapters.keys()]), "Main order differs");
@@ -55,21 +55,24 @@ require(Array.isArray(story.chapterGroups) && story.chapterGroups.length === 6 &
   story.chapterGroups.every((g) => g.id && g.title && g.chapters.length) &&
   JSON.stringify(story.chapterGroups.flatMap((g) => g.chapters)) === JSON.stringify(story.basics),
   "Chapter groups must cover the main path once, in order");
+for (const group of story.chapterGroups)
+  require(group.chapters.every((id, index) => !!chapters.get(id).decision === (index === group.chapters.length - 1)),
+    "Continuation must occur once at each chapter boundary: " + group.id);
 for (const c of story.chapters) {
   require(c.title &&
     c.elapsed &&
     c.intro.length &&
-    c.outro.length &&
+    Array.isArray(c.outro) &&
     Array.isArray(c.sources) &&
     (c.sources.length || !c.terms.length), "Incomplete chapter " + c.id);
   require(c.number === `${story.chapters.indexOf(c) + 1}` &&
     Number.isInteger(c.day) && c.day > 0 &&
     (!story.chapters.indexOf(c) || c.day >= story.chapters[story.chapters.indexOf(c) - 1].day),
     "Invalid section number/day " + c.id);
-  require(c.decision.options.length >= 2 &&
+  require(!c.decision || (c.decision.options.length >= 2 &&
     c.decision.options.every(
       (o) => o.label && o.reply,
-    ), "Missing shared-path choices " + c.id);
+    )), "Missing shared-path choices " + c.id);
   require(c.terms.every((id) => terms.has(id)), "Unknown chapter term " + c.id);
   for (const part of ["problem", "attempts", "resolution"])
     require(c.arc[part]?.length &&
@@ -126,16 +129,15 @@ checkTree(story.skillTree);
 // Check the authored schedule independently of playback speed and open branches.
 let previousTime = -1;
 for (const c of story.chapters) {
-  const before = c.threads.filter((t) => t.placement === "before-reply");
-  const after = c.threads.filter((t) => t.placement !== "before-reply");
-  const schedule = [
-    ...c.intro.filter((e) => e.type === "message"),
+  const internal = c.threads.flatMap((t) => t.messages.filter((e) => e.type === "message"));
+  const schedule = c.decision ? [
+    ...c.intro.slice(0, -2).filter((e) => e.type === "message"),
+    ...internal,
+    ...c.intro.slice(-2).filter((e) => e.type === "message"),
     { id: c.id + "--sent", time: c.sentTime },
-    ...before.flatMap((t) => t.messages.filter((e) => e.type === "message")),
     { id: c.id + "--reply", time: c.replyTime },
     ...c.outro.filter((e) => e.type === "message"),
-    ...after.flatMap((t) => t.messages.filter((e) => e.type === "message")),
-  ];
+  ] : [...c.intro.filter((e) => e.type === "message"), ...internal];
   for (const e of schedule) {
     require(/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(e.time), "Invalid message time " + e.id);
     const [hours, minutes] = e.time.split(":").map(Number);
@@ -168,7 +170,7 @@ for (const q of questions.values())
   ), "Incomplete exported check " + q.id);
 for (const c of chapters.values())
   require([
-    ...c.decision.options.flatMap((o) => [o.label, o.reply]),
+    ...(c.decision?.options || []).flatMap((o) => [o.label, o.reply]),
     ...c.sources.map((s) => s.url),
   ].every((v) => markdown.includes(v)), "Incomplete exported choice/source " +
     c.id);
