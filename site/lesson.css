@@ -176,6 +176,9 @@ h3 {
 #messages {
   min-height: 10px;
 }
+#final-check {
+  scroll-margin-top: 100px;
+}
 .chapter-heading {
   text-align: center;
   margin: 54px 0 30px;
@@ -818,15 +821,27 @@ h3 {
 }
 #jump {
   position: fixed;
-  right: 24px;
-  bottom: 18px;
+  left: 50%;
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
   z-index: 4;
-  border-radius: 24px;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
   background: #343a41;
   color: #d3dae1;
   font-size: 12px;
   box-shadow: 0 4px 16px #0005;
-  padding: 9px 15px;
+  padding: 0;
+}
+#jump[data-direction="up"] svg {
+  transform: rotate(180deg);
+}
+#mobile-menu-open,
+.sheet-handle {
+  display: none;
 }
 dialog {
   max-width: 780px;
@@ -1041,10 +1056,6 @@ dialog select {
     white-space: nowrap;
     font-size: 11px;
   }
-  #jump {
-    right: 12px;
-    bottom: 12px;
-  }
   .story-footer {
     padding-bottom: 30px;
   }
@@ -1148,8 +1159,7 @@ dialog select {
   padding-right: 10px;
   font-size: 13px;
 }
-#timeline-body #progress-open,
-#timeline-final {
+#timeline-body #progress-open {
   display: block;
   width: 100%;
   font-size: 13px;
@@ -1252,7 +1262,8 @@ dialog select {
     backdrop-filter: none;
   }
   .chapter-heading,
-  .message {
+  .message,
+  #final-check {
     scroll-margin-top: 24px;
   }
   .chapter-meta {
@@ -1328,5 +1339,143 @@ dialog select {
   .action-cue::after {
     animation: none;
     opacity: 0.55;
+  }
+}
+
+@media (max-width: 1279px) {
+  html.has-dialog {
+    overflow: hidden;
+  }
+  .app-header nav {
+    display: none;
+  }
+  .conversation {
+    padding-bottom: calc(110px + env(safe-area-inset-bottom));
+    padding-left: max(15px, env(safe-area-inset-left));
+    padding-right: max(15px, env(safe-area-inset-right));
+  }
+  .message,
+  .reply-options,
+  .quiz-actions {
+    scroll-margin-bottom: calc(90px + env(safe-area-inset-bottom));
+  }
+  #mobile-menu-open {
+    position: fixed;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    right: max(16px, env(safe-area-inset-right));
+    bottom: calc(14px + env(safe-area-inset-bottom));
+    z-index: 4;
+    min-height: 48px;
+    padding: 10px 16px;
+    border-radius: 28px;
+    border: 1px solid #71777d66;
+    background: #303337ed;
+    -webkit-backdrop-filter: blur(18px);
+    backdrop-filter: blur(18px);
+    box-shadow: 0 4px 18px #0004;
+    font-size: 14px;
+  }
+  #mobile-menu-open:hover {
+    background: #3a3f44;
+  }
+  dialog.mobile-sheet,
+  #timeline-dialog.mobile-sheet {
+    inset: auto 0 0;
+    margin: auto auto 0;
+    width: min(100%, 560px);
+    max-width: none;
+    max-height: calc(90dvh - env(safe-area-inset-top));
+    padding: 0 20px calc(22px + env(safe-area-inset-bottom));
+    border: 1px solid #50565d;
+    border-bottom: 0;
+    border-radius: 26px 26px 0 0;
+    transform: translateY(var(--sheet-drag, 0px));
+    transition: transform 180ms ease-out;
+    overscroll-behavior: contain;
+  }
+  dialog.mobile-sheet[open] {
+    animation: sheet-enter 180ms ease-out;
+  }
+  dialog.mobile-sheet.is-dragging {
+    transition: none;
+  }
+  .mobile-sheet .dialog-heading {
+    align-items: center;
+    margin-bottom: 12px;
+    flex-shrink: 0;
+  }
+  .mobile-sheet .dialog-heading h2 {
+    font-size: 21px;
+  }
+  .mobile-sheet .dialog-heading button {
+    display: grid;
+    place-items: center;
+    min-width: 44px;
+    min-height: 44px;
+    border-radius: 50%;
+    background: #ffffff08;
+  }
+  .sheet-handle {
+    display: grid;
+    place-items: center;
+    height: 26px;
+    flex-shrink: 0;
+    touch-action: none;
+    cursor: grab;
+  }
+  .sheet-handle::before {
+    content: "";
+    width: 36px;
+    height: 4px;
+    border-radius: 4px;
+    background: #737a82;
+  }
+  #mobile-menu[open] {
+    display: flex;
+    flex-direction: column;
+  }
+  .mobile-menu-links {
+    min-height: 0;
+    overflow-y: auto;
+    border-radius: 16px;
+    background: #ffffff05;
+  }
+  .mobile-menu-links > * {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    width: 100%;
+    min-height: 54px;
+    padding: 13px 16px;
+    border: 0;
+    border-radius: 0;
+    text-decoration: none;
+    font-size: 16px;
+  }
+  .mobile-menu-links > * + * {
+    border-top: 1px solid #ffffff0b;
+  }
+  .mobile-menu-links > *:hover {
+    background: #ffffff08;
+  }
+  .mobile-menu-links span {
+    color: #9ba6b0;
+  }
+  #timeline-dialog.mobile-sheet[open] {
+    height: min(78dvh, 700px);
+  }
+}
+@keyframes sheet-enter {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }

@@ -921,9 +921,12 @@
     const visible = rect && rect.bottom > 100 && rect.top < innerHeight - 60;
     $("jump").hidden =
       !target || visible || (!unread.size && rect.bottom < innerHeight);
-    $("jump").textContent = unread.size
-      ? `Новые сообщения · ${unread.size} ${rect?.bottom < 100 ? "↑" : "↓"}`
-      : "К последним сообщениям ↓";
+    const label = unread.size
+      ? `К новым сообщениям: ${unread.size}`
+      : "К последним сообщениям";
+    $("jump").setAttribute("aria-label", label);
+    $("jump").title = label;
+    $("jump").dataset.direction = rect?.bottom < 100 ? "up" : "down";
     const notice = unread.size ? `Новых сообщений: ${unread.size}` : "";
     if ($("new-message-status").textContent !== notice)
       $("new-message-status").textContent = notice;
@@ -1466,6 +1469,7 @@
       );
     } else if (!quizSessions.has("all")) restoreFinalExam();
     updateFinalControls();
+    updateTimeline();
     renderSkills();
     const target =
       $("final-check-body").querySelector(".reply-options") || $("final-check");
@@ -1515,8 +1519,18 @@
       $("timeline-chapters").append(row);
       timelineRows.set(group.id, { row, jump, back });
     }
+    const finalRow = el("li", "timeline-step timeline-final-step");
+    finalRow.dataset.chapter = "final-check";
+    $("timeline-final").classList.add("timeline-jump");
+    finalRow.append($("timeline-final"));
+    $("timeline-chapters").append(finalRow);
+    timelineRows.set("final-check", {
+      row: finalRow,
+      jump: $("timeline-final"),
+    });
     const layout = matchMedia("(min-width: 1280px)");
     const place = () => {
+      if (layout.matches && $("mobile-menu").open) $("mobile-menu").close();
       if (layout.matches && $("timeline-dialog").open)
         $("timeline-dialog").close();
       (layout.matches ? $("timeline-dock") : $("timeline-mobile")).append(
@@ -1532,6 +1546,7 @@
     $("timeline-final").addEventListener("click", () => {
       if ($("timeline-dialog").open) $("timeline-dialog").close();
       $("final-check").scrollIntoView({ block: "start", behavior: "instant" });
+      scheduleTimelinePosition(true);
     });
     $("rollback-cancel").addEventListener("click", () => {
       pendingRollback = null;
@@ -1571,10 +1586,13 @@
     $("timeline-final").disabled = !storyFinished();
     $("timeline-final").textContent =
       state.finalExam.status === "complete"
-        ? "Итоговая проверка · завершена"
+        ? "7. Итоговая проверка · завершена"
         : state.finalExam.status === "active"
-          ? "Итоговая проверка · в процессе"
-          : "Итоговая проверка";
+          ? "7. Итоговая проверка · в процессе"
+          : "7. Итоговая проверка";
+    const finalRow = $("timeline-final").closest("li");
+    finalRow.classList.toggle("done", state.finalExam.status === "complete");
+    finalRow.classList.toggle("reached", storyFinished());
     $("timeline-open").textContent = state.started
       ? `Путь · ${$("story-progress").value}%`
       : "Путь";
@@ -1594,6 +1612,15 @@
         )
           current = groupByScene.get(c.id).id;
       }
+      const finalTop = $("final-check").getBoundingClientRect().top,
+        atPageEnd =
+          scrollY + innerHeight >= document.documentElement.scrollHeight - 2;
+      if (
+        !$("final-check").hidden &&
+        (finalTop < Math.max(160, innerHeight * 0.4) ||
+          (atPageEnd && finalTop < innerHeight))
+      )
+        current = "final-check";
       for (const [id, item] of timelineRows) {
         item.row.classList.toggle("current", id === current);
         if (id === current) item.jump.setAttribute("aria-current", "step");
@@ -1729,8 +1756,63 @@
     updateJump();
     history.replaceState(null, "", "#" + id);
   }
+  function syncDialogState() {
+    document.documentElement.classList.toggle(
+      "has-dialog",
+      !!document.querySelector("dialog[open]"),
+    );
+    $("mobile-menu-open").setAttribute(
+      "aria-expanded",
+      String($("mobile-menu").open),
+    );
+  }
   function showDialog(id) {
     if (!$(id).open) $(id).showModal();
+    syncDialogState();
+  }
+  $("mobile-menu-open").addEventListener("click", () =>
+    showDialog("mobile-menu"),
+  );
+  for (const item of document.querySelectorAll("[data-menu-dialog]"))
+    item.addEventListener("click", () => {
+      $("mobile-menu").close();
+      if (item.dataset.menuDialog === "skills") renderSkills();
+      showDialog(item.dataset.menuDialog);
+      if (item.dataset.menuDialog === "timeline-dialog")
+        scheduleTimelinePosition(true);
+    });
+  for (const dialog of document.querySelectorAll(".mobile-sheet")) {
+    const handle = el("div", "sheet-handle");
+    handle.setAttribute("aria-hidden", "true");
+    dialog.prepend(handle);
+    let start = null,
+      distance = 0;
+    handle.addEventListener("pointerdown", (event) => {
+      if (innerWidth >= 1280 || !event.isPrimary) return;
+      start = event.clientY;
+      distance = 0;
+      handle.setPointerCapture(event.pointerId);
+      dialog.classList.add("is-dragging");
+    });
+    handle.addEventListener("pointermove", (event) => {
+      if (start === null) return;
+      distance = Math.max(0, event.clientY - start);
+      dialog.style.setProperty("--sheet-drag", distance + "px");
+    });
+    const finish = (event) => {
+      if (start === null) return;
+      start = null;
+      dialog.classList.remove("is-dragging");
+      dialog.style.removeProperty("--sheet-drag");
+      if (event.type !== "pointercancel" && distance > 70) dialog.close();
+    };
+    handle.addEventListener("pointerup", finish);
+    handle.addEventListener("pointercancel", finish);
+    dialog.addEventListener("close", () => {
+      start = null;
+      dialog.classList.remove("is-dragging");
+      dialog.style.removeProperty("--sheet-drag");
+    });
   }
   for (const p of data.characters.filter(
     (p) => !["tool", "agent"].includes(p.id),
@@ -1812,7 +1894,8 @@
   );
   for (const b of document.querySelectorAll("[data-close]"))
     b.addEventListener("click", () => b.closest("dialog").close());
-  for (const d of document.querySelectorAll("dialog"))
+  for (const d of document.querySelectorAll("dialog")) {
+    d.addEventListener("close", syncDialogState);
     d.addEventListener("click", (e) => {
       if (e.target === d) {
         const r = d.getBoundingClientRect();
@@ -1825,6 +1908,7 @@
           d.close();
       }
     });
+  }
   $("jump").addEventListener("click", () => {
     const target = jumpTarget();
     if (!target) return;
