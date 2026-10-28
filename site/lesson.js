@@ -34,6 +34,7 @@
   };
   const known = new Set([
     ...messages.keys(),
+    ...[...threads.keys()].map((id) => id + "--thread"),
     ...chapters.flatMap((c) => [
       c.id + "--heading",
       c.id + "--sent",
@@ -100,6 +101,10 @@
         c.id + "--reply",
         ...c.outro.map((e) => e.id),
         c.id + "--supplement",
+        ...c.threads.flatMap((t) => [
+          t.id + "--thread",
+          ...t.messages.map((e) => e.id),
+        ]),
       ])
         seen.add(id);
   let timer = null,
@@ -228,6 +233,11 @@
   function currentTimeline(all = readAll) {
     if (!state.started && !all) return [];
     const events = [];
+    const addMessages = (t) => {
+      if (threadOpen(t))
+        for (const e of t.messages)
+          events.push({ ...e, parent: t.id, optional: true });
+    };
     for (const c of chapters) {
       events.push(
         { id: c.id + "--heading", type: "heading", chapter: c },
@@ -243,32 +253,38 @@
         break;
       }
       if (selected)
-        events.push(
-          {
-            id: c.id + "--sent",
-            type: "message",
-            speaker: "sasha",
-            paragraphs: [selected.label],
-            time: c.sentTime,
-            outgoing: true,
-          },
-          {
-            id: c.id + "--reply",
-            type: "message",
-            speaker: c.decision.responder,
-            paragraphs: [selected.reply],
-            time: c.replyTime,
-          },
-        );
+        events.push({
+          id: c.id + "--sent",
+          type: "message",
+          speaker: "sasha",
+          paragraphs: [selected.label],
+          time: c.sentTime,
+          outgoing: true,
+        });
+      for (const t of c.threads.filter((t) => t.placement === "before-reply")) {
+        events.push({
+          id: t.id + "--thread",
+          type: "thread",
+          chapter: c,
+          thread: t,
+        });
+        addMessages(t);
+      }
+      if (selected)
+        events.push({
+          id: c.id + "--reply",
+          type: "message",
+          speaker: c.decision.responder,
+          paragraphs: [selected.reply],
+          time: c.replyTime,
+        });
       events.push(...c.outro, {
         id: c.id + "--supplement",
         type: "supplement",
         chapter: c,
       });
-      for (const t of c.threads)
-        if (threadOpen(t))
-          for (const e of t.messages)
-            events.push({ ...e, parent: t.id, optional: true });
+      for (const t of c.threads.filter((t) => t.placement !== "before-reply"))
+        addMessages(t);
     }
     return events;
   }
@@ -405,69 +421,75 @@
     if (c.sources.length) details.append(ul);
     return details;
   }
+  function threadPanel(c, t) {
+    const d = el("details", "internal-thread");
+    d.dataset.thread = t.id;
+    d.dataset.chapter = c.id;
+    d.open = threadOpen(t);
+    d.classList.add("conversation-thread");
+    const summary = threadPreview({
+      event: t.messages[0],
+      title: t.title,
+      participants: t.messages
+        .filter((message) => message.speaker)
+        .map((message) => message.speaker),
+    });
+    summary.setAttribute("aria-controls", t.id);
+    const updateSummary = () => {
+      summary.setAttribute("aria-expanded", String(d.open));
+      summary.querySelector(".thread-action").textContent = d.open
+        ? "Свернуть переписку"
+        : countLabel(t.messages.length, [
+            "сообщение",
+            "сообщения",
+            "сообщений",
+          ]);
+    };
+    updateSummary();
+    d.append(
+      summary,
+      el(
+        "p",
+        "small muted thread-context",
+        t.context || `День ${c.day} · Обсуждение внутри команды.`,
+      ),
+    );
+    const body = el("div", "thread-messages");
+    body.id = t.id;
+    parentNodes.set(t.id, body);
+    d.append(body);
+    const references = sourceLinks({
+      terms: t.terms || [],
+      sources: t.sources || [],
+    });
+    if (references) d.append(references);
+    if (t.id === "tokens-bpe") {
+      const a = el("a", "small", "Проверить текст настоящим токенизатором ↗");
+      a.href = "demos/tokens.html";
+      a.target = "_blank";
+      d.append(a);
+    }
+    d.addEventListener("toggle", () => {
+      updateSummary();
+      const desired = threadOpen(t);
+      if (d.open === desired) return;
+      if (d.open) {
+        state.expanded = [...new Set([...state.expanded, t.id])];
+        state.collapsed = state.collapsed.filter((id) => id !== t.id);
+      } else {
+        state.expanded = state.expanded.filter((id) => id !== t.id);
+        state.collapsed = [...new Set([...state.collapsed, t.id])];
+      }
+      save();
+      sync();
+    });
+    return d;
+  }
   function supplement(c) {
     const node = el("section", "chapter-supplement");
     node.dataset.chapter = c.id;
-    for (const t of c.threads) {
-      const d = el("details", "internal-thread");
-      d.dataset.thread = t.id;
-      d.open = threadOpen(t);
-      d.classList.add("conversation-thread");
-      const summary = threadPreview({
-        event: t.messages[0],
-        title: `${t.number}. ${t.title}`,
-        participants: t.messages
-          .filter((message) => message.speaker)
-          .map((message) => message.speaker),
-      });
-      summary.setAttribute("aria-controls", t.id);
-      const updateSummary = () => {
-        summary.setAttribute("aria-expanded", String(d.open));
-        summary.querySelector(".thread-action").textContent = d.open
-          ? "Свернуть переписку"
-          : countLabel(t.messages.length, [
-              "сообщение",
-              "сообщения",
-              "сообщений",
-            ]);
-      };
-      updateSummary();
-      d.append(
-        summary,
-        el(
-          "p",
-          "small muted thread-context",
-          t.context || `День ${c.day} · Обсуждение внутри команды.`,
-        ),
-      );
-      const body = el("div", "thread-messages");
-      body.id = t.id;
-      parentNodes.set(t.id, body);
-      d.append(body);
-      const references = sourceLinks({ terms: [], sources: t.sources || [] });
-      if (references) d.append(references);
-      if (t.id === "tokens-bpe") {
-        const a = el("a", "small", "Проверить текст настоящим токенизатором ↗");
-        a.href = "demos/tokens.html";
-        a.target = "_blank";
-        d.append(a);
-      }
-      d.addEventListener("toggle", () => {
-        updateSummary();
-        const desired = threadOpen(t);
-        if (d.open === desired) return;
-        if (d.open) {
-          state.expanded = [...new Set([...state.expanded, t.id])];
-          state.collapsed = state.collapsed.filter((id) => id !== t.id);
-        } else {
-          state.expanded = state.expanded.filter((id) => id !== t.id);
-          state.collapsed = [...new Set([...state.collapsed, t.id])];
-        }
-        save();
-        sync();
-      });
-      node.append(d);
-    }
+    for (const t of c.threads.filter((t) => t.placement !== "before-reply"))
+      node.append(threadPanel(c, t));
     const check = el("details", "knowledge-check conversation-thread");
     check.dataset.quiz = c.id;
     const qs = c.checks.filter(activeQuestion);
@@ -479,7 +501,7 @@
             "Включите дополнительные темы, чтобы открыть вопросы.",
         ],
       },
-      title: `Вопросы к разделу ${c.number}`,
+      title: `Вопросы к главе ${c.number}`,
       participants: ["nina", "sasha"],
     });
     summary.setAttribute("aria-controls", c.id + "--quiz-body");
@@ -576,11 +598,12 @@
       const previous = chapters[chapters.indexOf(event.chapter) - 1];
       const newDay = !previous || previous.day !== event.chapter.day;
       if (newDay) node.classList.add("new-day");
-      const date = el("div", "day-divider");
-      date.append(el("span", "elapsed", event.chapter.elapsed));
       node.append(
-        date,
-        el("h2", "", `${event.chapter.number}. ${event.chapter.title}`),
+        el(
+          "h2",
+          "",
+          `Глава ${event.chapter.number} · День ${event.chapter.day} — ${event.chapter.title}`,
+        ),
       );
     } else if (event.type === "message") node = bubble(event);
     else if (event.type === "narration")
@@ -588,6 +611,8 @@
     else if (event.type === "visual") node = diagram(event);
     else if (event.type === "choice") node = showChoice(event.chapter);
     else if (event.type === "supplement") node = supplement(event.chapter);
+    else if (event.type === "thread")
+      node = threadPanel(event.chapter, event.thread);
     else return;
     node.id = event.id;
     if (!node.isConnected)
@@ -748,6 +773,7 @@
       seen.has(event.id) ||
       event.type === "choice" ||
       event.type === "supplement" ||
+      event.type === "thread" ||
       (event.parent &&
         threads.get(event.parent)?.thread.messages[0].id === event.id) ||
       event.outgoing ||
@@ -868,10 +894,8 @@
         "p",
         "forward-label",
         "Переслано · " +
-          `${entry.chapter.number}. ${entry.chapter.title}` +
-          (entry.thread
-            ? ` / ${entry.thread.number}. ${entry.thread.title}`
-            : ""),
+          `Глава ${entry.chapter.number}. ${entry.chapter.title}` +
+          (entry.thread ? ` / ${entry.thread.title}` : ""),
       ),
     );
     const e = entry.event;

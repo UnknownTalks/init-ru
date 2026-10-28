@@ -67,34 +67,39 @@ export async function renderAgentView(root) {
         );
     }
   }
+  function emitThread(t) {
+    text.push(
+      `<a id="${t.id}"></a>`,
+      `### Внутренний чат: ${t.title}`,
+      `Направление: ${story.tracks.find((x) => x.id === t.track).title}. Необязательно для основной линии.`,
+    );
+    for (const e of t.messages) emit(e);
+    if (t.sources?.length)
+      text.push(
+        "#### Источники обсуждения",
+        ...t.sources.map((source) => `- [${source.label}](${source.url})`),
+      );
+  }
   text.push("## Полная переписка");
   for (const c of story.chapters) {
     text.push(
       `<a id="${c.id}"></a>`,
-      `## ${c.number}. ${c.title}`,
-      `*${c.elapsed}*`,
+      `## Глава ${c.number} · День ${c.day} — ${c.title}`,
     );
     for (const e of c.intro) emit(e);
-    text.push("### Варианты сообщения Саши");
+    text.push(`### Варианты сообщения Саши · ${c.sentTime}`);
+    for (const o of c.decision.options) text.push(`**Саша:** ${o.label}`);
+    for (const t of c.threads.filter((t) => t.placement === "before-reply"))
+      emitThread(t);
+    text.push(`### Ответ Анны · ${c.replyTime}`);
     for (const o of c.decision.options)
       text.push(
-        `**Саша:** ${o.label}`,
+        `На сообщение «${o.label}»:`,
         `**${names.get(c.decision.responder)}:** ${o.reply}`,
       );
     for (const e of c.outro) emit(e);
-    for (const t of c.threads) {
-      text.push(
-        `<a id="${t.id}"></a>`,
-        `### ${t.number}. Внутренний чат: ${t.title}`,
-        `Направление: ${story.tracks.find((x) => x.id === t.track).title}. Необязательно для основной линии.`,
-      );
-      for (const e of t.messages) emit(e);
-      if (t.sources?.length)
-        text.push(
-          "#### Источники обсуждения",
-          ...t.sources.map((source) => `- [${source.label}](${source.url})`),
-        );
-    }
+    for (const t of c.threads.filter((t) => t.placement !== "before-reply"))
+      emitThread(t);
     text.push("### Проверка понимания");
     for (const q of c.checks)
       text.push(

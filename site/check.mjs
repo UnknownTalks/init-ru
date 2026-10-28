@@ -52,7 +52,7 @@ for (const c of story.chapters) {
     c.outro.length &&
     Array.isArray(c.sources) &&
     (c.sources.length || !c.terms.length), "Incomplete chapter " + c.id);
-  require(c.number === `1.${story.chapters.indexOf(c) + 1}` &&
+  require(c.number === `${story.chapters.indexOf(c) + 1}` &&
     Number.isInteger(c.day) && c.day > 0 &&
     (!story.chapters.indexOf(c) || c.day >= story.chapters[story.chapters.indexOf(c) - 1].day),
     "Invalid section number/day " + c.id);
@@ -113,6 +113,27 @@ function checkTree(node) {
       node.terms.every((id) => terms.has(id)), "Broken skill leaf " + node.id);
 }
 checkTree(story.skillTree);
+// Check the authored schedule independently of playback speed and open branches.
+let previousTime = -1;
+for (const c of story.chapters) {
+  const before = c.threads.filter((t) => t.placement === "before-reply");
+  const after = c.threads.filter((t) => t.placement !== "before-reply");
+  const schedule = [
+    ...c.intro.filter((e) => e.type === "message"),
+    { id: c.id + "--sent", time: c.sentTime },
+    ...before.flatMap((t) => t.messages.filter((e) => e.type === "message")),
+    { id: c.id + "--reply", time: c.replyTime },
+    ...c.outro.filter((e) => e.type === "message"),
+    ...after.flatMap((t) => t.messages.filter((e) => e.type === "message")),
+  ];
+  for (const e of schedule) {
+    require(/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(e.time), "Invalid message time " + e.id);
+    const [hours, minutes] = e.time.split(":").map(Number);
+    const current = c.day * 1440 + hours * 60 + minutes;
+    require(current >= previousTime, "Message chronology goes backwards at " + e.id);
+    previousTime = current;
+  }
+}
 const exported = JSON.parse(
   await readFile(path.join(out, lesson, "story.json"), "utf8"),
 );
