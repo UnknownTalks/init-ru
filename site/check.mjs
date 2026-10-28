@@ -27,6 +27,11 @@ for (const c of story.chapters) {
   for (const e of [...c.intro, ...c.outro]) {
     require(!events.has(e.id), "Duplicate event " + e.id);
     events.set(e.id, { event: e, chapter: c });
+    for (const attachment of e.attachments || []) {
+      require(!events.has(attachment.id), "Duplicate attachment " + attachment.id);
+      require(attachment.type === "visual", "Unsupported attachment " + attachment.id);
+      events.set(attachment.id, { event: attachment, chapter: c });
+    }
   }
   for (const t of c.threads) {
     require(!threads.has(t.id), "Duplicate thread " + t.id);

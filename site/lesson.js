@@ -9,14 +9,17 @@
     threads = new Map(),
     questions = new Map();
   for (const c of chapters) {
-    for (const e of [...c.intro, ...c.outro])
-      messages.set(e.id, { event: e, chapter: c });
+    for (const e of [...c.intro, ...c.outro]) indexEvent(e, { chapter: c });
     for (const t of c.threads) {
       threads.set(t.id, { thread: t, chapter: c });
-      for (const e of t.messages)
-        messages.set(e.id, { event: e, chapter: c, thread: t });
+      for (const e of t.messages) indexEvent(e, { chapter: c, thread: t });
     }
     for (const q of c.checks) questions.set(q.id, { question: q, chapter: c });
+  }
+  function indexEvent(event, context) {
+    messages.set(event.id, { event, ...context });
+    for (const attachment of event.attachments || [])
+      indexEvent(attachment, context);
   }
   const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches,
     key = "unknowntalks:init-ru:messenger:v4";
@@ -85,6 +88,7 @@
   } catch {
     /* A damaged saved value starts a fresh conversation. */
   }
+  state.tracks = data.tracks.map((track) => track.id);
   const seen = new Set(state.seen),
     mounted = new Map(),
     parentNodes = new Map(),
@@ -195,11 +199,80 @@
     });
     return form;
   }
+  function infoTrigger(label, cls, action) {
+    const trigger = el("span", cls, label);
+    trigger.tabIndex = 0;
+    trigger.setAttribute("role", "button");
+    trigger.setAttribute("aria-haspopup", "dialog");
+    trigger.addEventListener("click", () => {
+      if (!getSelection()?.isCollapsed) return;
+      trigger.focus({ preventScroll: true });
+      action();
+    });
+    trigger.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        action();
+      }
+    });
+    return trigger;
+  }
+  function showTerm(term) {
+    $("term-title").textContent = term.title;
+    $("term-definition").textContent = term.definition;
+    $("term-example").textContent = term.example;
+    $("term-source").href = term.source;
+    $("term-glossary").href = "../../glossary.html#" + term.id;
+    showDialog("term-info");
+  }
+  function termTrigger(term, label = term.title) {
+    const trigger = infoTrigger(label, "term-ref", () => showTerm(term));
+    trigger.dataset.term = term.id;
+    trigger.title = term.definition;
+    trigger.setAttribute("aria-label", "Термин: " + term.title);
+    return trigger;
+  }
+  function showPerson(person) {
+    $("person-name").textContent = person.name;
+    $("person-handle").textContent = "@" + person.handle;
+    $("person-role").textContent = person.role;
+    $("person-description").textContent = person.description || "";
+    showDialog("person-info");
+  }
+  function richText(node, text) {
+    let cursor = 0;
+    for (const match of text.matchAll(/@[a-z0-9_]+(?:\.[a-z0-9_]+)*/gi)) {
+      node.append(text.slice(cursor, match.index));
+      const person = data.characters.find(
+        (person) => "@" + person.handle === match[0],
+      );
+      if (person) {
+        const mention = infoTrigger(match[0], "mention", () =>
+          showPerson(person),
+        );
+        mention.dataset.person = person.id;
+        mention.title = person.role;
+        node.append(mention);
+      } else node.append(match[0]);
+      cursor = match.index + match[0].length;
+    }
+    node.append(text.slice(cursor));
+  }
   function paragraph(text) {
     const p = el("p");
     for (const [i, part] of text.split("**").entries()) {
-      if (i % 2) p.append(el("strong", "", part));
-      else p.append(document.createTextNode(part));
+      if (i % 2) {
+        const strong = el("strong");
+        const term = data.glossary.find((term) =>
+          [term.title, ...term.aliases].some(
+            (name) =>
+              name.toLocaleLowerCase("ru") === part.toLocaleLowerCase("ru"),
+          ),
+        );
+        if (term) strong.append(termTrigger(term, part));
+        else richText(strong, part);
+        p.append(strong);
+      } else richText(p, part);
     }
     return p;
   }
@@ -215,20 +288,7 @@
       : "Браузер не разрешил сохранить прохождение. Здесь оно работает до закрытия страницы.";
   }
   function threadOpen(t) {
-    return (
-      state.expanded.includes(t.id) ||
-      (state.tracks.includes(t.track) && !state.collapsed.includes(t.id))
-    );
-  }
-  function activeQuestion(q) {
-    return (
-      !q.track ||
-      state.tracks.includes(q.track) ||
-      q.references.some((id) => {
-        const t = messages.get(id)?.thread;
-        return t && threadOpen(t);
-      })
-    );
+    return state.expanded.includes(t.id) && !state.collapsed.includes(t.id);
   }
   function currentTimeline(all = readAll) {
     if (!state.started && !all) return [];
@@ -334,7 +394,10 @@
     const author = el("span", "message-author");
     const avatar = el("span", "avatar", person?.initial || "?");
     avatar.setAttribute("aria-hidden", "true");
-    author.append(avatar, el("span", "sender", nameOf(event.speaker)));
+    const sender = person
+      ? infoTrigger(person.name, "sender", () => showPerson(person))
+      : el("span", "sender", nameOf(event.speaker));
+    author.append(avatar, sender);
     meta.append(author);
     const time = el("time", "", event.time || "");
     meta.append(time);
@@ -345,6 +408,12 @@
     }
     meta.querySelector(".sender").title = person?.role || "";
     for (const p of event.paragraphs || []) node.append(paragraph(p));
+    for (const attachment of event.attachments || []) {
+      const figure = diagram(attachment);
+      if (!forwarded) figure.id = attachment.id;
+      figure.classList.add("message-attachment");
+      node.append(figure);
+    }
     return node;
   }
   function diagram(event) {
@@ -394,60 +463,53 @@
   }
   function sourceLinks(c) {
     if (!c.sources.length && !c.terms.length) return null;
-    const details = el("details", "sources");
-    details.append(el("summary", "", "Источники и понятия"));
-    const termLinks = el("p", "small");
-    for (const [i, id] of c.terms.entries()) {
-      if (i) termLinks.append(" · ");
-      const t = data.glossary.find((t) => t.id === id);
-      if (t) {
-        const a = el("a", "", t.title);
-        a.href = "../../glossary.html#" + id;
-        a.target = "_blank";
-        termLinks.append(a);
+    const references = el("div", "source-block");
+    if (c.terms.length) {
+      const terms = el("section", "term-set");
+      terms.setAttribute("aria-label", "Термины этого разговора");
+      terms.append(el("p", "small muted", "Термины этого разговора"));
+      const list = el("div", "term-chips");
+      for (const id of c.terms) {
+        const term = data.glossary.find((term) => term.id === id);
+        if (term) list.append(termTrigger(term));
       }
+      terms.append(list);
+      references.append(terms);
     }
-    if (c.terms.length) details.append(termLinks);
-    const ul = el("ul");
-    for (const s of c.sources) {
-      const li = el("li"),
-        a = el("a", "", s.label);
-      a.href = s.url;
-      a.target = "_blank";
-      a.rel = "noopener noreferrer";
-      li.append(a);
-      ul.append(li);
+    if (c.sources.length) {
+      const details = el("details", "sources");
+      details.append(el("summary", "", "Источники"));
+      const list = el("ul");
+      for (const source of c.sources) {
+        const li = el("li"),
+          link = el("a", "", source.label);
+        link.href = source.url;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        li.append(link);
+        list.append(li);
+      }
+      details.append(list);
+      references.append(details);
     }
-    if (c.sources.length) details.append(ul);
-    return details;
+    return references;
   }
   function threadPanel(c, t) {
-    const d = el("details", "internal-thread");
-    d.dataset.thread = t.id;
-    d.dataset.chapter = c.id;
-    d.open = threadOpen(t);
-    d.classList.add("conversation-thread");
-    const summary = threadPreview({
+    const panel = el("section", "internal-thread conversation-thread");
+    panel.dataset.thread = t.id;
+    panel.dataset.chapter = c.id;
+    const preview = threadPreview({
       event: t.messages[0],
       title: t.title,
       participants: t.messages
         .filter((message) => message.speaker)
         .map((message) => message.speaker),
     });
-    summary.setAttribute("aria-controls", t.id);
-    const updateSummary = () => {
-      summary.setAttribute("aria-expanded", String(d.open));
-      summary.querySelector(".thread-action").textContent = d.open
-        ? "Свернуть переписку"
-        : countLabel(t.messages.length, [
-            "сообщение",
-            "сообщения",
-            "сообщений",
-          ]);
-    };
-    updateSummary();
-    d.append(
-      summary,
+    const toggle = preview.querySelector(".thread-toggle");
+    toggle.setAttribute("aria-controls", t.id + "--content");
+    const content = el("div", "thread-content");
+    content.id = t.id + "--content";
+    content.append(
       el(
         "p",
         "small muted thread-context",
@@ -457,60 +519,73 @@
     const body = el("div", "thread-messages");
     body.id = t.id;
     parentNodes.set(t.id, body);
-    d.append(body);
+    content.append(body);
     const references = sourceLinks({
       terms: t.terms || [],
       sources: t.sources || [],
     });
-    if (references) d.append(references);
+    if (references) content.append(references);
     if (t.id === "tokens-bpe") {
       const a = el("a", "small", "Проверить текст настоящим токенизатором ↗");
       a.href = "demos/tokens.html";
       a.target = "_blank";
-      d.append(a);
+      content.append(a);
     }
-    d.addEventListener("toggle", () => {
-      updateSummary();
-      const desired = threadOpen(t);
-      if (d.open === desired) return;
-      if (d.open) {
-        state.expanded = [...new Set([...state.expanded, t.id])];
-        state.collapsed = state.collapsed.filter((id) => id !== t.id);
-      } else {
-        state.expanded = state.expanded.filter((id) => id !== t.id);
-        state.collapsed = [...new Set([...state.collapsed, t.id])];
-      }
-      save();
-      sync();
-    });
-    return d;
+    panel.append(preview, content);
+    setThreadView(panel, threadOpen(t));
+    toggle.addEventListener("click", () =>
+      keepReading(() => {
+        const open = panel.dataset.open !== "true";
+        state.expanded = open
+          ? [...new Set([...state.expanded, t.id])]
+          : state.expanded.filter((id) => id !== t.id);
+        state.collapsed = open
+          ? state.collapsed.filter((id) => id !== t.id)
+          : [...new Set([...state.collapsed, t.id])];
+        setThreadView(panel, open);
+        save();
+        sync();
+      }),
+    );
+    return panel;
+  }
+  function setThreadView(panel, open) {
+    const t = threads.get(panel.dataset.thread).thread;
+    panel.dataset.open = String(open);
+    panel.querySelector(".thread-content").hidden = !open;
+    panel
+      .querySelector(".thread-toggle")
+      .setAttribute("aria-expanded", String(open));
+    panel.querySelector(".thread-action").textContent = open
+      ? "Свернуть переписку"
+      : countLabel(t.messages.length, ["сообщение", "сообщения", "сообщений"]);
   }
   function supplement(c) {
     const node = el("section", "chapter-supplement");
     node.dataset.chapter = c.id;
     for (const t of c.threads.filter((t) => t.placement !== "before-reply"))
       node.append(threadPanel(c, t));
-    const check = el("details", "knowledge-check conversation-thread");
+    const check = el("section", "knowledge-check conversation-thread");
     check.dataset.quiz = c.id;
-    const qs = c.checks.filter(activeQuestion);
-    const summary = threadPreview({
+    check.dataset.open = "false";
+    const preview = threadPreview({
       event: {
         speaker: "nina",
         paragraphs: [
-          qs[0]?.question ||
-            "Включите дополнительные темы, чтобы открыть вопросы.",
+          c.checks[0]?.question || "В этой главе пока нет вопросов.",
         ],
       },
       title: `Вопросы к главе ${c.number}`,
       participants: ["nina", "sasha"],
     });
-    summary.setAttribute("aria-controls", c.id + "--quiz-body");
+    const toggle = preview.querySelector(".thread-toggle");
+    toggle.setAttribute("aria-controls", c.id + "--quiz-body");
     const body = el("div", "quiz-body");
     body.id = c.id + "--quiz-body";
     body.hidden = true;
-    check.append(summary, body);
-    check.addEventListener("toggle", () =>
-      keepReading(() => setQuizOpen(check, check.open)),
+    check.append(preview, body);
+    toggle.addEventListener("click", () =>
+      keepReading(() => setQuizOpen(check, body.hidden)),
     );
     updateQuizToggle(check);
     node.append(check);
@@ -524,8 +599,6 @@
     return `${count} ${forms[last === 1 && tail !== 11 ? 0 : last >= 2 && last <= 4 && (tail < 12 || tail > 14) ? 1 : 2]}`;
   }
   function threadPreview({ event, title, participants }) {
-    const summary = el("summary", "thread-summary");
-    summary.setAttribute("aria-expanded", "false");
     const preview = bubble(event, true);
     preview.classList.add("thread-preview");
     const topic = el("p", "thread-topic", title);
@@ -534,43 +607,44 @@
       (node) => node.tagName === "P" && node !== topic,
     );
     question?.classList.add("preview-question");
-    const replies = el("span", "thread-replies");
+    const replies = el("button", "thread-replies thread-toggle");
+    replies.type = "button";
+    replies.setAttribute("aria-expanded", "false");
     const avatars = el("span", "thread-avatars");
     avatars.setAttribute("aria-hidden", "true");
     for (const id of [...new Set(participants)]) {
       const person = people.get(id);
       avatars.append(el("span", "avatar tone-" + person.tone, person.initial));
     }
-    const label = el("span", "thread-action");
-    const arrow = el("span", "thread-chevron", "›");
+    const label = el("span", "thread-action"),
+      arrow = el("span", "thread-chevron", "›");
     arrow.setAttribute("aria-hidden", "true");
     replies.append(avatars, label, arrow);
     preview.append(replies);
-    summary.append(preview);
-    return summary;
+    return preview;
   }
   function updateQuizToggle(check) {
-    const qs = byChapter.get(check.dataset.quiz).checks.filter(activeQuestion);
-    check.querySelector(".thread-action").textContent = check.open
+    const qs = byChapter.get(check.dataset.quiz).checks,
+      open = check.dataset.open === "true";
+    check.querySelector(".thread-action").textContent = open
       ? "Свернуть ответы"
       : countLabel(qs.length, ["вопрос", "вопроса", "вопросов"]) +
         " · Ответить";
     check
-      .querySelector("summary")
-      .setAttribute("aria-expanded", String(check.open));
-    const preview = check.querySelector(".preview-question");
-    const question =
-      qs[0]?.question || "Включите дополнительные темы, чтобы открыть вопросы.";
+      .querySelector(".thread-toggle")
+      .setAttribute("aria-expanded", String(open));
+    const preview = check.querySelector(".preview-question"),
+      question = qs[0]?.question || "В этой главе пока нет вопросов.";
     if (preview.textContent !== question) preview.textContent = question;
   }
   function setQuizOpen(check, open) {
     const body = check.querySelector(".quiz-body");
-    check.open = open;
+    check.dataset.open = String(open);
     body.hidden = !open;
     updateQuizToggle(check);
     if (open && !quizSessions.has(check.dataset.quiz)) {
       const c = byChapter.get(check.dataset.quiz);
-      startQuiz(c.id, c.checks.filter(activeQuestion), body);
+      startQuiz(c.id, c.checks, body);
     }
   }
   function showChoice(c) {
@@ -590,7 +664,7 @@
     if (thread?.messages[0].id === event.id)
       node = parentNodes
         .get(event.parent)
-        .closest("details")
+        .closest("[data-thread]")
         .querySelector(".thread-preview");
     else if (event.type === "heading") {
       node = el("section", "chapter-heading");
@@ -805,32 +879,11 @@
       });
     }, delay);
   }
-  function refreshCheckFilters() {
-    for (const c of chapters) {
-      const d = document.querySelector(`[data-quiz="${c.id}"]`);
-      if (!d) continue;
-      const qs = c.checks.filter(activeQuestion);
-      updateQuizToggle(d);
-      const session = quizSessions.get(c.id);
-      if (
-        session &&
-        session.qs.map((q) => q.id).join() !== qs.map((q) => q.id).join()
-      ) {
-        session.active = false;
-        clearTimeout(session.timer);
-        quizSessions.delete(c.id);
-        const body = d.querySelector(".quiz-body");
-        body.replaceChildren();
-        if (!body.hidden) startQuiz(c.id, qs, body);
-      }
-    }
-  }
   function sync() {
     stopTimer();
-    refreshCheckFilters();
     for (const [id, { thread: t }] of threads) {
       const body = parentNodes.get(id);
-      if (body) body.closest("details").open = threadOpen(t);
+      if (body) setThreadView(body.closest("[data-thread]"), threadOpen(t));
     }
     if (readAll) {
       for (const e of currentTimeline(true)) mount(e, false);
@@ -950,9 +1003,7 @@
       clearTimeout(previous.timer);
     }
     if (!qs.length) {
-      body.replaceChildren(
-        el("p", "", "Включите дополнительные темы, чтобы открыть эти вопросы."),
-      );
+      body.replaceChildren(el("p", "", "В этой главе пока нет вопросов."));
       return;
     }
     const session = {
@@ -962,11 +1013,28 @@
       index: 0,
       active: true,
       inlineFirst: !!body.closest("[data-quiz]"),
+      isChapter: !!body.closest("[data-quiz]"),
     };
     quizSessions.set(id, session);
     body.replaceChildren();
-    if (session.inlineFirst) {
-      ask(session);
+    if (session.isChapter) {
+      // Keep local answers as a reviewed conversation after a reload.
+      while (session.index < qs.length) {
+        const q = qs[session.index],
+          answer = state.answers[q.id]?.at(-1);
+        if (!Number.isInteger(answer)) break;
+        if (session.index) body.append(quizMessage("nina", q.question));
+        body.append(
+          quizMessage("sasha", q.options[answer]),
+          quizMessage("nina", answerFeedback(q, answer)),
+        );
+        if (answer !== q.correct) appendReferences(body, q);
+        session.index++;
+      }
+      if (session.index) session.inlineFirst = false;
+      if (session.index === qs.length)
+        body.append(quizMessage("nina", quizResult(session)));
+      else ask(session);
       return;
     }
     quizIncoming(
@@ -975,26 +1043,43 @@
       () => ask(session),
     );
   }
+  function answerFeedback(q, answer) {
+    return (
+      (answer === q.correct
+        ? "Да. "
+        : `Здесь подходит ответ «${q.options[q.correct]}». `) + q.explanation
+    );
+  }
+  function appendReferences(body, q) {
+    const forwards = el("div", "forwards");
+    forwards.append(
+      el("p", "small muted", "Вот переписка: проблема, попытка и решение."),
+    );
+    for (const ref of q.references) forwards.append(forwarded(ref));
+    body.append(forwards);
+  }
+  function quizResult(session) {
+    const passed = session.qs.filter(
+      (q) => state.answers[q.id]?.at(-1) === q.correct,
+    ).length;
+    return session.isChapter
+      ? "Все вопросы этой главы разобраны. Здесь остаются ваши ответы и объяснения. Проверить себя ещё раз можно в общей проверке в конце истории."
+      : `На ${passed} из ${session.qs.length} вопросов последний ответ верный. Это результат этой проверки; к объяснениям можно вернуться в любой момент.`;
+  }
   function ask(session) {
     if (session.index >= session.qs.length) {
-      const passed = session.qs.filter(
-        (q) => state.answers[q.id]?.at(-1) === q.correct,
-      ).length;
-      quizIncoming(
-        session,
-        `На ${passed} из ${session.qs.length} вопросов последний ответ верный. Это результат этой проверки; к объяснениям можно вернуться в любой момент.`,
-        () => {
-          const actions = el("div", "quiz-actions");
-          actions.append(
-            button(
-              "Пройти ещё раз",
-              () => startQuiz(session.id, session.qs, session.body),
-              "quiz-next",
-            ),
-          );
-          session.body.append(actions);
-        },
-      );
+      quizIncoming(session, quizResult(session), () => {
+        if (session.isChapter) return;
+        const actions = el("div", "quiz-actions");
+        actions.append(
+          button(
+            "Пройти ещё раз",
+            () => startQuiz(session.id, session.qs, session.body),
+            "quiz-next",
+          ),
+        );
+        session.body.append(actions);
+      });
       return;
     }
     const q = session.qs[session.index];
@@ -1009,55 +1094,40 @@
           state.answers[q.id] = [...(state.answers[q.id] || []), i].slice(-30);
           save();
           const correct = i === q.correct;
-          quizIncoming(
-            session,
-            (correct ? "Да. " : "Пока не так. ") + q.explanation,
-            () => {
-              if (!correct) {
-                const f = el("div", "forwards");
-                f.append(
-                  el(
-                    "p",
-                    "small muted",
-                    "Вот переписка: проблема, попытка и решение.",
-                  ),
-                );
-                for (const ref of q.references) f.append(forwarded(ref));
-                session.body.append(f);
-              }
-              const actions = el("div", "quiz-actions");
-              if (!correct)
-                actions.append(
-                  button(
-                    "Попробовать ещё раз",
-                    () => {
-                      keepReading(() => {
-                        actions.remove();
-                        ask(session);
-                      });
-                    },
-                    "quiz-retry",
-                  ),
-                );
+          quizIncoming(session, answerFeedback(q, i), () => {
+            if (!correct) appendReferences(session.body, q);
+            const actions = el("div", "quiz-actions");
+            if (!correct && !session.isChapter)
               actions.append(
                 button(
-                  session.index + 1 === session.qs.length
-                    ? "Завершить проверку"
-                    : "Следующий вопрос",
+                  "Попробовать ещё раз",
                   () => {
                     keepReading(() => {
                       actions.remove();
-                      session.index++;
                       ask(session);
                     });
                   },
-                  "quiz-next",
+                  "quiz-retry",
                 ),
               );
-              session.body.append(actions);
-              renderSkills();
-            },
-          );
+            actions.append(
+              button(
+                session.index + 1 === session.qs.length
+                  ? "Завершить проверку"
+                  : "Следующий вопрос",
+                () => {
+                  keepReading(() => {
+                    actions.remove();
+                    session.index++;
+                    ask(session);
+                  });
+                },
+                "quiz-next",
+              ),
+            );
+            session.body.append(actions);
+            renderSkills();
+          });
         },
         { quiz: true, prompt: "Выберите ответ" },
       );
@@ -1073,9 +1143,7 @@
     return c && c.outro.some((e) => seen.has(e.id));
   }
   function renderSkills() {
-    const active = [...questions.values()]
-      .map((x) => x.question)
-      .filter(activeQuestion);
+    const active = [...questions.values()].map((x) => x.question);
     const correct = active.filter(
       (q) => state.answers[q.id]?.at(-1) === q.correct,
     ).length;
@@ -1179,7 +1247,7 @@
       save();
       const body = parentNodes.get(thread.id);
       if (body) {
-        body.closest("details").open = true;
+        setThreadView(body.closest("[data-thread]"), true);
         for (const e of thread.messages)
           mount({ ...e, parent: thread.id, optional: true }, false);
       }
@@ -1218,29 +1286,6 @@
   function showDialog(id) {
     if (!$(id).open) $(id).showModal();
   }
-  for (const t of data.tracks) {
-    const label = el("label", "track"),
-      input = el("input");
-    input.type = "checkbox";
-    input.value = t.id;
-    input.checked = state.tracks.includes(t.id);
-    input.dataset.track = t.id;
-    const span = el("span");
-    span.append(el("strong", "", t.title), el("small", "", t.description));
-    label.append(input, span);
-    $("track-options").append(label);
-    input.addEventListener("change", () => {
-      state.tracks = input.checked
-        ? [...new Set([...state.tracks, t.id])]
-        : state.tracks.filter((x) => x !== t.id);
-      if (input.checked)
-        state.collapsed = state.collapsed.filter(
-          (id) => threads.get(id)?.thread.track !== t.id,
-        );
-      save();
-      sync();
-    });
-  }
   for (const p of data.characters.filter(
     (p) => !["tool", "agent"].includes(p.id),
   )) {
@@ -1258,7 +1303,6 @@
     () => {
       if (state.started) return;
       state.started = true;
-      $("preferences").open = false;
       save();
       keepReading(() => {
         const events = currentTimeline();
@@ -1278,7 +1322,6 @@
     send,
   );
   $("opening-composer").append(draft);
-  $("preferences").open = !state.started;
   $("restart-chat").addEventListener("click", () => {
     $("settings").close();
     state.started = false;
@@ -1294,13 +1337,6 @@
     $("opening-composer").scrollIntoView({
       block: "center",
       behavior: "instant",
-    });
-  });
-  $("preferences-open").addEventListener("click", () => {
-    $("preferences").open = !$("preferences").open;
-    $("preferences").scrollIntoView({
-      behavior: reduced ? "auto" : "smooth",
-      block: "start",
     });
   });
   $("progress-open").addEventListener("click", () => {
@@ -1339,7 +1375,7 @@
   $("all-checks").addEventListener("click", () =>
     startQuiz(
       "all",
-      [...questions.values()].map((x) => x.question).filter(activeQuestion),
+      [...questions.values()].map((x) => x.question),
       $("final-check-body"),
     ),
   );
@@ -1367,7 +1403,16 @@
       parent = parent.parentElement
     )
       if (parent.matches("[data-quiz]")) setQuizOpen(parent, true);
-      else if (parent.matches("details")) parent.open = true;
+      else if (parent.matches("[data-thread]")) {
+        state.expanded = [
+          ...new Set([...state.expanded, parent.dataset.thread]),
+        ];
+        state.collapsed = state.collapsed.filter(
+          (id) => id !== parent.dataset.thread,
+        );
+        setThreadView(parent, true);
+        save();
+      } else if (parent.matches("details")) parent.open = true;
     // One deliberate move to the FIRST unread message, never a moving bottom.
     // An immediate jump cannot be interrupted by the next incoming message.
     target.scrollIntoView({ block: "start", behavior: "instant" });

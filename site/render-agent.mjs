@@ -23,7 +23,7 @@ export async function renderAgentView(root) {
     story.premise.note,
     "Персонажи, время сообщений и сроки экспериментов вымышлены. Команда воспроизводит подходы разных исследователей; порядок объяснения не является буквальной хронологией изобретений.",
     "## Участники",
-    ...story.characters.map((p) => `- **${p.name}:** ${p.role}`),
+    ...story.characters.map((p) => `- **${p.name} (@${p.handle}):** ${p.role}`),
     "## Как читать",
     "Основной диалог линеен. Варианты — сообщения Саши; выбор меняет вступительный ответ, затем разговор сходится в общий текст. Внутренние чаты раскрывают направления по желанию. Продвижение по тексту не считается проверкой понимания. Вопросы проверки независимы от сюжетного выбора; при ошибке пересылаются исходные сообщения с проблемой, попыткой и решением.",
     `Переписка: ${base}/${lesson}/chat.html`,
@@ -66,6 +66,7 @@ export async function renderAgentView(root) {
           e.caption,
         );
     }
+    for (const attachment of e.attachments || []) emit(attachment);
   }
   function emitThread(t) {
     text.push(
@@ -149,7 +150,7 @@ export async function renderAgentView(root) {
   await writeFile(path.join(root, "public", "llms-full.txt"), md);
   await writeFile(
     path.join(root, "public", "llms.txt"),
-    `# UnknownTalks / init-ru\n\n> Russian educational messenger story: from internet data to a language-model agent. Fictional cast, products, timestamps and development durations; real primary sources.\n\nSchema v4: chapters contain intro/outro events (message, narration, visual), a story decision, optional internal threads and independent checks. Characters have roles; tracks control optional depth, never core prerequisites. Decision options change only the opening reply and rejoin the common outro. Checks contain options, the correct index, an explanation and references to actual event IDs for forwarded remediation. arc records problem/attempts/resolution references. skillTree branches by concepts, not chapter sequence. Browser story progress is separate from quiz results.\n\n- [Complete dialogue, every internal chat, question, answer and source](${base}/${lesson}/agent.md)\n- [Structured story](${base}/${lesson}/story.json)\n- [Fictional source materials](${base}/${lesson}/materials.json)\n- [Glossary](${base}/glossary.md)\n- [Structured glossary](${base}/glossary.json)\n- [Self-study prompt](${base}/${lesson}/agent-prompt)\n- [Human-facing messenger](${base}/${lesson}/chat.html)\n- [Complete plain text](${base}/llms-full.txt)\n`,
+    `# UnknownTalks / init-ru\n\n> Russian educational messenger story: from internet data to a language-model agent. Fictional cast, products, timestamps and development durations; real primary sources.\n\nSchema v4: chapters contain intro/outro events (message, narration, visual), a story decision, optional internal threads and independent checks. Characters have roles and fictional handles. All threads are available; readers open them in the conversation. Threads with placement before-reply precede the chosen response. Message attachments belong inside their parent message. Decision options change only the opening reply and rejoin the common outro. Checks contain options, the correct index, an explanation and references to actual event IDs for forwarded remediation. arc records problem/attempts/resolution references. skillTree branches by concepts, not chapter sequence. Browser story progress is separate from quiz results.\n\n- [Complete dialogue, every internal chat, question, answer and source](${base}/${lesson}/agent.md)\n- [Structured story](${base}/${lesson}/story.json)\n- [Fictional source materials](${base}/${lesson}/materials.json)\n- [Glossary](${base}/glossary.md)\n- [Structured glossary](${base}/glossary.json)\n- [Self-study prompt](${base}/${lesson}/agent-prompt)\n- [Human-facing messenger](${base}/${lesson}/chat.html)\n- [Complete plain text](${base}/llms-full.txt)\n`,
   );
   await writeFile(
     path.join(out, "agent.html"),
