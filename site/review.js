@@ -10,7 +10,7 @@
   host.style.cssText =
     "position:fixed;inset:0;z-index:2147483000;pointer-events:none";
   const shadow = host.attachShadow({ mode: "open" });
-  shadow.innerHTML = `<link rel="stylesheet" href="/__review/review.css"><div id="outline" hidden></div><span id="pin" hidden></span><button id="selection" hidden>＋ Комментировать выделение</button><button id="toggle" aria-expanded="false">Рецензия <span id="count">0</span></button><div id="picking" hidden>Нажмите на нужный блок · Esc — отмена</div><section id="panel" aria-label="Список правок" hidden><header><strong>Правки</strong><button id="close" aria-label="Свернуть замечания">×</button></header><p class="intro">Выберите блок или выделите текст, затем напишите комментарий.</p><div class="actions"><button id="pick">Прокомментировать блок</button><button id="pick-ui">Элемент интерфейса</button><button id="page">Общее замечание</button></div><form id="editor" hidden><p id="target-title"></p><blockquote id="quote" hidden></blockquote><label for="body">Комментарий</label><textarea id="body" rows="4" maxlength="20000" placeholder="Ваш комментарий…"></textarea><p id="draft-status" class="muted small"></p><div class="actions"><button id="save" type="submit">Сохранить</button><button id="cancel" type="button">Отменить</button></div></form><p id="status" role="status"></p><div id="undo" hidden><span id="undo-label"></span><button id="undo-delete">Отменить удаление</button></div><div class="list-header"><select id="filter" aria-label="Какие правки показать"><option value="open">Открытые</option><option value="all">Все</option><option value="resolved">Закрытые</option><option value="deleted">Удалённые</option></select><button id="refresh">Обновить</button></div><input id="search" type="search" aria-label="Найти правку" placeholder="Найти правку…"><div id="comments"></div></section>`;
+  shadow.innerHTML = `<link rel="stylesheet" href="/__review/review.css"><div id="outline" hidden></div><span id="pin" hidden></span><button id="selection" hidden>＋ Комментировать выделение</button><button id="toggle" aria-expanded="false">Рецензия <span id="count">0</span></button><div id="picking" hidden>Нажмите на нужный блок · Esc — отмена</div><section id="panel" aria-label="Список правок" hidden><header><strong>Правки</strong><a id="history" href="/__review/history" target="_blank" rel="noopener noreferrer">История</a><button id="close" aria-label="Свернуть замечания">×</button></header><p class="intro">Выберите блок или выделите текст, затем напишите комментарий.</p><div class="actions"><button id="pick">Прокомментировать блок</button><button id="pick-ui">Элемент интерфейса</button><button id="page">Общее замечание</button></div><form id="editor" hidden><p id="target-title"></p><blockquote id="quote" hidden></blockquote><label for="body">Комментарий</label><textarea id="body" rows="4" maxlength="20000" placeholder="Ваш комментарий…"></textarea><p id="draft-status" class="muted small"></p><div class="actions"><button id="save" type="submit">Сохранить</button><button id="cancel" type="button">Отменить</button></div></form><p id="status" role="status"></p><div id="undo" hidden><span id="undo-label"></span><button id="undo-delete">Отменить удаление</button></div><div class="list-header"><span>Открытые правки</span><button id="refresh">Обновить</button></div><input id="search" type="search" aria-label="Найти правку" placeholder="Найти правку…"><div id="comments"></div></section>`;
   const $ = (id) => shadow.getElementById(id);
   const draftKey = "unknowntalks:local-review:draft:v1";
   const state = {
@@ -755,15 +755,13 @@
   function renderList() {
     const openCount = state.comments.filter((c) => c.status === "open").length;
     $("count").textContent = String(openCount);
-    const filter = $("filter").value,
-      list = $("comments");
+    const list = $("comments");
     list.replaceChildren();
     const search = $("search").value.trim().toLowerCase();
     const comments = state.comments
       .filter(
         (c) =>
-          ((filter === "all" && c.status !== "deleted") ||
-            c.status === filter) &&
+          c.status === "open" &&
           [
             c.id,
             c.body,
@@ -779,37 +777,18 @@
       )
       .toReversed();
     if (!comments.length)
-      list.append(
-        el(
-          "p",
-          "muted small",
-          filter === "open"
-            ? "Открытых замечаний пока нет."
-            : "Здесь пока нет замечаний.",
-        ),
-      );
+      list.append(el("p", "muted small", "Открытых правок нет."));
     for (const c of comments) {
       const article = el("article", "comment");
       article.dataset.id = c.id;
       const meta = el("p", "comment-meta");
-      meta.append(
-        el("strong", "", c.id),
-        el(
-          "span",
-          "",
-          c.status === "deleted"
-            ? "Удалено"
-            : c.status === "resolved"
-              ? "Закрыто"
-              : "",
-        ),
-      );
+      meta.append(el("strong", "", c.id), el("span", "", ""));
       article.append(meta, el("p", "comment-body", c.body));
       article.append(
         el(
           "p",
           "location",
-          (c.status === "resolved" ? "Было: " : "Где: ") +
+          "Где: " +
             (c.anchor.kind === "page"
               ? "страница в целом"
               : c.anchor.chapterTitle || c.anchor.title) +
@@ -837,55 +816,30 @@
           ),
         );
       const actions = el("div", "actions");
-      if (c.status === "deleted") {
-        actions.append(button("Восстановить", () => restoreComment(c)));
-      } else if (c.status === "resolved") {
-        if (c.resolution)
-          article.append(el("p", "resolution", "Результат: " + c.resolution));
-        actions.append(
-          button("Открыть снова", async () => {
-            try {
-              await api("/comments/" + c.id, {
-                method: "PATCH",
-                body: JSON.stringify({
-                  status: "open",
-                  baseUpdatedAt: c.updatedAt,
-                }),
-              });
-              await refresh();
-            } catch (e) {
-              say(e.message, true);
-            }
-          }),
-        );
-
-        actions.append(button("Удалить", () => deleteComment(c)));
-      } else {
-        actions.append(
-          button("Показать место", () => showTarget(c)),
-          button("Изменить", async () => {
-            if (state.draft?.body.trim()) {
-              say("Сначала сохраните или отмените текущий комментарий.", true);
-              return;
-            }
-            try {
-              await refresh();
-              const current = state.comments.find((n) => n.id === c.id);
-              state.draft = {
-                ...structuredClone(current),
-                editingId: c.id,
-                baseUpdatedAt: current.updatedAt,
-              };
-              showEditor();
-              persistDraft();
-              $("body").focus();
-            } catch (e) {
-              say(e.message, true);
-            }
-          }),
-          button("Удалить", () => deleteComment(c)),
-        );
-      }
+      actions.append(
+        button("Показать место", () => showTarget(c)),
+        button("Изменить", async () => {
+          if (state.draft?.body.trim()) {
+            say("Сначала сохраните или отмените текущий комментарий.", true);
+            return;
+          }
+          try {
+            await refresh();
+            const current = state.comments.find((n) => n.id === c.id);
+            state.draft = {
+              ...structuredClone(current),
+              editingId: c.id,
+              baseUpdatedAt: current.updatedAt,
+            };
+            showEditor();
+            persistDraft();
+            $("body").focus();
+          } catch (e) {
+            say(e.message, true);
+          }
+        }),
+        button("Удалить", () => deleteComment(c)),
+      );
       article.append(actions);
       list.append(article);
     }
@@ -948,7 +902,6 @@
     result.anchor.selector = "body";
     begin(result.anchor, result.context, null);
   });
-  $("filter").addEventListener("change", renderList);
   $("search").addEventListener("input", renderList);
   $("refresh").addEventListener("click", () =>
     refresh()
@@ -990,16 +943,10 @@
       if (comment) {
         open();
         if (comment.status === "open") showTarget(comment);
-        else {
-          $("filter").value =
-            comment.status === "deleted" ? "deleted" : "resolved";
-          renderList();
-          say(
-            comment.status === "deleted"
-              ? "Правка удалена."
-              : "Правка закрыта. Исходный фрагмент сохранён в истории.",
+        else
+          location.replace(
+            "/__review/history?comment=" + encodeURIComponent(comment.id),
           );
-        }
       }
     })
     .catch((error) => say(error.message, true));

@@ -82,8 +82,12 @@ export async function createPreviewServer({
       if (request.headers.origin && request.headers.origin !== url.origin)
         throw new ReviewError(403, "Same-origin requests only");
       if (
-        url.pathname === "/__review/review.js" ||
-        url.pathname === "/__review/review.css"
+        [
+          "/__review/review.js",
+          "/__review/review.css",
+          "/__review/review-history.js",
+          "/__review/review-history.css",
+        ].includes(url.pathname)
       ) {
         const name = path.basename(url.pathname);
         send(
@@ -93,6 +97,18 @@ export async function createPreviewServer({
           name.endsWith("js")
             ? "text/javascript; charset=utf-8"
             : "text/css; charset=utf-8",
+        );
+        return;
+      }
+      if (
+        url.pathname === "/__review/history" &&
+        ["GET", "HEAD"].includes(request.method)
+      ) {
+        send(
+          response,
+          200,
+          `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>История правок · UnknownTalks</title><link rel="stylesheet" href="/__review/review-history.css"></head><body><main><a href="/init-ru/01-foundations/01-from-data-to-agents/chat.html">← К проекту</a><h1>История правок</h1><p>Выполненные и удалённые правки. Исходные фрагменты сохранены как история.</p><div class="controls"><select id="filter" aria-label="Что показать"><option value="resolved">Выполненные</option><option value="deleted">Удалённые</option></select><button id="refresh">Обновить</button></div><p id="status" role="status"></p><section id="items"></section></main><script src="/__review/review-history.js"></script></body></html>`,
+          "text/html; charset=utf-8",
         );
         return;
       }

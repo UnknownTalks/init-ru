@@ -102,6 +102,19 @@
     b.addEventListener("click", action);
     return b;
   }
+  function appendReplyOption(container, option) {
+    if (
+      [...container.children].some((node) =>
+        node.classList.contains("reply-option"),
+      )
+    ) {
+      const separator = el("div", "reply-separator", "ИЛИ");
+      separator.setAttribute("role", "separator");
+      separator.setAttribute("aria-label", "или");
+      container.append(separator);
+    }
+    container.append(option);
+  }
   function paragraph(text) {
     const p = el("p");
     for (const [i, part] of text.split("**").entries()) {
@@ -366,7 +379,10 @@
     node.setAttribute("aria-label", "Варианты сообщения Саши");
     node.append(el("p", "small muted", "Саша может написать…"));
     for (const [i, option] of c.decision.options.entries())
-      node.append(button(option.label, () => choose(c, i), "reply-option"));
+      appendReplyOption(
+        node,
+        button(option.label, () => choose(c, i), "reply-option"),
+      );
     return node;
   }
   function mount(event, mark = true) {
@@ -662,7 +678,8 @@
     quizIncoming(session, q.question, () => {
       const options = el("div", "reply-options quiz-options");
       for (const [i, label] of q.options.entries())
-        options.append(
+        appendReplyOption(
+          options,
           button(
             label,
             () => {
