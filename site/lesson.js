@@ -773,15 +773,27 @@
       const previous = chapters[chapters.indexOf(event.chapter) - 1];
       const newDay = !previous || previous.day !== event.chapter.day;
       if (newDay) node.classList.add("new-day");
-      node.append(
+      const group = groupByScene.get(event.chapter.id),
+        firstInGroup = group.scenes[0] === event.chapter,
+        heading = el("h2"),
+        separator = el("span", "chapter-separator", " — ");
+      separator.setAttribute("aria-hidden", "true");
+      heading.append(
         el(
-          "h2",
-          "",
-          groupByScene.get(event.chapter.id).scenes[0] === event.chapter
-            ? `Глава ${groupByScene.get(event.chapter.id).number} · День ${event.chapter.day} — ${groupByScene.get(event.chapter.id).title}`
-            : `${event.chapter.title} · День ${event.chapter.day}`,
+          "span",
+          "chapter-meta",
+          firstInGroup
+            ? `Глава ${group.number} · День ${event.chapter.day}`
+            : `День ${event.chapter.day}`,
+        ),
+        separator,
+        el(
+          "span",
+          "chapter-topic",
+          firstInGroup ? group.title : event.chapter.title,
         ),
       );
+      node.append(heading);
     } else if (event.type === "message") node = bubble(event);
     else if (event.type === "narration")
       node = el("p", "narration", event.text);
