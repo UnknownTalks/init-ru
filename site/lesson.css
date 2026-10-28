@@ -830,11 +830,40 @@ h3 {
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: #343a41;
-  color: #d3dae1;
   font-size: 12px;
-  box-shadow: 0 4px 16px #0005;
   padding: 0;
+}
+#jump,
+#mobile-menu-open {
+  border: 1px solid #ffffffb3;
+  background: #eaf0f5d9;
+  color: #18232d;
+  -webkit-backdrop-filter: blur(18px) saturate(1.15);
+  backdrop-filter: blur(18px) saturate(1.15);
+  box-shadow:
+    0 5px 20px #0006,
+    inset 0 1px 0 #ffffffb3;
+}
+#jump:hover,
+#mobile-menu-open:hover {
+  background: #f6f9fced;
+}
+#jump:active,
+#mobile-menu-open:active {
+  background: #d5e0e9ed;
+}
+#jump:focus-visible,
+#mobile-menu-open:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 4px;
+}
+@media (prefers-reduced-transparency: reduce) {
+  #jump,
+  #mobile-menu-open {
+    background: #eaf0f5;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
 }
 #jump[data-direction="up"] svg {
   transform: rotate(180deg);
@@ -1371,15 +1400,7 @@ dialog select {
     min-height: 48px;
     padding: 10px 16px;
     border-radius: 28px;
-    border: 1px solid #71777d66;
-    background: #303337ed;
-    -webkit-backdrop-filter: blur(18px);
-    backdrop-filter: blur(18px);
-    box-shadow: 0 4px 18px #0004;
     font-size: 14px;
-  }
-  #mobile-menu-open:hover {
-    background: #3a3f44;
   }
   dialog.mobile-sheet,
   #timeline-dialog.mobile-sheet {
