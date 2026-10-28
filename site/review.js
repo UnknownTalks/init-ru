@@ -10,9 +10,10 @@
   host.style.cssText =
     "position:fixed;inset:0;z-index:2147483000;pointer-events:none";
   const shadow = host.attachShadow({ mode: "open" });
-  shadow.innerHTML = `<link rel="stylesheet" href="/__review/review.css"><div id="outline" hidden></div><span id="pin" hidden></span><button id="selection" hidden>＋ Комментировать выделение</button><button id="toggle" aria-expanded="false">Рецензия <span id="count">0</span></button><div id="picking" hidden>Нажмите на нужный блок · Esc — отмена</div><section id="panel" aria-label="Список правок" hidden><header><strong>Правки</strong><a id="history" href="/__review/history" target="_blank" rel="noopener noreferrer">История</a><button id="close" aria-label="Свернуть замечания">×</button></header><p class="intro">Выберите блок или выделите текст, затем напишите комментарий.</p><div class="actions"><button id="pick">Прокомментировать блок</button><button id="pick-ui">Элемент интерфейса</button><button id="page">Общее замечание</button></div><form id="editor" hidden><p id="target-title"></p><blockquote id="quote" hidden></blockquote><label for="body">Комментарий</label><textarea id="body" rows="4" maxlength="20000" placeholder="Ваш комментарий…"></textarea><p id="draft-status" class="muted small"></p><div class="actions"><button id="save" type="submit">Сохранить</button><button id="cancel" type="button">Отменить</button></div></form><p id="status" role="status"></p><div id="undo" hidden><span id="undo-label"></span><button id="undo-delete">Отменить удаление</button></div><div class="list-header"><span>Открытые правки</span><button id="refresh">Обновить</button></div><input id="search" type="search" aria-label="Найти правку" placeholder="Найти правку…"><div id="comments"></div></section>`;
+  shadow.innerHTML = `<link rel="stylesheet" href="/__review/review.css"><div id="outline" hidden></div><span id="pin" hidden></span><button id="selection" hidden>＋ Комментировать выделение</button><button id="toggle" aria-expanded="false">Рецензия <span id="count">0</span></button><div id="picking" hidden>Нажмите на нужный блок · Esc — отмена</div><section id="panel" aria-label="Список правок" hidden><header><strong>Правки</strong><a id="history" href="/__review/history" target="_blank" rel="noopener noreferrer">История</a><button id="close" aria-label="Свернуть замечания">×</button></header><p class="intro">Выберите блок или выделите текст, затем напишите комментарий.</p><div class="actions"><button id="pick">Прокомментировать блок</button><button id="pick-ui">Элемент интерфейса</button><button id="page">Общее замечание</button></div><form id="editor" hidden><p id="target-title"></p><blockquote id="quote" hidden></blockquote><label for="body">Комментарий</label><textarea id="body" rows="4" maxlength="20000" placeholder="Ваш комментарий…"></textarea><p id="draft-status" class="muted small"></p><div class="actions"><button id="save" type="submit">Сохранить</button><button id="cancel" type="button">Отменить</button></div></form><details id="drafts" hidden><summary id="drafts-label">Черновики</summary><div id="drafts-list"></div></details><p id="status" role="status"></p><div id="undo" hidden><span id="undo-label"></span><button id="undo-delete">Отменить удаление</button></div><div class="list-header"><span>Открытые правки</span><button id="refresh">Обновить</button></div><input id="search" type="search" aria-label="Найти правку" placeholder="Найти правку…"><div id="comments"></div></section>`;
   const $ = (id) => shadow.getElementById(id);
   const draftKey = "unknowntalks:local-review:draft:v1";
+  const recoveryKey = "unknowntalks:local-review:recovery:v1";
   const state = {
     comments: [],
     file: "",
@@ -21,6 +22,8 @@
     pickMode: "block",
     lastDeleted: null,
     draft: null,
+    recoveredDrafts: [],
+    commentsLoaded: false,
     selection: null,
     target: null,
     selectedId: null,
@@ -93,6 +96,8 @@
     const data = await api();
     state.comments = data.comments;
     state.file = data.file;
+    state.commentsLoaded = true;
+    reconcileDrafts();
     if (
       state.selectedId &&
       state.comments.find((c) => c.id === state.selectedId)?.status !== "open"
@@ -104,20 +109,175 @@
     }
     renderList();
   }
-  function persistDraft() {
-    if (state.draft) {
-      state.draft.body = $("body").value;
-    }
+  function freshCopy(draft) {
+    return {
+      clientId: crypto.randomUUID(),
+      body: draft.body,
+      category: draft.category || "content",
+      anchor: structuredClone(draft.anchor),
+      context: structuredClone(draft.context || {}),
+    };
+  }
+  function normalizeDraft(draft) {
+    if (!draft?.anchor || typeof draft.body !== "string" || !draft.body.trim())
+      return null;
+    if (!state.commentsLoaded) return draft;
+    const saved = state.comments.find((c) =>
+      draft.editingId
+        ? c.id === draft.editingId
+        : c.clientId === draft.clientId,
+    );
+    if (saved && saved.body.trim() === draft.body.trim()) return null;
+    if (draft.editingId) {
+      if (
+        !saved ||
+        saved.status !== "open" ||
+        saved.updatedAt !== draft.baseUpdatedAt
+      )
+        return freshCopy(draft);
+    } else if (saved) return freshCopy(draft);
+    return draft;
+  }
+  function storeDrafts() {
     try {
+      // Persist recovery first: an interrupted write cannot erase the previous active draft.
+      if (state.recoveredDrafts.length)
+        localStorage.setItem(
+          recoveryKey,
+          JSON.stringify(state.recoveredDrafts),
+        );
+      else localStorage.removeItem(recoveryKey);
       if (state.draft)
         localStorage.setItem(draftKey, JSON.stringify(state.draft));
       else localStorage.removeItem(draftKey);
-      $("draft-status").textContent = state.draft ? "Черновик сохранён." : "";
+      return true;
     } catch {
-      $("draft-status").textContent =
-        "Черновик пока только в этом окне. Сохраните его перед закрытием.";
+      return false;
     }
+  }
+  function persistDraft() {
+    if (state.draft) state.draft.body = $("body").value;
+    const saved = storeDrafts();
+    $("draft-status").textContent = !state.draft
+      ? ""
+      : saved
+        ? "Черновик сохранён."
+        : "Черновик пока только в этом окне. Сохраните его перед закрытием.";
     $("save").disabled = state.saving || !$("body").value.trim();
+  }
+  function reconcileDrafts() {
+    state.recoveredDrafts = state.recoveredDrafts
+      .map(normalizeDraft)
+      .filter(Boolean);
+    // Explicit editing stays open until the record actually changes remotely.
+    if (state.draft && !state.saving) {
+      const draft = state.draft;
+      draft.body = $("body").value;
+      const saved = state.comments.find((c) =>
+        draft.editingId
+          ? c.id === draft.editingId
+          : c.clientId === draft.clientId,
+      );
+      const editExpired =
+        draft.editingId &&
+        (!saved ||
+          saved.status !== "open" ||
+          saved.updatedAt !== draft.baseUpdatedAt);
+      const acceptedCreation = !draft.editingId && saved;
+      if (editExpired || acceptedCreation) {
+        if (saved && saved.body.trim() === draft.body.trim()) {
+          state.draft = null;
+          $("body").value = "";
+          $("editor").hidden = true;
+          say(
+            "Этот комментарий уже сохранён. Для новой правки выберите блок или выделите текст.",
+          );
+        } else {
+          state.draft = freshCopy(draft);
+          showEditor();
+          say(
+            "Предыдущая правка уже изменилась. Ваш несохранённый текст оставлен как новый комментарий.",
+          );
+        }
+      }
+    }
+    storeDrafts();
+    renderRecovery();
+  }
+  function parkActiveDraft() {
+    if (state.saving) {
+      say("Дождитесь завершения сохранения.");
+      return false;
+    }
+    if (state.draft) {
+      state.draft.body = $("body").value;
+      const draft = normalizeDraft(state.draft);
+      if (draft) {
+        state.recoveredDrafts = state.recoveredDrafts.filter(
+          (d) => d.clientId !== draft.clientId,
+        );
+        state.recoveredDrafts.push(draft);
+      }
+    }
+    state.draft = null;
+    $("body").value = "";
+    $("editor").hidden = true;
+    if (!storeDrafts())
+      say(
+        "Предыдущий текст оставлен в черновиках этого окна. Браузер не разрешил сохранить его между перезагрузками.",
+        true,
+      );
+    renderRecovery();
+    return true;
+  }
+  function renderRecovery() {
+    $("drafts").hidden = !state.recoveredDrafts.length;
+    $("drafts-label").textContent =
+      "Несохранённые черновики · " + state.recoveredDrafts.length;
+    $("drafts-list").replaceChildren();
+    for (const draft of state.recoveredDrafts) {
+      const row = el("div", "recovered-draft");
+      row.append(
+        el(
+          "p",
+          "small muted",
+          draft.anchor.chapterTitle || draft.anchor.title || "Комментарий",
+        ),
+        el(
+          "p",
+          "",
+          draft.body.length > 180 ? draft.body.slice(0, 180) + "…" : draft.body,
+        ),
+      );
+      const actions = el("div", "actions");
+      actions.append(
+        button("Продолжить", () => {
+          if (!parkActiveDraft()) return;
+          const restored = normalizeDraft(draft);
+          state.recoveredDrafts = state.recoveredDrafts.filter(
+            (d) => d.clientId !== draft.clientId,
+          );
+          if (restored) {
+            state.draft = restored;
+            showEditor();
+            open();
+            persistDraft();
+            $("body").focus();
+          } else say("Комментарий уже сохранён.");
+          storeDrafts();
+          renderRecovery();
+        }),
+        button("Удалить черновик", () => {
+          state.recoveredDrafts = state.recoveredDrafts.filter(
+            (d) => d.clientId !== draft.clientId,
+          );
+          storeDrafts();
+          renderRecovery();
+        }),
+      );
+      row.append(actions);
+      $("drafts-list").append(row);
+    }
   }
   function selectorFor(element) {
     const parts = [];
@@ -250,14 +410,7 @@
     return { anchor, context };
   }
   function begin(anchor, context, target, range = null) {
-    if (state.draft?.body.trim()) {
-      open();
-      say(
-        "Есть несохранённый комментарий. Сохраните или отмените его перед выбором другого места.",
-        true,
-      );
-      return;
-    }
+    if (!parkActiveDraft()) return;
     state.draft = {
       clientId: crypto.randomUUID(),
       body: "",
@@ -278,6 +431,7 @@
     open();
     persistDraft();
     updateOutline();
+    say("");
     $("body").focus();
   }
   function showEditor() {
@@ -323,11 +477,7 @@
     document.documentElement.style.removeProperty("cursor");
   }
   function startPicking(mode = "block") {
-    if (state.draft?.body.trim()) {
-      open();
-      say("Сначала сохраните или отмените текущий комментарий.", true);
-      return;
-    }
+    if (!parkActiveDraft()) return;
     state.picking = true;
     state.pickMode = mode;
     state.selection = null;
@@ -819,13 +969,16 @@
       actions.append(
         button("Показать место", () => showTarget(c)),
         button("Изменить", async () => {
-          if (state.draft?.body.trim()) {
-            say("Сначала сохраните или отмените текущий комментарий.", true);
-            return;
-          }
+          if (!parkActiveDraft()) return;
           try {
             await refresh();
             const current = state.comments.find((n) => n.id === c.id);
+            if (!current || current.status !== "open") {
+              say(
+                "Эта правка уже закрыта. Выберите блок, чтобы создать новый комментарий.",
+              );
+              return;
+            }
             state.draft = {
               ...structuredClone(current),
               editingId: c.id,
@@ -871,8 +1024,19 @@
       );
       clearDraft();
       state.selectedId = comment.id;
-      await refresh();
+      state.comments = [
+        ...state.comments.filter((c) => c.id !== comment.id),
+        comment,
+      ];
+      renderList();
       say("Комментарий сохранён.");
+      try {
+        await refresh();
+      } catch {
+        say(
+          "Комментарий сохранён. Остальной список временно не удалось обновить.",
+        );
+      }
       updateOutline();
     } catch (error) {
       say(
@@ -925,16 +1089,24 @@
     if (state.open && !document.hidden) refresh().catch(() => {});
   }, 10000);
   try {
-    const draft = JSON.parse(localStorage.getItem(draftKey));
-    if (draft?.anchor && typeof draft.body === "string") {
-      state.draft = draft;
-      showEditor();
-      open();
-      persistDraft();
-      say("Восстановлен несохранённый черновик.");
-    }
+    const recovered = JSON.parse(localStorage.getItem(recoveryKey));
+    const active = JSON.parse(localStorage.getItem(draftKey));
+    const candidates = [
+      ...(Array.isArray(recovered) ? recovered : []),
+      ...(active ? [active] : []),
+    ];
+    state.recoveredDrafts = [
+      ...new Map(
+        candidates
+          .filter(
+            (d) => d?.anchor && typeof d.body === "string" && d.body.trim(),
+          )
+          .map((d) => [d.clientId, d]),
+      ).values(),
+    ];
+    renderRecovery();
   } catch {
-    /* The server copy remains the source of saved comments. */
+    /* Saved comments remain available from the server. */
   }
   refresh()
     .then(() => {
