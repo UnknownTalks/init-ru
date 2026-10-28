@@ -94,8 +94,28 @@
     paused = false,
     readAll = false,
     explicitQuiz = false,
-    following = false,
-    programmaticScroll = false;
+    restoring = false,
+    readingDepth = 0;
+  const unread = new Map();
+  const unreadObserver = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        const pending = unread.get(entry.target);
+        if (!pending) continue;
+        clearTimeout(pending.timer);
+        if (entry.isIntersecting && !document.hidden)
+          pending.timer = setTimeout(() => {
+            unread.delete(entry.target);
+            unreadObserver.unobserve(entry.target);
+            entry.target.classList.remove("unread-message");
+            entry.target.querySelector(".unread-label").style.visibility =
+              "hidden";
+            updateJump();
+          }, 4000);
+      }
+    },
+    { rootMargin: "-90px 0px -60px 0px", threshold: 0.01 },
+  );
   const el = (tag, cls, text) => {
     const n = document.createElement(tag);
     if (cls) n.className = cls;
@@ -148,7 +168,8 @@
       event.preventDefault();
       const selected = fieldset.querySelector("input:checked");
       if (!selected || submitted) return;
-      if (onSend(Number(selected.value)) !== false) submitted = true;
+      if (keepReading(() => onSend(Number(selected.value))) !== false)
+        submitted = true;
     });
     form.addEventListener("keydown", (event) => {
       if (
@@ -428,6 +449,9 @@
     );
   }
   function mount(event, mark = true) {
+    return keepReading(() => mountNode(event, mark));
+  }
+  function mountNode(event, mark) {
     if (mounted.has(event.id)) return;
     let node;
     if (event.type === "heading") {
@@ -445,11 +469,18 @@
     else if (event.type === "supplement") node = supplement(event.chapter);
     else return;
     node.id = event.id;
-    node.classList.add("new-message");
     (event.parent ? parentNodes.get(event.parent) : $("messages"))?.append(
       node,
     );
     mounted.set(event.id, node);
+    if (
+      mark &&
+      !readAll &&
+      !seen.has(event.id) &&
+      event.type === "message" &&
+      !event.outgoing
+    )
+      markNew(node);
     if (mark && event.type !== "choice") {
       seen.add(event.id);
       save();
@@ -460,31 +491,91 @@
     clearTimeout(timer);
     timer = null;
     if (busy) {
-      busy.typing?.remove();
+      keepReading(() => busy.typing?.remove());
       busy = null;
     }
   }
   function controls() {
-    const pending = currentTimeline().some((e) => !mounted.has(e.id));
-    $("playback-controls").hidden = readAll || (!busy && !paused && !pending);
-    $("pause").textContent = paused ? "Продолжить" : "Пауза";
-  }
-  function scrollFollow() {
-    if (!following || programmaticScroll) return;
-    programmaticScroll = true;
-    window.scrollTo({
-      top: document.documentElement.scrollHeight,
-      behavior: "auto",
-    });
-    requestAnimationFrame(() => {
-      programmaticScroll = false;
+    return keepReading(() => {
+      const pending = currentTimeline().some((e) => !mounted.has(e.id));
+      $("playback-controls").hidden = readAll || (!busy && !paused && !pending);
+      $("pause").textContent = paused ? "Продолжить" : "Пауза";
     });
   }
-  function nearBottom() {
-    return document.documentElement.scrollHeight - scrollY - innerHeight < 180;
+  // Incoming messages never scroll on the reader's behalf. Keep the visible
+  // paragraph anchored even when a reply form disappears or a thread above it grows.
+  function keepReading(change) {
+    if (restoring || readingDepth) return change();
+    const candidates = document.querySelectorAll(
+      "#messages .message, #messages .chapter-heading, #messages .visual, .quiz-body > .message",
+    );
+    const anchor = [...candidates].find((node) => {
+      const r = node.getBoundingClientRect();
+      return r.height && r.bottom > 100 && r.top < innerHeight - 60;
+    });
+    const y = scrollY,
+      top = anchor?.getBoundingClientRect().top;
+    // Retain reading space while a large composer is replaced by a short reply.
+    // Otherwise the browser clamps scrollY to a temporarily smaller document.
+    document.body.style.minHeight = Math.ceil(y + innerHeight) + "px";
+    readingDepth++;
+    try {
+      return change();
+    } finally {
+      readingDepth--;
+      // Measure in document coordinates: a browser may have already adjusted
+      // scrollY during layout (including focus-related scrolling).
+      const destination = anchor?.isConnected
+        ? scrollY + anchor.getBoundingClientRect().top - top
+        : y;
+      if (Math.abs(scrollY - destination) > 0.5)
+        window.scrollTo({ top: destination, behavior: "instant" });
+      updateJump();
+    }
+  }
+  function markNew(node) {
+    if (restoring) return;
+    node.classList.add("unread-message");
+    const badge = el("span", "unread-label", "Новое");
+    node.querySelector("time").before(badge);
+    unread.set(node, { timer: null });
+    unreadObserver.observe(node);
+    updateJump();
+  }
+  function jumpTarget() {
+    const pending = [...unread.keys()].filter((node) => node.isConnected);
+    pending.sort((a, b) =>
+      a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1,
+    );
+    return (
+      pending[0] ||
+      [
+        ...document.querySelectorAll(
+          "#messages .message, #messages > .reply-options, .quiz-body > .message, .quiz-body > .reply-options, .quiz-actions",
+        ),
+      ]
+        .filter((node) => node.getClientRects().length)
+        .at(-1)
+    );
   }
   function updateJump() {
-    $("jump").hidden = nearBottom() || !state.started;
+    for (const [node, pending] of unread)
+      if (!node.isConnected) {
+        clearTimeout(pending.timer);
+        unreadObserver.unobserve(node);
+        unread.delete(node);
+      }
+    const target = jumpTarget(),
+      rect = target?.getBoundingClientRect();
+    const visible = rect && rect.bottom > 100 && rect.top < innerHeight - 60;
+    $("jump").hidden =
+      !target || visible || (!unread.size && rect.bottom < innerHeight);
+    $("jump").textContent = unread.size
+      ? `Новые сообщения · ${unread.size} ${rect?.bottom < 100 ? "↑" : "↓"}`
+      : "К последним сообщениям ↓";
+    const notice = unread.size ? `Новых сообщений: ${unread.size}` : "";
+    if ($("new-message-status").textContent !== notice)
+      $("new-message-status").textContent = notice;
   }
   function messageDelay(text) {
     return state.pace === "fast"
@@ -527,16 +618,14 @@
       state.pace === "instant"
     ) {
       mount(event);
-      scrollFollow();
       advance();
       return;
     }
     const target = event.parent ? parentNodes.get(event.parent) : $("messages");
     const typing = typingFor(event);
-    target?.append(typing);
+    keepReading(() => target?.append(typing));
     busy = { event, typing };
     controls();
-    scrollFollow();
     const delay =
       event.type === "message"
         ? messageDelay(event.paragraphs.join(" "))
@@ -546,11 +635,12 @@
             ? 850
             : 400;
     timer = setTimeout(() => {
-      typing.remove();
-      busy = null;
-      mount(event);
-      scrollFollow();
-      advance();
+      keepReading(() => {
+        typing.remove();
+        busy = null;
+        mount(event);
+        advance();
+      });
     }, delay);
   }
   function refreshCheckFilters() {
@@ -596,7 +686,6 @@
     for (const e of currentTimeline()) if (!mounted.has(e.id)) mount(e);
     controls();
     updateProgress();
-    scrollFollow();
   }
   function choose(c, index) {
     if (state.choices[c.id] !== undefined || busy || readAll) return false;
@@ -604,7 +693,6 @@
     save();
     mounted.get(c.id + "--choice")?.remove();
     mounted.delete(c.id + "--choice");
-    following = nearBottom();
     advance();
     return true;
   }
@@ -618,15 +706,21 @@
     parentNodes.clear();
     quizSessions.clear();
     introduced.clear();
+    for (const pending of unread.values()) clearTimeout(pending.timer);
+    unread.clear();
+    unreadObserver.disconnect();
+    document.body.style.minHeight = "";
     $("messages").replaceChildren();
     $("final-check-body").replaceChildren();
   }
   function renderRestored() {
+    restoring = true;
     clearTranscript();
     for (const e of currentTimeline()) {
       if (readAll || seen.has(e.id)) mount(e, false);
       else break;
     }
+    restoring = false;
     sync();
   }
   function forwarded(reference) {
@@ -664,21 +758,30 @@
   }
   function quizIncoming(session, text, done = () => {}) {
     if (session.active === false) return;
-    if (state.pace === "instant") {
-      session.body.append(quizMessage("nina", text));
+    const deliver = () => {
+      const node = quizMessage("nina", text);
+      session.body.append(node);
+      markNew(node);
       done();
+    };
+    if (state.pace === "instant") {
+      keepReading(deliver);
       return;
     }
     const typing = typingFor({ type: "message", speaker: "nina" });
-    session.body.append(typing);
+    keepReading(() => session.body.append(typing));
     session.timer = setTimeout(() => {
       if (session.active === false) return;
-      typing.remove();
-      session.body.append(quizMessage("nina", text));
-      done();
+      keepReading(() => {
+        typing.remove();
+        deliver();
+      });
     }, messageDelay(text));
   }
   function startQuiz(id, qs, body) {
+    return keepReading(() => createQuiz(id, qs, body));
+  }
+  function createQuiz(id, qs, body) {
     const previous = quizSessions.get(id);
     if (previous) {
       previous.active = false;
@@ -755,8 +858,10 @@
                   button(
                     "Попробовать ещё раз",
                     () => {
-                      actions.remove();
-                      ask(session);
+                      keepReading(() => {
+                        actions.remove();
+                        ask(session);
+                      });
                     },
                     "quiz-retry",
                   ),
@@ -767,9 +872,11 @@
                     ? "Завершить проверку"
                     : "Следующий вопрос",
                   () => {
-                    actions.remove();
-                    session.index++;
-                    ask(session);
+                    keepReading(() => {
+                      actions.remove();
+                      session.index++;
+                      ask(session);
+                    });
                   },
                   "quiz-next",
                 ),
@@ -972,7 +1079,6 @@
     state.started = true;
     $("preferences").open = false;
     save();
-    following = false;
     sync();
   });
   $("preferences-open").addEventListener("click", () => {
@@ -1038,29 +1144,31 @@
       }
     });
   $("jump").addEventListener("click", () => {
-    following = true;
-    window.scrollTo({
-      top: document.documentElement.scrollHeight,
-      behavior: reduced ? "auto" : "smooth",
-    });
+    const target = jumpTarget();
+    if (!target) return;
+    for (
+      let parent = target.parentElement;
+      parent;
+      parent = parent.parentElement
+    )
+      if (parent.matches("details")) parent.open = true;
+    // One deliberate move to the FIRST unread message, never a moving bottom.
+    // An immediate jump cannot be interrupted by the next incoming message.
+    target.scrollIntoView({ block: "start", behavior: "instant" });
+    target.tabIndex = -1;
+    target.focus({ preventScroll: true });
+    updateJump();
   });
-  let previous = scrollY;
-  addEventListener(
-    "scroll",
-    () => {
-      if (!programmaticScroll && scrollY < previous - 3) following = false;
-      previous = scrollY;
-      updateJump();
-    },
-    { passive: true },
-  );
-  addEventListener(
-    "wheel",
-    (e) => {
-      if (e.deltaY < 0) following = false;
-    },
-    { passive: true },
-  );
+  addEventListener("scroll", updateJump, { passive: true });
+  addEventListener("resize", updateJump, { passive: true });
+  document.addEventListener("visibilitychange", () => {
+    for (const [node, pending] of unread) {
+      clearTimeout(pending.timer);
+      unreadObserver.unobserve(node);
+      if (!document.hidden) unreadObserver.observe(node);
+    }
+  });
+  document.documentElement.classList.add("reading-chat");
   addEventListener("hashchange", () =>
     navigate(decodeURIComponent(location.hash.slice(1))),
   );

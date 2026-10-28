@@ -16,6 +16,12 @@
 * {
   box-sizing: border-box;
 }
+/* The chat preserves a visible message across each DOM update itself. Native
+   anchoring to the moving footer/typing indicator would otherwise fight it. */
+html.reading-chat,
+html.reading-chat body {
+  overflow-anchor: none;
+}
 body {
   margin: 0;
   background: var(--bg);
@@ -509,18 +515,16 @@ h3 {
     opacity: 1;
   }
 }
-.new-message {
-  animation: arrive 0.18s ease-out;
+.message.unread-message {
+  outline: 2px solid #9aafc1;
+  outline-offset: 2px;
 }
-@keyframes arrive {
-  from {
-    opacity: 0.2;
-    transform: translateY(5px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.unread-label {
+  color: #d5e2ed;
+  font-size: 11px;
+  font-weight: 600;
+  margin-left: auto;
+  white-space: nowrap;
 }
 .highlight {
   outline: 2px solid #adbac8;
