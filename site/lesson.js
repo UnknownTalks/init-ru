@@ -1547,8 +1547,9 @@
       item.row.classList.toggle("done", done);
       item.row.classList.toggle("reached", reached);
       item.jump.disabled = !reached && !readAll;
-      item.back.hidden = !done;
-      item.back.disabled = !done;
+      const restartable = state.started && reached;
+      item.back.hidden = !restartable;
+      item.back.disabled = !restartable;
       item.jump.title = done
         ? "История главы пройдена; вопросы учитываются отдельно"
         : reached
