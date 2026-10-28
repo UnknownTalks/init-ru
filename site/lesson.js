@@ -237,7 +237,7 @@
     { quiz = false, prompt = "Ваш ответ" } = {},
   ) {
     const form = el("form", "reply-options" + (quiz ? " quiz-options" : ""));
-    const fieldset = el("fieldset", "reply-fieldset");
+    const fieldset = el("fieldset", "reply-fieldset action-cue");
     fieldset.append(el("legend", "reply-legend", prompt));
     const name = "reply-" + ++replyGroup;
     const send = el("button", "reply-send", "Отправить");
@@ -259,6 +259,8 @@
       input.setAttribute("aria-label", text);
       input.addEventListener("change", () => {
         send.disabled = false;
+        fieldset.classList.remove("action-cue");
+        send.classList.add("action-cue");
       });
       label.append(input, el("span", "reply-text", text));
       fieldset.append(label);
@@ -270,8 +272,11 @@
       event.preventDefault();
       const selected = fieldset.querySelector("input:checked");
       if (!selected || submitted) return;
-      if (keepReading(() => onSend(Number(selected.value))) !== false)
+      if (keepReading(() => onSend(Number(selected.value))) !== false) {
         submitted = true;
+        fieldset.classList.remove("action-cue");
+        send.classList.remove("action-cue");
+      }
     });
     form.addEventListener("keydown", (event) => {
       if (
@@ -1253,7 +1258,7 @@
                     ask(session);
                   });
                 },
-                "quiz-next",
+                "quiz-next action-cue",
               ),
             );
             session.body.append(actions);
@@ -1403,6 +1408,10 @@
       done = Object.keys(state.finalExam.answers).length,
       finished = storyFinished();
     $("all-checks").disabled = !finished;
+    $("all-checks").classList.toggle(
+      "action-cue",
+      finished && state.finalExam.status === "idle",
+    );
     $("all-checks").textContent =
       state.finalExam.status === "complete"
         ? "Пройти итоговую проверку заново"
@@ -1481,11 +1490,9 @@
         },
         "timeline-jump",
       );
-      const back = button(
-        "Начать главу заново",
-        () => requestRollback(c),
-        "timeline-back",
-      );
+      const back = button("", () => requestRollback(c), "timeline-back");
+      back.innerHTML =
+        '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7a8 8 0 0 0-14-1L3 9m0-6v6h6M4 17a8 8 0 0 0 14 1l3-3m0 6v-6h-6"/></svg>';
       back.setAttribute(
         "aria-label",
         `Начать главу ${group.number} заново со сбросом дальнейшего прохождения`,
@@ -1540,7 +1547,8 @@
       item.row.classList.toggle("done", done);
       item.row.classList.toggle("reached", reached);
       item.jump.disabled = !reached && !readAll;
-      item.back.disabled = !reached;
+      item.back.hidden = !done;
+      item.back.disabled = !done;
       item.jump.title = done
         ? "История главы пройдена; вопросы учитываются отдельно"
         : reached
@@ -1742,6 +1750,7 @@
     "reply-send",
   );
   send.id = "start";
+  send.classList.add("action-cue");
   draft.append(
     el("p", "small muted draft-label", "Первое сообщение · от имени Саши"),
     send,

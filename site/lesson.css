@@ -1156,7 +1156,7 @@ dialog select {
 }
 .timeline-step {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: start;
   position: relative;
   padding: 5px 0 15px 14px;
@@ -1196,12 +1196,23 @@ dialog select {
   font-weight: 600;
 }
 .timeline-back {
-  color: #9ca9b6;
-  text-align: left;
-  font-size: 11px;
-  justify-self: start;
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  color: #a9b6c2;
+  border-radius: 50%;
+}
+.timeline-back[hidden] {
+  display: none;
+}
+.timeline-back:hover {
+  background: #ffffff0b;
+  color: #eef2f6;
+}
+.timeline-back:focus-visible {
+  outline: 2px solid #b8c6d2;
+  outline-offset: 2px;
 }
 .message p {
   white-space: pre-line;
@@ -1258,4 +1269,35 @@ dialog select {
 #timeline-mobile {
   flex: 1;
   min-height: 0;
+}
+
+/* Guide the next required action without moving the reader or the layout. */
+.action-cue {
+  position: relative;
+  border-radius: 12px;
+}
+.action-cue::after {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border: 1px solid #bdcbd0;
+  border-radius: inherit;
+  box-shadow: 0 0 0 4px #bdcbd00c;
+  pointer-events: none;
+  animation: action-breathe 2.8s ease-in-out infinite;
+}
+@keyframes action-breathe {
+  0%,
+  100% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .action-cue::after {
+    animation: none;
+    opacity: 0.55;
+  }
 }
