@@ -323,6 +323,29 @@
     const fig = el("figure", "visual visual-" + event.kind);
     fig.setAttribute("aria-label", event.title);
     fig.append(el("figcaption", "", event.title));
+    if (event.kind === "table") {
+      const table = el("table", "comparison-table");
+      table.setAttribute("aria-label", event.title);
+      const head = el("thead"),
+        header = el("tr"),
+        body = el("tbody");
+      for (const title of event.columns) {
+        const cell = el("th", "", title);
+        cell.scope = "col";
+        header.append(cell);
+      }
+      head.append(header);
+      for (const item of event.items) {
+        const row = el("tr"),
+          label = el("th", "", item.label);
+        label.scope = "row";
+        row.append(label, el("td", "", item.text), el("td", "", item.result));
+        body.append(row);
+      }
+      table.append(head, body);
+      fig.append(table, el("p", "small muted", event.caption));
+      return fig;
+    }
     const items = el("div", "visual-items");
     for (const [i, item] of event.items.entries()) {
       if (typeof item === "string") {
@@ -391,7 +414,8 @@
         el(
           "p",
           "small muted thread-context",
-          `День ${c.day} · Обсуждение внутри команды. Можно прочитать сейчас или вернуться позже.`,
+          t.context ||
+            `День ${c.day} · Обсуждение внутри команды. Можно прочитать сейчас или вернуться позже.`,
         ),
       );
       const body = el("div", "thread-messages");
@@ -420,27 +444,64 @@
       });
       node.append(d);
     }
-    const check = el("details", "knowledge-check");
+    const check = el("section", "knowledge-check");
     check.dataset.quiz = c.id;
-    const count = c.checks.filter(activeQuestion).length;
-    check.append(
-      el(
-        "summary",
-        "",
-        `Проверить понимание · ${count} ${count === 1 ? "вопрос" : "вопроса"}`,
-      ),
+    const invitation = bubble(
+      {
+        speaker: "nina",
+        paragraphs: [
+          "Я подготовила вопросы по этому разговору. Попробуйте ответить: если запутаетесь, вернёмся к нужным сообщениям.",
+        ],
+      },
+      true,
     );
+    invitation.classList.add("quiz-invitation");
+    const toggle = button(
+      "",
+      () => keepReading(() => setQuizOpen(check, body.hidden)),
+      "quiz-toggle",
+    );
+    toggle.setAttribute("aria-expanded", "false");
+    toggle.setAttribute("aria-controls", c.id + "--quiz-body");
+    invitation.append(toggle);
     const body = el("div", "quiz-body");
-    check.append(body);
-    check.addEventListener("toggle", () => {
-      if (check.open && !quizSessions.has(c.id))
-        startQuiz(c.id, c.checks.filter(activeQuestion), body);
-    });
+    body.id = c.id + "--quiz-body";
+    body.hidden = true;
+    check.append(invitation, body);
+    updateQuizToggle(check);
     node.append(check);
     const references = sourceLinks(c);
     if (references) node.append(references);
-    node.append(el("p", "chapter-end", `Конец раздела ${c.number}`));
     return node;
+  }
+  function updateQuizToggle(check) {
+    const count = byChapter
+      .get(check.dataset.quiz)
+      .checks.filter(activeQuestion).length;
+    const label =
+      count % 10 === 1 && count % 100 !== 11
+        ? "вопрос"
+        : count % 10 >= 2 &&
+            count % 10 <= 4 &&
+            (count % 100 < 12 || count % 100 > 14)
+          ? "вопроса"
+          : "вопросов";
+    const toggle = check.querySelector(".quiz-toggle");
+    toggle.textContent = check.querySelector(".quiz-body").hidden
+      ? `Раскрыть · ${count} ${label}`
+      : "Свернуть";
+  }
+  function setQuizOpen(check, open) {
+    const body = check.querySelector(".quiz-body");
+    body.hidden = !open;
+    check
+      .querySelector(".quiz-toggle")
+      .setAttribute("aria-expanded", String(open));
+    updateQuizToggle(check);
+    if (open && !quizSessions.has(check.dataset.quiz)) {
+      const c = byChapter.get(check.dataset.quiz);
+      startQuiz(c.id, c.checks.filter(activeQuestion), body);
+    }
   }
   function showChoice(c) {
     return replyComposer(
@@ -531,9 +592,10 @@
       readingDepth--;
       // Measure in document coordinates: a browser may have already adjusted
       // scrollY during layout (including focus-related scrolling).
-      const destination = anchor?.isConnected
-        ? scrollY + anchor.getBoundingClientRect().top - top
-        : y;
+      const destination =
+        anchor?.isConnected && anchor.getClientRects().length
+          ? scrollY + anchor.getBoundingClientRect().top - top
+          : y;
       if (Math.abs(scrollY - destination) > 0.5)
         window.scrollTo({ top: destination, behavior: "instant" });
       updateJump();
@@ -654,8 +716,7 @@
       const d = document.querySelector(`[data-quiz="${c.id}"]`);
       if (!d) continue;
       const qs = c.checks.filter(activeQuestion);
-      d.querySelector("summary").textContent =
-        `Проверить понимание · ${qs.length} ${qs.length === 1 ? "вопрос" : "вопроса"}`;
+      updateQuizToggle(d);
       const session = quizSessions.get(c.id);
       if (
         session &&
@@ -666,7 +727,7 @@
         quizSessions.delete(c.id);
         const body = d.querySelector(".quiz-body");
         body.replaceChildren();
-        if (d.open) startQuiz(c.id, qs, body);
+        if (!body.hidden) startQuiz(c.id, qs, body);
       }
     }
   }
@@ -806,7 +867,7 @@
     body.replaceChildren();
     quizIncoming(
       session,
-      "Я Нина, проверяю качество. Здесь важна связь между проблемой и решением. Если ответ не сложится, вернёмся к сообщениям, где команда с этим разбиралась.",
+      "Буду задавать вопросы по одному. Если ошибётесь, покажу сообщения, к которым стоит вернуться.",
       () => ask(session),
     );
   }
@@ -1160,6 +1221,7 @@
       parent = parent.parentElement
     )
       if (parent.matches("details")) parent.open = true;
+      else if (parent.matches("[data-quiz]")) setQuizOpen(parent, true);
     // One deliberate move to the FIRST unread message, never a moving bottom.
     // An immediate jump cannot be interrupted by the next incoming message.
     target.scrollIntoView({ block: "start", behavior: "instant" });

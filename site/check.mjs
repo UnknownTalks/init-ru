@@ -91,6 +91,8 @@ for (const [id, { event: e }] of events) {
       id);
   if (e.type === "visual")
     require(e.items.length && e.title && e.caption, "Unlabelled visual " + id);
+  if (e.kind === "table")
+    require(e.columns?.length === 3 && e.items.every((item) => item.label && item.text && item.result), "Incomplete comparison table " + id);
 }
 const tokenVisual = events.get("tokens-pieces").event;
 require(tokenVisual.items.join("") ===
@@ -126,6 +128,9 @@ for (const [id, { event: e }] of events)
   require((e.paragraphs || [e.text || e.title, e.caption || ""]).every((p) =>
     markdown.includes(p),
   ), "Incomplete exported event " + id);
+for (const [id, { event: e }] of events)
+  if (e.kind === "table")
+    require([...e.columns, ...e.items.flatMap((item) => [item.label, item.text, item.result])].every((value) => markdown.includes(value)), "Incomplete exported table " + id);
 for (const q of questions.values())
   require([q.question, q.explanation, ...q.options, ...q.references].every(
     (v) => markdown.includes(v),

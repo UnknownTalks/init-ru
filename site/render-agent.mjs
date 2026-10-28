@@ -42,14 +42,30 @@ export async function renderAgentView(root) {
         ...e.paragraphs,
       );
     else if (e.type === "narration") text.push(`*${e.text}*`);
-    else if (e.type === "visual")
-      text.push(
-        `**Схема: ${e.title}**`,
-        e.items
-          .map((x) => (typeof x === "string" ? x : `${x.label}: ${x.text}`))
-          .join(" → "),
-        e.caption,
-      );
+    else if (e.type === "visual") {
+      if (e.kind === "table") {
+        const row = (cells) =>
+          "| " +
+          cells.map((cell) => cell.replaceAll("|", "\\|")).join(" | ") +
+          " |";
+        text.push(
+          `**Таблица: ${e.title}**`,
+          [
+            row(e.columns),
+            row(e.columns.map(() => "---")),
+            ...e.items.map((item) => row([item.label, item.text, item.result])),
+          ].join("\n"),
+          e.caption,
+        );
+      } else
+        text.push(
+          `**Схема: ${e.title}**`,
+          e.items
+            .map((x) => (typeof x === "string" ? x : `${x.label}: ${x.text}`))
+            .join(" → "),
+          e.caption,
+        );
+    }
   }
   text.push("## Полная переписка");
   for (const c of story.chapters) {

@@ -250,14 +250,6 @@ h3 {
 .chapter-heading.new-day:not(:first-child) {
   margin-top: 64px;
 }
-.chapter-end {
-  margin: 28px 0 0;
-  padding-top: 16px;
-  border-top: 1px solid var(--line);
-  color: var(--muted);
-  text-align: center;
-  font-size: 12px;
-}
 .elapsed {
   display: inline-block;
   font-size: 12px;
@@ -632,6 +624,31 @@ h3 {
 .visual-pair strong {
   color: #c7d1db;
 }
+.comparison-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 14px;
+  line-height: 1.55;
+}
+.comparison-table th,
+.comparison-table td {
+  padding: 12px 10px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+.comparison-table thead th {
+  background: #303338;
+  font-weight: 600;
+}
+.comparison-table th:first-child {
+  width: 25%;
+}
+.comparison-table tbody th {
+  font-weight: 550;
+}
 .visual-tokens .visual-items {
   gap: 6px;
 }
@@ -650,8 +667,6 @@ h3 {
 }
 .chapter-supplement {
   margin: 26px 0 38px;
-  padding-top: 12px;
-  border-top: 1px solid #3c4249;
 }
 .chapter-supplement details {
   margin: 14px 0;
@@ -703,10 +718,13 @@ h3 {
   margin: 10px 0;
 }
 .knowledge-check {
-  padding: 12px 0;
+  margin: 20px 0;
 }
-.knowledge-check > summary {
-  font-weight: 550;
+.quiz-toggle {
+  display: block;
+  margin-top: 18px;
+  background: #353b42;
+  font-size: 14px;
 }
 .quiz-body {
   margin: 24px 0;
@@ -1002,6 +1020,13 @@ dialog select {
   }
   .visual {
     margin-right: 0;
+  }
+  .comparison-table {
+    font-size: 13px;
+  }
+  .comparison-table th,
+  .comparison-table td {
+    padding: 10px 7px;
   }
   .visual-items {
     gap: 7px;
