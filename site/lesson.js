@@ -5,6 +5,16 @@
   const chapters = data.chapters,
     byChapter = new Map(chapters.map((c) => [c.id, c])),
     people = new Map(data.characters.map((p) => [p.id, p]));
+  const chapterGroups = data.chapterGroups.map((g, i) => ({
+    ...g,
+    number: i + 1,
+    scenes: g.chapters.map((id) => byChapter.get(id)),
+    checks: g.chapters.flatMap((id) => byChapter.get(id).checks),
+  }));
+  const groupByScene = new Map(
+      chapterGroups.flatMap((g) => g.scenes.map((c) => [c.id, g])),
+    ),
+    byQuizGroup = new Map(chapterGroups.map((g) => [g.id, g]));
   const messages = new Map(),
     threads = new Map(),
     questions = new Map();
@@ -646,30 +656,31 @@
     node.dataset.chapter = c.id;
     for (const t of c.threads.filter((t) => t.placement !== "before-reply"))
       node.append(threadPanel(c, t));
-    const check = el("section", "knowledge-check conversation-thread");
-    check.dataset.quiz = c.id;
-    check.dataset.open = "false";
-    const preview = threadPreview({
-      event: {
-        speaker: "nina",
-        paragraphs: [
-          c.checks[0]?.question || "В этой главе пока нет вопросов.",
-        ],
-      },
-      title: `Вопросы к главе ${c.number}`,
-      participants: ["nina", "sasha"],
-    });
-    const toggle = preview.querySelector(".thread-toggle");
-    toggle.setAttribute("aria-controls", c.id + "--quiz-body");
-    const body = el("div", "quiz-body");
-    body.id = c.id + "--quiz-body";
-    body.hidden = true;
-    check.append(preview, body);
-    toggle.addEventListener("click", () =>
-      keepReading(() => setQuizOpen(check, body.hidden)),
-    );
-    updateQuizToggle(check);
-    node.append(check);
+    const group = groupByScene.get(c.id);
+    if (group.scenes.at(-1) === c && group.checks.length) {
+      const check = el("section", "knowledge-check conversation-thread");
+      check.dataset.quiz = group.id;
+      check.dataset.open = "false";
+      const preview = threadPreview({
+        event: {
+          speaker: "nina",
+          paragraphs: [group.checks[0].question],
+        },
+        title: `Вопросы к главе ${group.number} · ${group.title}`,
+        participants: ["nina", "sasha"],
+      });
+      const toggle = preview.querySelector(".thread-toggle");
+      toggle.setAttribute("aria-controls", group.id + "--quiz-body");
+      const body = el("div", "quiz-body");
+      body.id = group.id + "--quiz-body";
+      body.hidden = true;
+      check.append(preview, body);
+      toggle.addEventListener("click", () =>
+        keepReading(() => setQuizOpen(check, body.hidden)),
+      );
+      updateQuizToggle(check);
+      node.append(check);
+    }
     const references = sourceLinks(c);
     if (references) node.append(references);
     return node;
@@ -709,7 +720,7 @@
     return preview;
   }
   function updateQuizToggle(check) {
-    const qs = byChapter.get(check.dataset.quiz).checks,
+    const qs = byQuizGroup.get(check.dataset.quiz).checks,
       open = check.dataset.open === "true";
     check.querySelector(".thread-action").textContent = open
       ? "Свернуть ответы"
@@ -728,7 +739,7 @@
     body.hidden = !open;
     updateQuizToggle(check);
     if (open && !quizSessions.has(check.dataset.quiz)) {
-      const c = byChapter.get(check.dataset.quiz);
+      const c = byQuizGroup.get(check.dataset.quiz);
       startQuiz(c.id, c.checks, body);
     }
   }
@@ -761,7 +772,9 @@
         el(
           "h2",
           "",
-          `Глава ${event.chapter.number} · День ${event.chapter.day} — ${event.chapter.title}`,
+          groupByScene.get(event.chapter.id).scenes[0] === event.chapter
+            ? `Глава ${groupByScene.get(event.chapter.id).number} · День ${event.chapter.day} — ${groupByScene.get(event.chapter.id).title}`
+            : `${event.chapter.title} · День ${event.chapter.day}`,
         ),
       );
     } else if (event.type === "message") node = bubble(event);
@@ -1037,7 +1050,7 @@
         "p",
         "forward-label",
         "Переслано · " +
-          `Глава ${entry.chapter.number}. ${entry.chapter.title}` +
+          `Глава ${groupByScene.get(entry.chapter.id).number} · ${entry.chapter.title}` +
           (entry.thread ? ` / ${entry.thread.title}` : ""),
       ),
     );
@@ -1108,20 +1121,7 @@
     quizSessions.set(id, session);
     body.replaceChildren();
     if (session.isChapter) {
-      // Keep local answers as a reviewed conversation after a reload.
-      while (session.index < qs.length) {
-        const q = qs[session.index],
-          answer = state.chapterAnswers[q.id];
-        if (!Number.isInteger(answer)) break;
-        if (session.index) body.append(quizMessage("nina", q.question));
-        body.append(
-          quizMessage("sasha", q.options[answer]),
-          quizMessage("nina", answerFeedback(q, answer)),
-        );
-        if (answer !== q.correct) appendReferences(body, q);
-        session.index++;
-      }
-      if (session.index) session.inlineFirst = false;
+      restoreChapterAnswers(session);
       if (session.index === qs.length)
         body.append(quizMessage("nina", quizResult(session)));
       else ask(session);
@@ -1156,6 +1156,23 @@
       () => ask(session),
     );
   }
+  function restoreChapterAnswers(session) {
+    // Grouped chapters can contain gaps between answers from earlier visits.
+    while (session.index < session.qs.length) {
+      const q = session.qs[session.index],
+        answer = state.chapterAnswers[q.id];
+      if (!Number.isInteger(answer)) break;
+      if (!session.inlineFirst || session.index)
+        session.body.append(quizMessage("nina", q.question));
+      session.body.append(
+        quizMessage("sasha", q.options[answer]),
+        quizMessage("nina", answerFeedback(q, answer)),
+      );
+      if (answer !== q.correct) appendReferences(session.body, q);
+      session.inlineFirst = false;
+      session.index++;
+    }
+  }
   function answerFeedback(q, answer) {
     return (
       (answer === q.correct
@@ -1183,6 +1200,7 @@
       : `Итоговая проверка завершена: верно ${passed} из ${session.qs.length}. Это отдельный результат проверки по всей истории. Разборы по главам сохранены отдельно; теперь итоговую проверку можно пройти заново целиком.`;
   }
   function ask(session) {
+    if (session.isChapter) restoreChapterAnswers(session);
     if (session.index >= session.qs.length) {
       if (!session.isChapter) {
         state.finalExam.status = "complete";
@@ -1333,20 +1351,17 @@
                 ? "encountered"
                 : "ahead",
         );
-        li.append(
-          el("strong", "", node.title),
-          el(
-            "span",
-            "skill-state",
-            verified
-              ? "Подтверждено в итоговой проверке"
-              : complete && correct < relevant.length
-                ? "Есть вопросы для повторного разбора"
-                : met
-                  ? "Встречалось в диалогах"
-                  : "Впереди",
-          ),
-        );
+        li.append(el("strong", "", node.title));
+        if (complete && relevant.length)
+          li.append(
+            el(
+              "span",
+              "skill-state",
+              verified
+                ? "Подтверждено в итоговой проверке"
+                : "Есть вопросы для повторного разбора",
+            ),
+          );
         const counts = el("div", "skill-counts");
         counts.append(
           el(
@@ -1454,27 +1469,32 @@
     lastTimelineChapter = null,
     timelineNeedsAlign = false;
   function initializeTimeline() {
-    for (const c of chapters) {
+    for (const group of chapterGroups) {
+      const c = group.scenes[0];
       const row = el("li", "timeline-step");
-      row.dataset.chapter = c.id;
+      row.dataset.chapter = group.id;
       const jump = button(
-        `${c.number}. ${c.title}`,
+        `${group.number}. ${group.title}`,
         () => {
           if ($("timeline-dialog").open) $("timeline-dialog").close();
           navigate(c.id);
         },
         "timeline-jump",
       );
-      const back = button("↶", () => requestRollback(c), "timeline-back");
+      const back = button(
+        "Начать главу заново",
+        () => requestRollback(c),
+        "timeline-back",
+      );
       back.setAttribute(
         "aria-label",
-        `Вернуться к началу главы ${c.number} со сбросом`,
+        `Начать главу ${group.number} заново со сбросом дальнейшего прохождения`,
       );
       back.title =
         "Вернуться к началу этой главы со сбросом дальнейшего прохождения";
       row.append(jump, back);
       $("timeline-chapters").append(row);
-      timelineRows.set(c.id, { row, jump, back });
+      timelineRows.set(group.id, { row, jump, back });
     }
     const layout = matchMedia("(min-width: 1280px)");
     const place = () => {
@@ -1508,12 +1528,15 @@
     updateTimeline();
   }
   function updateTimeline() {
-    for (const c of chapters) {
-      const item = timelineRows.get(c.id);
+    for (const group of chapterGroups) {
+      const item = timelineRows.get(group.id);
       if (!item) continue;
-      const reached = chapterReached(c),
-        done =
-          state.choices[c.id] !== undefined && seen.has(c.id + "--supplement");
+      const reached = group.scenes.some(chapterReached),
+        done = group.scenes.every(
+          (c) =>
+            state.choices[c.id] !== undefined &&
+            seen.has(c.id + "--supplement"),
+        );
       item.row.classList.toggle("done", done);
       item.row.classList.toggle("reached", reached);
       item.jump.disabled = !reached && !readAll;
@@ -1548,7 +1571,7 @@
           heading &&
           heading.getBoundingClientRect().top < Math.max(160, innerHeight * 0.4)
         )
-          current = c.id;
+          current = groupByScene.get(c.id).id;
       }
       for (const [id, item] of timelineRows) {
         item.row.classList.toggle("current", id === current);
@@ -1573,7 +1596,8 @@
   function requestRollback(c) {
     pendingRollback = c;
     if ($("timeline-dialog").open) $("timeline-dialog").close();
-    $("rollback-target").textContent = `Глава ${c.number}: ${c.title}`;
+    const group = groupByScene.get(c.id);
+    $("rollback-target").textContent = `Глава ${group.number}: ${group.title}`;
     $("rollback-description").textContent =
       "Выбранные продолжения истории, встречи с понятиями и ответы этой главы и всех последующих будут сброшены. Итоговая проверка тоже будет сброшена. Всё до этой главы сохранится.";
     showDialog("rollback-dialog");

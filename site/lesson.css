@@ -1156,7 +1156,7 @@ dialog select {
 }
 .timeline-step {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 30px;
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
   position: relative;
   padding: 5px 0 15px 14px;
@@ -1188,15 +1188,23 @@ dialog select {
 }
 .timeline-jump {
   color: #a6aeb7;
+  font-size: 13px;
+  text-align: left;
 }
 .timeline-step.current .timeline-jump {
   color: #f1f3f5;
   font-weight: 600;
 }
 .timeline-back {
-  color: #b4c2d0;
-  text-align: center;
-  font-size: 18px;
+  color: #9ca9b6;
+  text-align: left;
+  font-size: 11px;
+  justify-self: start;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.message p {
+  white-space: pre-line;
 }
 #timeline-dialog {
   margin: 16px auto 16px 16px;

@@ -50,6 +50,11 @@ require(story.schemaVersion === 4, "Wrong schema");
 require(chapters.size === story.chapters.length, "Duplicate chapter IDs");
 require(JSON.stringify(story.basics) ===
   JSON.stringify([...chapters.keys()]), "Main order differs");
+require(Array.isArray(story.chapterGroups) && story.chapterGroups.length === 6 &&
+  new Set(story.chapterGroups.map((g) => g.id)).size === story.chapterGroups.length &&
+  story.chapterGroups.every((g) => g.id && g.title && g.chapters.length) &&
+  JSON.stringify(story.chapterGroups.flatMap((g) => g.chapters)) === JSON.stringify(story.basics),
+  "Chapter groups must cover the main path once, in order");
 for (const c of story.chapters) {
   require(c.title &&
     c.elapsed &&
