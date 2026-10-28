@@ -17,6 +17,8 @@ export async function renderAgentView(root) {
     `# ${story.title}`,
     story.subtitle,
     "## Сюжет и границы",
+    ...story.premise.setup,
+    story.premise.team,
     story.premise.goal,
     story.premise.note,
     "Персонажи, время сообщений и сроки экспериментов вымышлены. Команда воспроизводит подходы разных исследователей; порядок объяснения не является буквальной хронологией изобретений.",
@@ -51,7 +53,11 @@ export async function renderAgentView(root) {
   }
   text.push("## Полная переписка");
   for (const c of story.chapters) {
-    text.push(`<a id="${c.id}"></a>`, `## ${c.title}`, `*${c.elapsed}*`);
+    text.push(
+      `<a id="${c.id}"></a>`,
+      `## ${c.number}. ${c.title}`,
+      `*${c.elapsed}*`,
+    );
     for (const e of c.intro) emit(e);
     text.push("### Варианты сообщения Саши");
     for (const o of c.decision.options)
@@ -63,10 +69,15 @@ export async function renderAgentView(root) {
     for (const t of c.threads) {
       text.push(
         `<a id="${t.id}"></a>`,
-        `### Внутренний чат: ${t.title}`,
+        `### ${t.number}. Внутренний чат: ${t.title}`,
         `Направление: ${story.tracks.find((x) => x.id === t.track).title}. Необязательно для основной линии.`,
       );
       for (const e of t.messages) emit(e);
+      if (t.sources?.length)
+        text.push(
+          "#### Источники обсуждения",
+          ...t.sources.map((source) => `- [${source.label}](${source.url})`),
+        );
     }
     text.push("### Проверка понимания");
     for (const q of c.checks)
@@ -87,8 +98,9 @@ export async function renderAgentView(root) {
         ([kind, ids]) =>
           `${kind}: ${ids.map((id) => `[сообщение](#${id})`).join(" · ")}`,
       ),
-      "### Источники",
-      ...c.sources.map((s) => `- [${s.label}](${s.url})`),
+      ...(c.sources.length
+        ? ["### Источники", ...c.sources.map((s) => `- [${s.label}](${s.url})`)]
+        : []),
     );
   }
   text.push(

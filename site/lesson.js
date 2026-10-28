@@ -282,15 +282,6 @@
     $("progress-open").title = "Открыть дерево навыков";
     $("start").hidden = state.started || readAll;
     $("return-inline").hidden = !readAll;
-    $("route-summary").hidden = !state.started && !readAll;
-    const selected = data.tracks
-      .filter((t) => state.tracks.includes(t.id))
-      .map((t) => t.title.toLowerCase());
-    $("route-summary").textContent =
-      "Читаете основной диалог" +
-      (selected.length
-        ? " и внутренние чаты: " + selected.join(", ")
-        : ". Внутренние чаты можно раскрывать по ходу.");
     const finished =
       state.started &&
       chapters.every((c) => state.choices[c.id] !== undefined) &&
@@ -312,7 +303,11 @@
     node.dataset.speaker = event.speaker;
     node.setAttribute("aria-label", nameOf(event.speaker));
     const meta = el("header", "message-meta");
-    meta.append(el("span", "sender", nameOf(event.speaker)));
+    const author = el("span", "message-author");
+    const avatar = el("span", "avatar", person?.initial || "?");
+    avatar.setAttribute("aria-hidden", "true");
+    author.append(avatar, el("span", "sender", nameOf(event.speaker)));
+    meta.append(author);
     const time = el("time", "", event.time || "");
     meta.append(time);
     node.append(meta);
@@ -347,6 +342,7 @@
     return fig;
   }
   function sourceLinks(c) {
+    if (!c.sources.length && !c.terms.length) return null;
     const details = el("details", "sources");
     details.append(el("summary", "", "Источники и понятия"));
     const termLinks = el("p", "small");
@@ -360,7 +356,7 @@
         termLinks.append(a);
       }
     }
-    details.append(termLinks);
+    if (c.terms.length) details.append(termLinks);
     const ul = el("ul");
     for (const s of c.sources) {
       const li = el("li"),
@@ -371,7 +367,7 @@
       li.append(a);
       ul.append(li);
     }
-    details.append(ul);
+    if (c.sources.length) details.append(ul);
     return details;
   }
   function supplement(c) {
@@ -388,19 +384,21 @@
           "thread-label",
           "Внутренний чат · " + data.tracks.find((x) => x.id === t.track).title,
         ),
-        el("strong", "", t.title),
+        el("strong", "", `${t.number}. ${t.title}`),
       );
       d.append(
         summary,
         el(
           "p",
           "small muted thread-context",
-          "Раньше в этот день · детали можно пропустить без потери основного разговора.",
+          `День ${c.day} · Обсуждение внутри команды. Можно прочитать сейчас или вернуться позже.`,
         ),
       );
       const body = el("div", "thread-messages");
       parentNodes.set(t.id, body);
       d.append(body);
+      const references = sourceLinks({ terms: [], sources: t.sources || [] });
+      if (references) d.append(references);
       if (t.id === "tokens-bpe") {
         const a = el("a", "small", "Проверить текст настоящим токенизатором ↗");
         a.href = "demos/tokens.html";
@@ -438,7 +436,10 @@
       if (check.open && !quizSessions.has(c.id))
         startQuiz(c.id, c.checks.filter(activeQuestion), body);
     });
-    node.append(check, sourceLinks(c));
+    node.append(check);
+    const references = sourceLinks(c);
+    if (references) node.append(references);
+    node.append(el("p", "chapter-end", `Конец раздела ${c.number}`));
     return node;
   }
   function showChoice(c) {
@@ -457,9 +458,14 @@
     if (event.type === "heading") {
       node = el("section", "chapter-heading");
       node.dataset.chapter = event.chapter.id;
+      const previous = chapters[chapters.indexOf(event.chapter) - 1];
+      const newDay = !previous || previous.day !== event.chapter.day;
+      if (newDay) node.classList.add("new-day");
+      const date = el("div", "day-divider");
+      date.append(el("span", "elapsed", event.chapter.elapsed));
       node.append(
-        el("span", "elapsed", event.chapter.elapsed),
-        el("h2", "", event.chapter.title),
+        date,
+        el("h2", "", `${event.chapter.number}. ${event.chapter.title}`),
       );
     } else if (event.type === "message") node = bubble(event);
     else if (event.type === "narration")
@@ -732,8 +738,10 @@
         "p",
         "forward-label",
         "Переслано · " +
-          entry.chapter.title +
-          (entry.thread ? " / " + entry.thread.title : ""),
+          `${entry.chapter.number}. ${entry.chapter.title}` +
+          (entry.thread
+            ? ` / ${entry.thread.number}. ${entry.thread.title}`
+            : ""),
       ),
     );
     const e = entry.event;

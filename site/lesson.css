@@ -216,10 +216,6 @@ h3 {
 .start:hover {
   background: #ebedef;
 }
-#route-summary {
-  margin: 18px 0 0;
-  line-height: 1.6;
-}
 #messages {
   min-height: 10px;
 }
@@ -237,6 +233,30 @@ h3 {
   color: #b7bdc4;
   margin: 14px auto 0;
   max-width: 540px;
+}
+.day-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+.chapter-heading.new-day .day-divider::before,
+.chapter-heading.new-day .day-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+.chapter-heading.new-day:not(:first-child) {
+  margin-top: 64px;
+}
+.chapter-end {
+  margin: 28px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  text-align: center;
+  font-size: 12px;
 }
 .elapsed {
   display: inline-block;
@@ -304,11 +324,31 @@ h3 {
 }
 .message-meta {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 16px;
   font-size: 13px;
   margin-bottom: 7px;
+}
+.message-author {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--edge);
+  border-radius: 50%;
+  background: var(--edge);
+  color: var(--name);
+  font-size: 12px;
+  font-weight: 650;
 }
 .sender {
   color: var(--name);

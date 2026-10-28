@@ -50,7 +50,12 @@ for (const c of story.chapters) {
     c.elapsed &&
     c.intro.length &&
     c.outro.length &&
-    c.sources.length, "Incomplete chapter " + c.id);
+    Array.isArray(c.sources) &&
+    (c.sources.length || !c.terms.length), "Incomplete chapter " + c.id);
+  require(c.number === `1.${story.chapters.indexOf(c) + 1}` &&
+    Number.isInteger(c.day) && c.day > 0 &&
+    (!story.chapters.indexOf(c) || c.day >= story.chapters[story.chapters.indexOf(c) - 1].day),
+    "Invalid section number/day " + c.id);
   require(c.decision.options.length >= 2 &&
     c.decision.options.every(
       (o) => o.label && o.reply,
@@ -131,6 +136,9 @@ for (const c of chapters.values())
     ...c.sources.map((s) => s.url),
   ].every((v) => markdown.includes(v)), "Incomplete exported choice/source " +
     c.id);
+for (const t of threads.values())
+  require((t.sources || []).every((source) => markdown.includes(source.url)),
+    "Incomplete exported thread source " + t.id);
 let mdCount = 0,
   htmlCount = 0;
 async function walk(dir, visit) {
