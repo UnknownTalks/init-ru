@@ -102,29 +102,12 @@ for (const [id, { event: e }] of events) {
       e.time &&
       e.paragraphs.every((p) => p.length > 10), "Invalid speaker/prose/time " +
       id);
-  if (e.experiment)
-    require(e.type === "message" && e.experiment.prompt &&
-      e.experiment.options?.length >= 2 &&
-      e.experiment.options.every((option) => option.label && option.result &&
-        option.explanation && (!option.pieces || (Array.isArray(option.pieces) &&
-          option.pieces.length && option.pieces.every((piece) => typeof piece === "string" && piece.length)))),
-      "Incomplete interactive experiment " + id);
   if (e.type === "visual")
     require(e.items.length && e.title && e.caption, "Unlabelled visual " + id);
   if (e.kind === "table")
     require(e.columns?.length === 3 && e.items.every((item) => item.label && item.text && item.result), "Incomplete comparison table " + id);
 }
 const tokenVisual = events.get("tokens-pieces").event;
-require(story.journey?.title && story.journey.intro && story.journey.note && story.journey.steps.length &&
-  new Set(story.journey.steps.map((step) => step.id)).size === story.journey.steps.length,
-  "Incomplete interactive route");
-for (const step of story.journey.steps)
-  require(step.id && step.title && step.problem && step.prompt && step.options.length >= 2 &&
-    step.options.every((option) => option.label && option.result) && step.explanation.length &&
-    step.references.length && step.references.every((id) => events.has(id)) &&
-    step.terms.every((id) => terms.has(id)) &&
-    (step.visuals || []).every((id) => events.get(id)?.event.type === "visual"),
-    "Incomplete interactive step " + step.id);
 require(tokenVisual.items.join("") ===
   "Проверьте микрофон.", "Token pieces do not reconstruct text");
 const covered = new Set([...questions.values()].flatMap((q) => q.terms));
@@ -169,10 +152,6 @@ const exported = JSON.parse(
 require(JSON.stringify(exported) ===
   JSON.stringify(story), "JSON export differs");
 const markdown = await readFile(path.join(out, lesson, "agent.md"), "utf8");
-for (const step of story.journey.steps)
-  require([step.title, step.problem, step.prompt, ...step.explanation,
-    ...step.options.flatMap((option) => [option.label, option.result])]
-    .every((text) => markdown.includes(text)), "Incomplete exported interactive step " + step.id);
 require(markdown ===
   (await readFile(
     path.join(out, "llms-full.txt"),
@@ -185,11 +164,6 @@ for (const [id, { event: e }] of events)
 for (const [id, { event: e }] of events)
   if (e.kind === "table")
     require([...e.columns, ...e.items.flatMap((item) => [item.label, item.text, item.result])].every((value) => markdown.includes(value)), "Incomplete exported table " + id);
-for (const [id, { event: e }] of events)
-  if (e.experiment)
-    require([e.experiment.prompt, ...e.experiment.options.flatMap((option) =>
-      [option.label, option.result, option.explanation, ...(option.input ? [option.input] : [])])]
-      .every((value) => markdown.includes(value)), "Incomplete exported experiment " + id);
 for (const q of questions.values())
   require([q.question, q.explanation, ...q.options, ...q.references].every(
     (v) => markdown.includes(v),

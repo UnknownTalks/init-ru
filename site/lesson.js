@@ -41,11 +41,6 @@
     expanded: [],
     collapsed: [],
     choices: {},
-    experiments: {},
-    readingMode: "interactive",
-    journeyIndex: 0,
-    journeyChoices: {},
-    journeyComplete: false,
     seen: [],
     answers: {},
     chapterAnswers: {},
@@ -76,29 +71,6 @@
     const saved = JSON.parse(localStorage.getItem(key));
     if (saved?.version === 4) {
       state.started = saved.started === true;
-      state.readingMode = ["interactive", "chat"].includes(saved.readingMode)
-        ? saved.readingMode
-        : state.started
-          ? "chat"
-          : "interactive";
-      for (const step of data.journey.steps) {
-        const answer = saved.journeyChoices?.[step.id];
-        if (!Number.isInteger(answer) || !step.options[answer]) break;
-        state.journeyChoices[step.id] = answer;
-      }
-      state.journeyIndex = Number.isInteger(saved.journeyIndex)
-        ? Math.max(
-            0,
-            Math.min(
-              saved.journeyIndex,
-              Object.keys(state.journeyChoices).length,
-              data.journey.steps.length - 1,
-            ),
-          )
-        : 0;
-      state.journeyComplete =
-        saved.journeyComplete === true &&
-        Object.keys(state.journeyChoices).length === data.journey.steps.length;
       state.storyComplete =
         saved.storyComplete === true ||
         (Array.isArray(saved.seen) &&
@@ -133,13 +105,6 @@
           state.answers[id] = saved.answers[id]
             .filter((i) => Number.isInteger(i) && q.options[i] !== undefined)
             .slice(-30);
-      for (const [id, { event }] of messages)
-        if (
-          event.experiment &&
-          Number.isInteger(saved.experiments?.[id]) &&
-          event.experiment.options[saved.experiments[id]]
-        )
-          state.experiments[id] = saved.experiments[id];
       for (const [id, { question: q }] of questions) {
         const answer = saved.chapterAnswers?.[id] ?? state.answers[id]?.at(-1);
         if (Number.isInteger(answer) && q.options[answer] !== undefined)
@@ -499,14 +464,13 @@
   );
   function storyFinished() {
     return (
-      state.journeyComplete ||
-      (state.started &&
-        chapters.every(
-          (c) =>
-            (!c.decision || state.choices[c.id] !== undefined) &&
-            seen.has(c.id + "--supplement"),
-        ) &&
-        state.storyComplete)
+      state.started &&
+      chapters.every(
+        (c) =>
+          (!c.decision || state.choices[c.id] !== undefined) &&
+          seen.has(c.id + "--supplement"),
+      ) &&
+      state.storyComplete
     );
   }
   function chapterReached(c) {
@@ -519,193 +483,11 @@
     $("progress-label").textContent = state.started
       ? `История · ${percent}%`
       : "История ещё не началась";
-    const interactive = state.readingMode === "interactive";
-    $("opening-composer").hidden = interactive || state.started || readAll;
-    $("return-inline").hidden = interactive || !readAll;
-    $("final-check").hidden = !(storyFinished() || (!interactive && readAll));
+    $("opening-composer").hidden = state.started || readAll;
+    $("return-inline").hidden = !readAll;
+    $("final-check").hidden = !(storyFinished() || readAll);
     updateFinalControls();
     updateTimeline();
-  }
-  function setReadingMode(mode) {
-    stopTimer();
-    state.readingMode = mode;
-    if (mode === "interactive" && location.hash)
-      history.replaceState(null, "", location.pathname + location.search);
-    save();
-    applyReadingMode();
-    if (mode === "interactive") renderJourney();
-    sync();
-    updateJump();
-  }
-  function applyReadingMode() {
-    const interactive = state.readingMode === "interactive";
-    document.body.classList.toggle("interactive-mode", interactive);
-    $("lesson-title").textContent = interactive
-      ? data.journey.title
-      : data.title;
-    $("journey-intro").hidden = !interactive;
-    $("chat-intro").hidden = interactive;
-    $("learning-journey").hidden = !interactive;
-    $("messages").hidden = interactive;
-    $("timeline-dock").hidden = interactive;
-    $("journey-mode").setAttribute("aria-pressed", String(interactive));
-    $("chat-mode").setAttribute("aria-pressed", String(!interactive));
-    $("reading-mode-toggle").firstChild.textContent = interactive
-      ? "Читать переписку"
-      : "Попробовать самому";
-    updateProgress();
-  }
-  function journeyMap() {
-    const map = $("journey-map");
-    map.open = true;
-    map.scrollIntoView({ block: "start", behavior: "instant" });
-  }
-  function renderJourney(focus = false) {
-    const steps = data.journey.steps,
-      step = steps[state.journeyIndex],
-      selected = state.journeyChoices[step.id],
-      answered = Number.isInteger(selected),
-      done = Object.keys(state.journeyChoices).length,
-      host = $("learning-journey");
-    const progress = el("div", "journey-progress");
-    progress.append(
-      el("span", "small muted", `Разобрано ${done} из ${steps.length}`),
-    );
-    const meter = el("progress");
-    meter.max = steps.length;
-    meter.value = done;
-    meter.setAttribute("aria-label", "Пройденные шаги интерактивной истории");
-    progress.append(meter);
-    const map = el("details", "journey-map");
-    map.id = "journey-map";
-    map.append(el("summary", "", "Путь от поиска до агента"));
-    const list = el("ol");
-    for (const [index, item] of steps.entries()) {
-      const row = el("li"),
-        available = index <= Object.keys(state.journeyChoices).length,
-        jump = button(item.title, () => {
-          state.journeyIndex = index;
-          save();
-          renderJourney(true);
-        });
-      jump.disabled = !available;
-      if (index === state.journeyIndex)
-        jump.setAttribute("aria-current", "step");
-      if (index < done || state.journeyComplete) row.classList.add("done");
-      row.append(jump);
-      list.append(row);
-    }
-    map.append(list);
-    const scene = el("section", "journey-scene");
-    scene.id = "journey-scene";
-    scene.tabIndex = -1;
-    scene.append(el("h2", "", step.title));
-    const message = bubble(
-      { speaker: "anna", paragraphs: [step.problem] },
-      true,
-    );
-    message
-      .querySelector("header")
-      .after(el("span", "role", "Руководит командой, которая помогает Саше"));
-    const actions = el("fieldset", "experiment-options journey-options");
-    actions.append(el("legend", "", step.prompt));
-    const result = el("div", "journey-result"),
-      next = button(
-        state.journeyIndex === steps.length - 1
-          ? "Завершить историю"
-          : steps[state.journeyIndex + 1].title,
-        () => {
-          if (!Number.isInteger(state.journeyChoices[step.id])) return;
-          if (state.journeyIndex === steps.length - 1)
-            state.journeyComplete = true;
-          else state.journeyIndex++;
-          save();
-          renderJourney(true);
-          updateProgress();
-          renderSkills();
-        },
-        "journey-next",
-      );
-    result.setAttribute("aria-live", "polite");
-    result.setAttribute("aria-atomic", "true");
-    const showResult = (index) => {
-      result.replaceChildren();
-      result.append(
-        el("p", "experiment-observation", step.options[index].result),
-      );
-      for (const text of step.explanation) result.append(paragraph(text));
-      for (const id of step.visuals || [])
-        result.append(diagram(messages.get(id).event));
-      result.hidden = false;
-      for (const [i, control] of [
-        ...actions.querySelectorAll("button"),
-      ].entries())
-        control.setAttribute("aria-pressed", String(i === index));
-      next.hidden = false;
-    };
-    for (const [index, option] of step.options.entries()) {
-      const action = button(option.label, () => {
-        state.journeyChoices[step.id] = index;
-        save();
-        keepReading(() => showResult(index));
-        const count = Object.keys(state.journeyChoices).length;
-        meter.value = count;
-        progress.firstChild.textContent = `Разобрано ${count} из ${steps.length}`;
-        updateProgress();
-        renderSkills();
-      });
-      action.setAttribute("aria-pressed", "false");
-      actions.append(action);
-    }
-    next.hidden = true;
-    result.hidden = true;
-    message.append(actions, result);
-    scene.append(message);
-    const details = el("details", "journey-depth");
-    details.append(
-      el("summary", "", "Разобрать с командой: переписка и примеры"),
-    );
-    details.addEventListener("toggle", () => {
-      if (!details.open || details.dataset.loaded) return;
-      details.dataset.loaded = "true";
-      for (const id of step.references) {
-        const { event } = messages.get(id);
-        const node =
-          event.type === "visual" ? diagram(event) : bubble(event, true);
-        details.append(node);
-      }
-    });
-    scene.append(details, next);
-    if (answered) showResult(selected);
-    if (state.journeyComplete && state.journeyIndex === steps.length - 1) {
-      next.hidden = true;
-      scene.append(
-        el(
-          "p",
-          "journey-finished",
-          "Саша получил полезный результат. Вы прошли путь от ручного поиска до агента — теперь можно проверить понимание или раскрыть подробности любого шага.",
-        ),
-      );
-      scene.append(
-        button(
-          "Проверить понимание",
-          () => {
-            startFinalExam(state.finalExam.status === "complete");
-            $("final-check").scrollIntoView({
-              block: "start",
-              behavior: "instant",
-            });
-          },
-          "journey-next",
-        ),
-      );
-    }
-    const note = el("p", "small muted", data.journey.note);
-    host.replaceChildren(progress, map, scene, note);
-    if (focus) {
-      scene.scrollIntoView({ block: "start", behavior: "instant" });
-      scene.focus({ preventScroll: true });
-    }
   }
   function nameOf(id) {
     return people.get(id)?.name || id;
@@ -745,67 +527,6 @@
       figure.classList.add("message-attachment");
       node.append(figure);
     }
-    if (event.experiment && !forwarded) node.append(experiment(event));
-    return node;
-  }
-  function experiment(event) {
-    const activity = event.experiment,
-      node = el("section", "story-experiment"),
-      fieldset = el("fieldset", "experiment-options"),
-      result = el("div", "experiment-result"),
-      controls = [];
-    node.dataset.experiment = event.id;
-    node.append(
-      el("p", "small muted experiment-label", "Попробуйте · необязательно"),
-    );
-    fieldset.append(el("legend", "", activity.prompt));
-    result.setAttribute("role", "status");
-    result.setAttribute("aria-live", "polite");
-    result.setAttribute("aria-atomic", "true");
-    const update = () => {
-      const selected = state.experiments[event.id],
-        option = activity.options[selected];
-      for (const [index, control] of controls.entries())
-        control.setAttribute("aria-pressed", String(index === selected));
-      result.replaceChildren();
-      if (!option) return;
-      if (option.pieces) {
-        const pieces = el("div", "experiment-pieces");
-        pieces.setAttribute("aria-label", "Части текста в исходном порядке");
-        for (const piece of option.pieces) {
-          const part = el("span", "", piece === " " ? "␣" : piece);
-          part.title = piece === " " ? "Пробел" : piece;
-          pieces.append(part);
-        }
-        result.append(pieces);
-      }
-      if (option.input) {
-        const input = el("p", "experiment-input");
-        input.append(
-          el("strong", "", "Передаём: "),
-          document.createTextNode(option.input),
-        );
-        result.append(input);
-      }
-      result.append(
-        el("p", "experiment-observation", option.result),
-        paragraph(option.explanation),
-      );
-    };
-    for (const [index, option] of activity.options.entries()) {
-      const control = button(option.label, () =>
-        keepReading(() => {
-          state.experiments[event.id] = index;
-          save();
-          update();
-          updateJump();
-        }),
-      );
-      controls.push(control);
-      fieldset.append(control);
-    }
-    node.append(fieldset, result);
-    update();
     return node;
   }
   function diagram(event) {
@@ -1138,10 +859,7 @@
   function controls() {
     return keepReading(() => {
       const pending = currentTimeline().some((e) => !mounted.has(e.id));
-      $("playback-controls").hidden =
-        state.readingMode === "interactive" ||
-        readAll ||
-        (!busy && !paused && !pending);
+      $("playback-controls").hidden = readAll || (!busy && !paused && !pending);
       $("pause").textContent = paused ? "Продолжить" : "Пауза";
     });
   }
@@ -1212,10 +930,6 @@
     );
   }
   function updateJump() {
-    if (state.readingMode === "interactive") {
-      $("jump").hidden = true;
-      return;
-    }
     for (const [node, pending] of unread)
       if (!node.isConnected) {
         clearTimeout(pending.timer);
@@ -1259,7 +973,7 @@
     return n;
   }
   function advance() {
-    if (state.readingMode === "interactive" || busy || paused || readAll) {
+    if (busy || paused || readAll) {
       controls();
       return;
     }
@@ -1309,11 +1023,6 @@
   }
   function sync() {
     stopTimer();
-    if (state.readingMode === "interactive") {
-      updateProgress();
-      controls();
-      return;
-    }
     for (const [id, { thread: t }] of threads) {
       const body = parentNodes.get(id);
       if (body) setThreadView(body.closest("[data-thread]"), threadOpen(t));
@@ -1365,8 +1074,6 @@
   function renderRestored() {
     restoring = true;
     clearTranscript();
-    if (state.journeyComplete && state.finalExam.status !== "idle")
-      readAll = true;
     for (const e of currentTimeline()) {
       if (readAll || seen.has(e.id)) mount(e, false);
       else break;
@@ -1639,11 +1346,6 @@
         conceptMessages.get(term.id).add(event.id);
     }
   function renderSkills() {
-    const journeyTerms = new Set(
-      data.journey.steps
-        .filter((step) => Number.isInteger(state.journeyChoices[step.id]))
-        .flatMap((step) => step.terms),
-    );
     const all = [...questions.values()].map((x) => x.question),
       local = all.filter((q) =>
         Number.isInteger(state.chapterAnswers[q.id]),
@@ -1669,9 +1371,6 @@
           node.terms.flatMap((term) => [...(conceptMessages.get(term) || [])]),
         );
         const met = [...planned].filter((id) => encountered.has(id)).length;
-        const journeyMet = node.terms.filter((term) =>
-          journeyTerms.has(term),
-        ).length;
         const localDone = relevant.filter((q) =>
           Number.isInteger(state.chapterAnswers[q.id]),
         ).length;
@@ -1689,7 +1388,7 @@
             ? "checked"
             : complete && correct < relevant.length
               ? "review"
-              : met || journeyMet
+              : met
                 ? "encountered"
                 : "ahead",
         );
@@ -1706,11 +1405,6 @@
           );
         const counts = el("div", "skill-counts");
         counts.append(
-          el(
-            "span",
-            "skill-guided",
-            `Разобрано в интерактиве: ${journeyMet}/${node.terms.length} понятий`,
-          ),
           el(
             "span",
             "skill-encounters",
@@ -1782,13 +1476,6 @@
   function startFinalExam(restart = false) {
     if (!storyFinished() || (restart && state.finalExam.status !== "complete"))
       return false;
-    if (
-      state.journeyComplete &&
-      !mounted.has(chapters.at(-1).id + "--heading")
-    ) {
-      readAll = true;
-      renderRestored();
-    }
     if (state.finalExam.status === "idle" || restart) {
       state.finalExam = {
         revision: data.assessmentRevision,
@@ -1874,7 +1561,6 @@
     place();
     layout.addEventListener("change", place);
     $("timeline-open").addEventListener("click", () => {
-      if (state.readingMode === "interactive") return journeyMap();
       showDialog("timeline-dialog");
       scheduleTimelinePosition(true);
     });
@@ -1928,12 +1614,9 @@
     const finalRow = $("timeline-final").closest("li");
     finalRow.classList.toggle("done", state.finalExam.status === "complete");
     finalRow.classList.toggle("reached", storyFinished());
-    $("timeline-open").textContent =
-      state.readingMode === "interactive"
-        ? `Путь · ${Object.keys(state.journeyChoices).length}/${data.journey.steps.length}`
-        : state.started
-          ? `Путь · ${$("story-progress").value}%`
-          : "Путь";
+    $("timeline-open").textContent = state.started
+      ? `Путь · ${$("story-progress").value}%`
+      : "Путь";
     scheduleTimelinePosition();
   }
   function scheduleTimelinePosition(force = false) {
@@ -2014,7 +1697,6 @@
     for (const id of ids) {
       seen.delete(id);
       encountered.delete(id);
-      delete state.experiments[id];
     }
     state.expanded = state.expanded.filter(
       (id) => !affected.has(threads.get(id)?.chapter.id),
@@ -2028,11 +1710,6 @@
       answers: {},
     };
     state.started = index !== 0;
-    if (index === 0) {
-      state.journeyChoices = {};
-      state.journeyIndex = 0;
-      state.journeyComplete = false;
-    }
     state.storyComplete = false;
     readAll = false;
     paused = false;
@@ -2053,7 +1730,6 @@
       });
     renderSkills();
     updateProgress();
-    if (state.readingMode === "interactive") renderJourney(true);
   }
   function chapterOf(target) {
     return (
@@ -2066,7 +1742,6 @@
     const id = data.aliases[raw] || raw,
       c = chapterOf(id);
     if (!c) return;
-    if (state.readingMode === "interactive") setReadingMode("chat");
     const thread = threads.get(id)?.thread || messages.get(id)?.thread;
     // Existing explanations remain in place, including an open assessment.
     // Future explanations are a preview and do not advance the saved story.
@@ -2129,11 +1804,6 @@
   for (const item of document.querySelectorAll("[data-menu-dialog]"))
     item.addEventListener("click", () => {
       $("mobile-menu").close();
-      if (
-        item.dataset.menuDialog === "timeline-dialog" &&
-        state.readingMode === "interactive"
-      )
-        return journeyMap();
       if (item.dataset.menuDialog === "skills") renderSkills();
       showDialog(item.dataset.menuDialog);
       if (item.dataset.menuDialog === "timeline-dialog")
@@ -2209,17 +1879,6 @@
     send,
   );
   $("opening-composer").append(draft);
-  $("journey-mode").addEventListener("click", () =>
-    setReadingMode("interactive"),
-  );
-  $("chat-mode").addEventListener("click", () => setReadingMode("chat"));
-  $("reading-mode-toggle").addEventListener("click", () => {
-    $("mobile-menu").close();
-    setReadingMode(
-      state.readingMode === "interactive" ? "chat" : "interactive",
-    );
-    $("lesson-title").scrollIntoView({ block: "start", behavior: "instant" });
-  });
   $("restart-chat").addEventListener("click", () => {
     $("settings").close();
     requestRollback(chapters[0]);
@@ -2247,13 +1906,11 @@
   $("read-all").addEventListener("click", () => {
     $("settings").close();
     readAll = true;
-    setReadingMode("chat");
     renderRestored();
   });
   function returnToChat() {
     $("settings").close();
     readAll = false;
-    setReadingMode("chat");
     renderRestored();
     const last = [...mounted.values()].at(-1);
     last?.scrollIntoView({ block: "end" });
@@ -2329,8 +1986,6 @@
   );
   save();
   initializeTimeline();
-  applyReadingMode();
-  renderJourney();
   renderRestored();
   renderSkills();
   if (location.hash) navigate(decodeURIComponent(location.hash.slice(1)));

@@ -25,7 +25,7 @@ export async function renderAgentView(root) {
     "## Участники",
     ...story.characters.map((p) => `- **${p.name} (@${p.handle}):** ${p.role}`),
     "## Как читать",
-    "Основной диалог линеен. Варианты — сообщения Саши; выбор меняет вступительный ответ, затем разговор сходится в общий текст. В некоторых сообщениях есть необязательные опыты: читатель переключает условия и сравнивает подготовленные последствия. Они не вызывают живую модель, не меняют сюжет и не оцениваются. Внутренние чаты раскрывают направления по желанию. Продвижение по тексту не считается проверкой понимания. Вопросы проверки независимы от сюжетного выбора; при ошибке пересылаются исходные сообщения с проблемой, попыткой и решением.",
+    "Основной диалог линеен. Варианты — сообщения Саши; выбор меняет вступительный ответ, затем разговор сходится в общий текст. Внутренние чаты раскрывают направления по желанию. Продвижение по тексту не считается проверкой понимания. Вопросы проверки независимы от сюжетного выбора; при ошибке пересылаются исходные сообщения с проблемой, попыткой и решением.",
     `Переписка: ${base}/${lesson}/chat.html`,
     "## Дерево навыков",
   ];
@@ -67,20 +67,6 @@ export async function renderAgentView(root) {
         );
     }
     for (const attachment of e.attachments || []) emit(attachment);
-    if (e.experiment) {
-      text.push(`**Необязательный опыт: ${e.experiment.prompt}**`);
-      for (const option of e.experiment.options) {
-        text.push(`- **${option.label}**`);
-        if (option.input) text.push(`Передаём: ${option.input}`);
-        if (option.pieces)
-          text.push(
-            option.pieces
-              .map((piece) => `\`${piece === " " ? "␣" : piece}\``)
-              .join(" · "),
-          );
-        text.push(option.result, option.explanation);
-      }
-    }
   }
   function emitThread(t) {
     text.push(
@@ -106,21 +92,6 @@ export async function renderAgentView(root) {
       q.explanation,
       "При ошибке вернуться к сообщениям: " +
         q.references.map((id) => `[${id}](#${id})`).join(" · "),
-    );
-  }
-  text.push(
-    "## Интерактивный маршрут",
-    story.journey.intro,
-    story.journey.note,
-  );
-  for (const step of story.journey.steps) {
-    text.push(`### ${step.title}`, step.problem, `**${step.prompt}**`);
-    for (const option of step.options)
-      text.push(`- **${option.label}**`, option.result);
-    text.push(
-      ...step.explanation,
-      "Подробности в переписке: " +
-        step.references.map((id) => `[сообщение](#${id})`).join(" · "),
     );
   }
   text.push("## Полная переписка");
@@ -190,7 +161,7 @@ export async function renderAgentView(root) {
   await writeFile(path.join(root, "public", "llms-full.txt"), md);
   await writeFile(
     path.join(root, "public", "llms.txt"),
-    `# UnknownTalks / init-ru\n\n> Russian educational messenger story: from internet data to a language-model agent. Fictional cast, products, timestamps and development durations; real primary sources.\n\nSchema v5: chapterGroups defines six ordered navigation chapters, each referencing stable scene IDs in chapters. Local checks are collected at the end of each group. Scene records in chapters contain intro/outro events (message, narration, visual), an optional chapter-boundary continuation, internal threads and independent checks. Characters have roles and fictional handles. All threads are available; readers open them in the conversation. Chapter-boundary decisions follow the closing dialogue; internal chats and reviews precede that closing. Scene records without a decision continue automatically. The journey object provides an alternative interactive route: each step has a problem, action options with prepared outcomes, a shared causal explanation and references to the complete dialogue. Its progression is independent from messenger progress and quiz answers. Message experiments are optional, switchable illustrations with prepared outcomes. Message attachments belong inside their parent message. Decision options change only the opening reply and rejoin the common narrative path. Checks contain options, the correct index, an explanation and references to actual event IDs for forwarded remediation. arc records problem/attempts/resolution references. skillTree branches by concepts, not chapter sequence. Browser story progress is separate from quiz results.\n\n- [Complete dialogue, every internal chat, question, answer and source](${base}/${lesson}/agent.md)\n- [Structured story](${base}/${lesson}/story.json)\n- [Fictional source materials](${base}/${lesson}/materials.json)\n- [Glossary](${base}/glossary.md)\n- [Structured glossary](${base}/glossary.json)\n- [Self-study prompt](${base}/${lesson}/agent-prompt)\n- [Human-facing messenger](${base}/${lesson}/chat.html)\n- [Complete plain text](${base}/llms-full.txt)\n`,
+    `# UnknownTalks / init-ru\n\n> Russian educational messenger story: from internet data to a language-model agent. Fictional cast, products, timestamps and development durations; real primary sources.\n\nSchema v5: chapterGroups defines six ordered navigation chapters, each referencing stable scene IDs in chapters. Local checks are collected at the end of each group. Scene records in chapters contain intro/outro events (message, narration, visual), an optional chapter-boundary continuation, internal threads and independent checks. Characters have roles and fictional handles. All threads are available; readers open them in the conversation. Chapter-boundary decisions follow the closing dialogue; internal chats and reviews precede that closing. Scene records without a decision continue automatically. Message attachments belong inside their parent message. Decision options change only the opening reply and rejoin the common narrative path. Checks contain options, the correct index, an explanation and references to actual event IDs for forwarded remediation. arc records problem/attempts/resolution references. skillTree branches by concepts, not chapter sequence. Browser story progress is separate from quiz results.\n\n- [Complete dialogue, every internal chat, question, answer and source](${base}/${lesson}/agent.md)\n- [Structured story](${base}/${lesson}/story.json)\n- [Fictional source materials](${base}/${lesson}/materials.json)\n- [Glossary](${base}/glossary.md)\n- [Structured glossary](${base}/glossary.json)\n- [Self-study prompt](${base}/${lesson}/agent-prompt)\n- [Human-facing messenger](${base}/${lesson}/chat.html)\n- [Complete plain text](${base}/llms-full.txt)\n`,
   );
   await writeFile(
     path.join(out, "agent.html"),
