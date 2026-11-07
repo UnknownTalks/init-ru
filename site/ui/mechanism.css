@@ -22,7 +22,6 @@ html[data-theme=zinc][data-material=embossed][data-clock] .lesson-tools .clock-t
 #mechanism-agent-open:focus-visible { outline:none; }
 #mechanism-agent-open:focus-visible .lesson-mechanism-case { outline:2px solid var(--primary); outline-offset:3px; }
 #mechanism-agent-open:active:not([aria-disabled=true]) { --mechanism-press:.7px; }
-#mechanism-agent-open[aria-disabled=true] { cursor:wait; }
 .lesson-mechanism-case {
  position:relative; width:88px; height:88px; border-radius:50%; overflow:visible;
  transform:translate3d(var(--friction-x,0px),calc(var(--friction-y,0px) + var(--mechanism-press,0px)),0) rotate(var(--friction-turn,0deg));

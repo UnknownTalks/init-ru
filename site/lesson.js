@@ -415,9 +415,9 @@ import { freshExam, nextForm, formQuestions, isComplete, outcomeResult, compatib
         seen.add(id);
   let introductionReadyAt = 0;
   let agentContextOpen = false;
+  let playbackState = null;
   let timer = null,
     busy = null,
-    paused = false,
     readAll = false,
     restoring = false,
     readingDepth = 0,
@@ -428,7 +428,6 @@ import { freshExam, nextForm, formQuestions, isComplete, outcomeResult, compatib
     onClaim: (point, { keyboard = false } = {}) => keepReading(() => {
       if (point) {
         discoveryContinuation = { view: state.activeView, keyboard };
-        paused = false;
       }
       save(); discoveries.render(); sync();
       if (point && discoveryContinuation) {
@@ -615,25 +614,6 @@ import { freshExam, nextForm, formQuestions, isComplete, outcomeResult, compatib
       }
     },
     { rootMargin: `-${Math.ceil(readingTop())}px 0px -40px 0px`, threshold: 0.1 },
-  );
-  const unread = new Map();
-  const unreadObserver = new IntersectionObserver(
-    (entries) => {
-      for (const entry of entries) {
-        const pending = unread.get(entry.target);
-        if (!pending) continue;
-        if (entry.isIntersecting && !document.hidden && !agentContextOpen && (!appViews || appViews.isReading()) && !pending.timer)
-          pending.timer = setTimeout(() => {
-            acknowledge(entry.target);
-            updateJump();
-          }, 2000);
-        else if (!entry.isIntersecting) {
-          clearTimeout(pending.timer);
-          pending.timer = null;
-        }
-      }
-    },
-    { rootMargin: `-${Math.ceil(readingTop())}px 0px -60px 0px`, threshold: 0.01 },
   );
   const el = uiElement;
   function button(label, action, cls = "") {
@@ -1316,7 +1296,6 @@ import { freshExam, nextForm, formQuestions, isComplete, outcomeResult, compatib
     if (!readAll) {
       for (const scene of group.scenes) state.choices[scene.id] ??= 0;
       if (index === chapterGroups.length - 1) state.storyComplete = true;
-      for (const node of [...unread.keys()]) acknowledge(node);
       save();
     }
     return switchView(index === chapterGroups.length - 1 ? "final-check" : chapterGroups[index + 1].id);
@@ -1375,17 +1354,6 @@ import { freshExam, nextForm, formQuestions, isComplete, outcomeResult, compatib
       );
     mounted.set(event.id, node);
     if (event.type === "message" && !event.prelude) encounterObserver.observe(node);
-    if (
-      mark &&
-      !readAll &&
-      !seen.has(event.id) &&
-      event.type === "message" &&
-      event.speaker !== "sasha" &&
-      !event.optional &&
-      !event.prelude &&
-      !event.outgoing
-    )
-      markNew(node);
     const previous = node.previousElementSibling;
     if (node.matches(".message") && previous?.matches(".message") && previous.dataset.speaker === node.dataset.speaker)
       node.classList.add("message-continuation");
@@ -1436,20 +1404,14 @@ import { freshExam, nextForm, formQuestions, isComplete, outcomeResult, compatib
       keepReading(() => busy.typing?.remove());
       busy = null;
     }
+    updatePlayback();
   }
-  function controls() {
-    return keepReading(() => {
-      const timeline = currentTimeline();
-      const blocked = timeline.some(e => e.type === "discovery" && mounted.has(e.id) && pendingDiscovery(e.concept));
-      const pending = !blocked && timeline.some((e) => !mounted.has(e.id));
-      $("playback-controls").hidden = agentContextOpen || performance.now() < introductionReadyAt || readAll || !byQuizGroup.has(state.activeView) || blocked || (!busy && !pending);
-      $("playback-controls").dataset.paused = String(paused);
-      const pauseLabel = paused ? "Продолжить сообщения" : "Приостановить сообщения";
-      $("pause").setAttribute("aria-label", pauseLabel); $("pause").title = pauseLabel;
-      const who = busy?.event.type === "message" ? nameOf(busy.event.speaker) : null;
-      $("playback-status").textContent = paused ? "Переписка на паузе" : who ? who + " печатает…" : "Продолжаем разговор…";
-      if (busy?.typing) busy.typing.hidden = !$("playback-controls").hidden;
-    });
+  function updatePlayback() {
+    const kind = !agentContextOpen && (!appViews || appViews.isReading()) && busy
+      ? busy.event.type === "message" ? "message" : "loading" : null;
+    if(kind === playbackState) return;
+    playbackState = kind;
+    document.dispatchEvent(new CustomEvent('unknowntalks:playback', { detail: { kind } }));
   }
   // Incoming messages never scroll on the reader's behalf. Keep the visible
   // paragraph anchored even when a reply form disappears or a thread above it grows.
@@ -1480,65 +1442,7 @@ import { freshExam, nextForm, formQuestions, isComplete, outcomeResult, compatib
           : y;
       if (Math.abs(scrollY - destination) > 0.5)
         window.scrollTo({ top: destination, behavior: "instant" });
-      updateJump();
     }
-  }
-  function markNew(node) {
-    if (restoring) return;
-    node.classList.add("unread-message");
-    const badge = el("span", "unread-label", "Новое");
-    node.querySelector("time").before(badge);
-    unread.set(node, { timer: null });
-    unreadObserver.observe(node);
-    updateJump();
-  }
-  function acknowledge(node) {
-    const pending = unread.get(node);
-    if (!pending) return;
-    clearTimeout(pending.timer);
-    unread.delete(node);
-    unreadObserver.unobserve(node);
-    node.classList.remove("unread-message");
-    node.querySelector(".unread-label")?.remove();
-  }
-  function jumpTarget() {
-    const pending = [...unread.keys()].filter((node) => node.isConnected && node.getClientRects().length);
-    pending.sort((a, b) =>
-      a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1,
-    );
-    return (
-      pending[0] ||
-      [
-        ...document.querySelectorAll(
-          "#messages .message, #messages .chapter-transcript > .reply-options, .quiz-body > .message, .quiz-body > .reply-options, .quiz-actions",
-        ),
-      ]
-        .filter((node) => node.getClientRects().length)
-        .at(-1)
-    );
-  }
-  function updateJump() {
-    for (const [node, pending] of unread)
-      if (!node.isConnected) {
-        clearTimeout(pending.timer);
-        unreadObserver.unobserve(node);
-        unread.delete(node);
-      }
-    const visibleUnread = [...unread.keys()].filter((node) => node.getClientRects().length).length;
-    const target = jumpTarget(),
-      rect = target?.getBoundingClientRect();
-    const visible = rect && rect.bottom > readingTop() && rect.top < innerHeight - 60;
-    $("jump").hidden =
-      agentContextOpen || appViews && !appViews.isReading() || !target || visible || !visibleUnread;
-    const direction = rect?.bottom < readingTop() ? "↑" : "↓";
-    const label = visibleUnread ? `Новые · ${visibleUnread} ${direction}` : "Новые сообщения";
-    $("jump").setAttribute("aria-label", `К непрочитанным сообщениям: ${visibleUnread}`);
-    $("jump").title = label;
-    $("jump").textContent = label;
-    $("jump").dataset.direction = rect?.bottom < readingTop() ? "up" : "down";
-    const notice = visibleUnread ? `Новых сообщений: ${visibleUnread}` : "";
-    if ($("new-message-status").textContent !== notice)
-      $("new-message-status").textContent = notice;
   }
   function messageDelay(text) {
     return state.pace === "fast"
@@ -1562,21 +1466,20 @@ import { freshExam, nextForm, formQuestions, isComplete, outcomeResult, compatib
     return n;
   }
   function advance() {
-    if (agentContextOpen || !appViews && restoringSecondaryView || appViews && !appViews.isReading() || !state.participantName || participantEditing || busy || paused || readAll || transitioning || (!byQuizGroup.has(state.activeView) && !(state.activeView === "intro" && !state.started))) {
-      controls();
+    if (agentContextOpen || !appViews && restoringSecondaryView || appViews && !appViews.isReading() || !state.participantName || participantEditing || busy || readAll || transitioning || (!byQuizGroup.has(state.activeView) && !(state.activeView === "intro" && !state.started))) {
+      updatePlayback();
       return;
     }
     const remainingIntroductionPause = introductionReadyAt - performance.now();
     if (remainingIntroductionPause > 0) {
       timer = setTimeout(advance, remainingIntroductionPause);
-      controls();
+      updatePlayback();
       return;
     }
     const event = currentTimeline().find((e) => !mounted.has(e.id));
     if (!event) {
-      controls();
+      updatePlayback();
       updateProgress();
-      updateJump();
       return;
     }
     if (
@@ -1600,7 +1503,7 @@ import { freshExam, nextForm, formQuestions, isComplete, outcomeResult, compatib
     const typing = typingFor(event);
     keepReading(() => target?.append(typing));
     busy = { event, typing };
-    controls();
+    updatePlayback();
     const delay =
       event.type === "message"
         ? messageDelay(event.paragraphs.join(" "))
@@ -1627,19 +1530,12 @@ import { freshExam, nextForm, formQuestions, isComplete, outcomeResult, compatib
     if (readAll) {
       for (const e of currentTimeline(true)) mount(e, false);
       updateProgress();
-      controls();
+      updatePlayback();
       return;
     }
     advance();
     updateProgress();
-    controls();
-  }
-  function revealAvailable() {
-    stopTimer();
-    paused = false;
-    for (const e of currentTimeline()) if (!mounted.has(e.id)) mount(e);
-    controls();
-    updateProgress();
+    updatePlayback();
   }
   function clearTranscript() {
     $("reader-frame").prepend($("participant-chat"));
@@ -1654,9 +1550,6 @@ import { freshExam, nextForm, formQuestions, isComplete, outcomeResult, compatib
     quizSessions.clear();
     introduced.clear();
     encounterObserver.disconnect();
-    for (const pending of unread.values()) clearTimeout(pending.timer);
-    unread.clear();
-    unreadObserver.disconnect();
     document.body.style.minHeight = "";
     $("participant-prelude").replaceChildren();
     $("messages").replaceChildren();
@@ -1725,7 +1618,6 @@ import { freshExam, nextForm, formQuestions, isComplete, outcomeResult, compatib
     const deliver = () => {
       const node = quizMessage("nina", text);
       session.body.append(node);
-      markNew(node);
       done();
     };
     if (state.pace === "instant") {
@@ -2208,7 +2100,7 @@ import { freshExam, nextForm, formQuestions, isComplete, outcomeResult, compatib
     state.storyComplete = false;
     for (const group of chapterGroups) if (group.scenes.some((scene) => affected.has(scene.id))) delete state.positions[group.id];
     delete state.positions["final-check"];
-    readAll = false; paused = false;
+    readAll = false;
     save();
     await switchView(index ? groupByScene.get(c.id).id : "intro", { fresh: true, rebuild: true });
     discoveries.render(); updateProgress();
@@ -2420,13 +2312,6 @@ import { freshExam, nextForm, formQuestions, isComplete, outcomeResult, compatib
   $("skills-open").addEventListener("click", () => { rememberPosition(); save(); noteAssistance(); discoveries.open(); });
   $("settings-open").addEventListener("click", () => openView("settings"));
   $("about-open").addEventListener("click", () => openView("about"));
-  $("reveal-now").addEventListener("click", revealAvailable);
-  $("pause").addEventListener("click", () => {
-    paused = !paused;
-    if (paused) { stopTimer(); $("typing-status").textContent = "Переписка на паузе"; }
-    else advance();
-    controls();
-  });
   $("pace").value = state.pace;
   $("pace").addEventListener("change", () => {
     state.pace = $("pace").value;
@@ -2456,50 +2341,14 @@ import { freshExam, nextForm, formQuestions, isComplete, outcomeResult, compatib
       state.exposedForms = data.assessment.forms.map((f) => f.id);
       save();
     });
-  $("jump").addEventListener("click", () => {
-    const target = jumpTarget();
-    if (!target) return;
-    for (
-      let parent = target.parentElement;
-      parent;
-      parent = parent.parentElement
-    )
-      if (parent.matches("[data-quiz]")) setQuizOpen(parent, true);
-      else if (parent.matches("[data-thread]")) {
-        state.expanded = [
-          ...new Set([...state.expanded, parent.dataset.thread]),
-        ];
-        state.collapsed = state.collapsed.filter(
-          (id) => id !== parent.dataset.thread,
-        );
-        setThreadView(parent, true);
-        save();
-      } else if (parent.matches("details")) parent.open = true;
-    // One deliberate move to the FIRST unread message, never a moving bottom.
-    // An immediate jump cannot be interrupted by the next incoming message.
-    target.scrollIntoView({ block: "start", behavior: reduced ? "instant" : "smooth" });
-    target.tabIndex = -1;
-    target.focus({ preventScroll: true });
-    updateJump();
-  });
   let positionSave;
   addEventListener(
     "scroll",
     () => {
-      updateJump();
       if (!transitioning) { rememberPosition(); clearTimeout(positionSave); positionSave = setTimeout(save, 160); }
     },
     { passive: true },
   );
-  addEventListener("resize", updateJump, { passive: true });
-  document.addEventListener("visibilitychange", () => {
-    for (const [node, pending] of unread) {
-      clearTimeout(pending.timer);
-      pending.timer = null;
-      unreadObserver.unobserve(node);
-      if (!document.hidden) unreadObserver.observe(node);
-    }
-  });
   document.documentElement.classList.add("reading-chat");
   addEventListener("hashchange", () =>
     navigate(decodeURIComponent(location.hash.slice(1))),
@@ -2515,11 +2364,9 @@ import { freshExam, nextForm, formQuestions, isComplete, outcomeResult, compatib
     agentContextOpen=open;
     if(open){
       stopTimer();
-      for(const pending of unread.values()){clearTimeout(pending.timer);pending.timer=null;}
-      controls();updateJump();
+      updatePlayback();
     }else if(appViews?.isReading()){
-      sync();updateJump();
-      for(const node of unread.keys()){unreadObserver.unobserve(node);unreadObserver.observe(node);}
+      sync();
     }
   }});
   appViews = createLessonViews({
@@ -2534,12 +2381,9 @@ import { freshExam, nextForm, formQuestions, isComplete, outcomeResult, compatib
     pauseReading: () => {
       discoveryContinuation = null;
       stopTimer();
-      for (const pending of unread.values()) { clearTimeout(pending.timer); pending.timer = null; }
-      updateJump();
     },
     resumeReading: () => {
-      sync(); updateJump();
-      for (const node of unread.keys()) { unreadObserver.unobserve(node); unreadObserver.observe(node); }
+      sync();
     },
     onChange: (name, params) => {
       if (name === 'skills') discoveries.render();

@@ -1,4 +1,6 @@
 /* Shared preferences, conversations and the course entrance. */
+html[data-theme=zinc][data-material=embossed] .lesson-toolbar { padding-top:calc(env(safe-area-inset-top,0px) / var(--interface-scale,1)); }
+html[data-lesson-entry] .lesson-tools > :is([data-view-nav=chapters],[data-view-nav=skills]) { opacity:0; pointer-events:none; }
 .interface-settings { margin:0 0 28px; }
 .interface-settings h3 { margin:0 0 24px; font-size:20px; }
 .interface-scale { border:0; margin:0 0 26px; padding:0; min-width:0; }
@@ -106,11 +108,11 @@ html[data-theme=zinc][data-material=embossed] .home-intro h1 { font-size:48px; l
 .home-footer a { text-decoration:underline; text-underline-offset:3px; }
 /* CSS zoom changes layout width without changing media queries. Match the
    available width, so 125–200% remains usable on every physical screen. */
-html[data-theme=zinc][data-material=embossed][data-ui-layout=tablet] .lesson-toolbar .page-container { grid-template-columns:minmax(0,1fr) 110px; grid-template-areas:"context mechanism" "tabs tabs"; grid-template-rows:80px 52px; min-height:132px; gap:0 16px; }
+html[data-theme=zinc][data-material=embossed][data-ui-layout=tablet] .lesson-toolbar .page-container { grid-template-columns:minmax(0,1fr) 110px; grid-template-areas:"context mechanism" "tabs tabs"; grid-template-rows:minmax(80px,auto) 52px; min-height:132px; gap:0 16px; }
 html[data-ui-layout=tablet] .lesson-mechanism { --mechanism-dial-size:72px; width:110px; height:80px; }
 html[data-ui-layout=tablet] .lesson-mechanism-case { width:72px; height:72px; }
-html[data-theme=zinc][data-material=embossed][data-ui-layout=phone] .lesson-toolbar .page-container { grid-template-columns:minmax(0,1fr) 88px; grid-template-areas:"context mechanism" "tabs tabs"; grid-template-rows:76px 52px; min-height:128px; gap:0 10px; }
-html[data-theme=zinc][data-material=embossed][data-ui-layout=phone] .lesson-breadcrumbs { display:block; min-width:0; padding-block:0; min-height:0; }
+html[data-theme=zinc][data-material=embossed][data-ui-layout=phone] .lesson-toolbar .page-container { grid-template-columns:minmax(0,1fr) 88px; grid-template-areas:"context mechanism" "tabs tabs"; grid-template-rows:minmax(76px,auto) 52px; min-height:128px; gap:0 10px; padding-left:max(18px,calc(env(safe-area-inset-left,0px) / var(--interface-scale,1))); padding-right:max(18px,calc(env(safe-area-inset-right,0px) / var(--interface-scale,1))); }
+html[data-theme=zinc][data-material=embossed][data-ui-layout=phone] .lesson-breadcrumbs { display:block; min-width:0; align-self:start; padding-block:12px 8px; min-height:0; }
 html[data-ui-layout=phone] .lesson-product-path { margin-bottom:5px; }
 html[data-ui-layout=phone] .lesson-product-path>.crumb-slash { display:none; }
 html[data-ui-layout=phone] .lesson-breadcrumbs .product-crumb { font-size:12px; }
@@ -142,10 +144,13 @@ html[data-ui-layout=phone] .agent-conversation-heading { display:block; }
 html[data-ui-layout=phone] .agent-history-toggle { padding-left:0; margin-top:8px; }
 html[data-ui-layout=phone] .agent-history-back { margin-bottom:16px; }
 html[data-ui-layout=phone] .agent-user-message { padding:15px; }
+html[data-ui-layout=phone] .agent-input { font-size:16px; }
 html[data-theme=zinc][data-material=embossed][data-ui-layout=phone] .agent-thread-toggle { min-height:44px; }
 html[data-ui-layout=phone] .lesson-agent-thread { margin-left:10px; padding-left:15px; }
 html[data-ui-density=narrow] #lesson-layout { padding-inline:12px; }
-html[data-theme=zinc][data-material=embossed][data-ui-density=narrow] .lesson-toolbar .page-container { padding-inline:12px; grid-template-columns:minmax(0,1fr) 60px; grid-template-rows:76px auto; min-height:0; }
+html[data-ui-density=narrow] .lesson-breadcrumbs { container-type:inline-size; }
+html[data-ui-density=narrow] .lesson-breadcrumbs .product-crumb { font-size:min(12px,12.8cqi); }
+html[data-theme=zinc][data-material=embossed][data-ui-density=narrow] .lesson-toolbar .page-container { padding-left:max(12px,calc(env(safe-area-inset-left,0px) / var(--interface-scale,1))); padding-right:max(12px,calc(env(safe-area-inset-right,0px) / var(--interface-scale,1))); grid-template-columns:minmax(0,1fr) 60px; grid-template-rows:minmax(76px,auto) auto; min-height:0; }
 html[data-ui-density=narrow] .lesson-mechanism { --mechanism-dial-size:54px; width:60px; height:70px; }
 html[data-ui-density=narrow] .lesson-mechanism-case { width:54px; height:54px; }
 html[data-theme=zinc][data-material=embossed][data-ui-density=narrow] .lesson-tools { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); padding-bottom:6px; }

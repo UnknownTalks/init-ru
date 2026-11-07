@@ -13,7 +13,7 @@ function layout(){
 }
 function apply(){
  const root=document.documentElement;
- root.style.zoom=interfaceScale();root.dataset.interfaceScale=String(preferences.scale);
+ root.style.zoom=interfaceScale();root.style.setProperty('--interface-scale',interfaceScale());root.dataset.interfaceScale=String(preferences.scale);
  root.dataset.agentEnabled=String(preferences.agentEnabled);layout();
  for(const button of document.querySelectorAll('button[data-interface-scale]'))button.setAttribute('aria-pressed',String(Number(button.dataset.interfaceScale)===preferences.scale));
  const toggle=document.getElementById('agent-enabled');if(toggle)toggle.checked=preferences.agentEnabled;

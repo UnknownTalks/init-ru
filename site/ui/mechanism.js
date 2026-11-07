@@ -9,16 +9,18 @@ const friction=createMechanismFriction(host);
 const parts=[...host.querySelectorAll('[data-mechanism]')].map(svg=>Object.fromEntries([...svg.querySelectorAll('[data-turn]')].map(el=>[el.dataset.turn,el])));
 const springs=[...host.querySelectorAll('[data-spring]')];
 const clamp=t=>Math.max(0,Math.min(1,t)),ease=t=>{t=clamp(t);return t*t*(3-2*t);};
-const agentWindDuration=1300,agentSettleDuration=650;
+const agentWindDuration=650,agentSettleDuration=650;
+// Three complete turns, including the deceleration. Navigation runs alongside.
+const agentTopSpeed=360*3/(agentWindDuration/2+agentSettleDuration/3);
 const allowed=()=>document.documentElement.dataset.motion!=='off'&&!document.hidden;
 let position={drive:0,index:0,balance:0,lever:0},active=null,waiting=null,frame=0,last=0;
-let agentPhase='closed',forwardDrive=0,forwardIndex=0,resumeAfterWinding=false;
+let agentPhase='closed',forwardDrive=0,forwardIndex=0,playbackKind=null;
 // Chosen ×4 slower motion: 100 px of page travel moves the dial marker 6.25 px.
 const scrollMode={gain:.0625,lag:45};
 let scrollTarget=0,scrollShown=0,scrollAt=0,scrollIntentUntil=0,lastScrollTop=scrollY,scrollRadius=36;
 function label(kind){
  if(host.dataset.state!==kind)host.dataset.state=kind;
- const name=!agentEnabled()?'Часовой механизм. ИИ-агент выключен':kind==='agent-open'?'Открываем ИИ-агента':kind==='agent-close'?'Механизм возвращается':['agent','agent-coast','agent-settle'].includes(kind)?'ИИ-агент открыт':'Открыть ИИ-агента';
+ const name=!agentEnabled()?'Часовой механизм. ИИ-агент выключен':kind==='agent-close'?'Механизм возвращается':document.body.dataset.appView==='agent'?'ИИ-агент открыт':kind==='agent-open'?'Открываем ИИ-агента':'Открыть ИИ-агента';
  if(host.title!==name){host.title=name;host.setAttribute('aria-label',name);}
 }
 function paint(value){
@@ -57,46 +59,29 @@ function stop(complete=true){
  cancelAnimationFrame(frame);frame=0;active=null;resetScroll();paint({...position,balance:0,lever:0});
  // Turning motion off or hiding the tab must never strand the reader halfway
  // through opening a page. Navigation still completes without further motion.
- if(complete&&agentPhase==='opening')showAgent();
+ if(complete&&agentPhase==='opening')setAgentPhase('open');
  else if(complete&&agentPhase==='closing')finishRewind();
  else label(agentPhase==='open'?'agent':'idle');
 }
 function setAgentPhase(phase){
  agentPhase=phase;host.dataset.agent=phase;
- const moving=phase==='opening'||phase==='closing';
- host.setAttribute('aria-busy',String(moving));host.setAttribute('aria-disabled',String(moving||!agentEnabled()));
+ host.setAttribute('aria-disabled',String(!agentEnabled()));
  host.setAttribute('aria-expanded',String(phase==='open'));
-}
-function resumePlayback(){
- if(!resumeAfterWinding)return;
- resumeAfterWinding=false;
- if(document.getElementById('playback-controls')?.dataset.paused==='true')document.getElementById('pause').click();
-}
-function showAgent(coast=false){
- // Carry the final winding speed through the page transition. Braking starts
- // when the agent actually appears, rather than stopping to navigate.
- active=coast&&allowed()?{kind:'agent-coast',duration:Infinity,elapsed:0,base:{...position},
-  speed:forwardIndex*2/agentWindDuration,wound:forwardIndex}:null;
- setAgentPhase('open');label(active?'agent-coast':'agent');
- document.getElementById('mechanism-agent-status').textContent='';
- openAgentView();
 }
 function openAgent(){
  if(!agentEnabled())return;
  if(agentPhase==='open'){document.getElementById('mechanism-agent-title').focus({preventScroll:true});return;}
- if(agentPhase!=='closed')return;
+ if(agentPhase==='opening')return;
  resetScroll();waiting=null;forwardDrive=forwardIndex=0;setAgentPhase('opening');
- if(!allowed()){showAgent();return;}
- const controls=document.getElementById('playback-controls');
- resumeAfterWinding=!!controls&&document.body.dataset.appView==='read'&&!controls.hidden&&controls.dataset.paused!=='true';
- if(resumeAfterWinding)document.getElementById('pause').click();
- document.getElementById('mechanism-agent-status').textContent='Открываем ИИ-агента';
- active={kind:'agent-open',duration:agentWindDuration,elapsed:0,base:{...position}};label('agent-open');wake();
+ if(allowed()){
+  active={kind:'agent-open',duration:agentWindDuration,elapsed:0,base:{...position}};label('agent-open');wake();
+ }else setAgentPhase('open');
+ openAgentView();
 }
 function finishRewind(){
  active=null;forwardDrive=forwardIndex=0;setAgentPhase('closed');
  document.getElementById('mechanism-agent-status').textContent='';
- resumePlayback();playback();label(waiting||'idle');
+ playback();label(waiting||'idle');
 }
 function rewindAgent(){
  if(agentPhase!=='opening'&&agentPhase!=='open')return;
@@ -153,24 +138,25 @@ function tick(now){
  if(a.kind==='save'){const phase=t*3;drive=14.4*(Math.floor(phase)+ease((phase%1)/.6));index=12*ease(t);lever=-14*Math.sin(t*Math.PI*6)*(1-t);balance=12*Math.sin(t*Math.PI*6)*(1-t*.5);}
  if(a.kind==='denied'){drive=Math.sin(t*Math.PI*4)*6*(1-t);index=drive/3;lever=drive;balance=drive*1.8;}
  if(a.kind==='agent-open'){
-  // Six turns of the dial marker, with the same gear ratio as scrolling.
-  index=360*6*t*t;drive=index*2.4;forwardDrive=drive;forwardIndex=index;
+  index=agentTopSpeed*agentWindDuration*t*t/2;drive=index*2.4;forwardDrive=drive;forwardIndex=index;
   balance=Math.sin(index*Math.PI/90)*14;lever=balance*.4;
   if(t>.2)friction.spin((t-.2)/.8,now);
  }
- if(a.kind==='agent-coast'||a.kind==='agent-settle'){
-  const coasting=a.kind==='agent-coast';
+ if(a.kind==='agent-settle'){
   // Integrate velocity v*(1-t)^2: continuous speed at entry, then a gentle
   // finish with zero velocity and zero acceleration. Count this travel too.
-  index=a.speed*(coasting?a.elapsed:a.duration*(1-(1-t)**3)/3);drive=index*2.4;
+  index=a.speed*a.duration*(1-(1-t)**3)/3;drive=index*2.4;
   forwardIndex=a.wound+index;forwardDrive=forwardIndex*2.4;
-  balance=Math.sin(forwardIndex*Math.PI/90)*14*(coasting?1:(1-t)**2);lever=balance*.4;
+  balance=Math.sin(forwardIndex*Math.PI/90)*14*(1-t)**2;lever=balance*.4;
  }
  if(a.kind==='agent-close'){drive=-a.drive*ease(t);index=-a.index*ease(t);balance=-10*Math.sin(t*Math.PI*6)*(1-t);lever=balance*.4;}
  paint({drive:a.base.drive+drive,index:a.base.index+index,balance,lever});
  if(t===1){
   active=null;
-  if(a.kind==='agent-open')showAgent(true);
+  if(a.kind==='agent-open'){
+   active={kind:'agent-settle',duration:agentSettleDuration,elapsed:0,base:{...position},speed:agentTopSpeed,wound:forwardIndex};
+   label('agent-settle');
+  }
   else if(a.kind==='agent-close')finishRewind();
   else label(agentPhase==='open'?'agent':waiting||'idle');
  }
@@ -207,27 +193,22 @@ addEventListener('resize',measureScroll,{passive:true});
 addEventListener('blur',resetScroll);
 document.addEventListener('mechanism:feedback',event=>feedback(event.detail.kind,event.detail.duration));
 function playback(){
- const controls=document.getElementById('playback-controls');
- waiting=controls&&agentPhase==='closed'&&document.body.dataset.appView==='read'&&!controls.hidden&&controls.dataset.paused!=='true'
-  ?document.getElementById('playback-status').textContent.includes('печатает')?'message':'loading':null;
+ waiting=agentPhase==='closed'&&document.body.dataset.appView==='read'?playbackKind:null;
  if(!waiting&&active?.continuous){active=null;paint({...position,balance:0,lever:0});}
  if(waiting&&!active){label(waiting);wake();}else if(!active)label(agentPhase==='open'?'agent':'idle');
 }
-const playbackControls=document.getElementById('playback-controls');
-if(playbackControls)new MutationObserver(playback).observe(playbackControls,{attributes:true,attributeFilter:['hidden','data-paused'],childList:true,subtree:true});
+document.addEventListener('unknowntalks:playback',event=>{playbackKind=event.detail.kind;playback();});
 document.addEventListener('unknowntalks:view',event=>{
  if(event.detail.name==='agent'){
   // Reload / browser Forward also opens the native route, without inventing
   // a winding debt when there was no button animation in this page session.
-  if(agentPhase!=='open'){active=null;forwardDrive=forwardIndex=0;setAgentPhase('open');}
-  if(active?.kind==='agent-coast'){
-   active={...active,kind:'agent-settle',duration:agentSettleDuration,elapsed:0,base:{...position},wound:forwardIndex};
-   label('agent-settle');
+  if(agentPhase==='opening')setAgentPhase('open');
+  else if(agentPhase!=='open'){
+   active=null;forwardDrive=forwardIndex=0;setAgentPhase('open');
   }
-  resumePlayback();
+  label(active?.kind||'agent');
  }else if(agentPhase==='open'||agentPhase==='opening')rewindAgent();
- if(event.detail.name!=='read')resumePlayback();
- resetScroll({keepFriction:event.detail.name==='agent'&&active?.kind==='agent-settle'});
+ resetScroll({keepFriction:event.detail.name==='agent'&&['agent-open','agent-settle'].includes(active?.kind)});
  playback();
 });
 const saved=new WeakSet();

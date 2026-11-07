@@ -58,6 +58,17 @@ Content replacement uses 135 ms out, a 75 ms pause, and 165 ms in. Other
 movements also have a 75 ms pause. Repeated pending intents are coalesced.
 Message entrances are brief, optional feedback and never form a reading backlog.
 
+The watch opens the agent through the ordinary page transition immediately.
+Its three turns run independently: 650 ms acceleration and 650 ms deceleration.
+Leaving the agent rewinds half the actual travel without sparks. Scroll motion
+and the rare sparks on vigorous scrolling retain their selected behavior.
+Opening a lesson from the course entrance reveals Chapters and Skills in order.
+Mobile header height grows with its text and respects safe areas at every scale.
+
+The conversation has no unread badges, unread shortcut or playback toolbar.
+Reading speed remains in Settings; discovery cards still pause progression.
+The watch receives playback events directly, independently of visible controls.
+
 The motion preference is separate from progress, under
 `unknowntalks:motion:v1`. Reading settings offer system behavior, the clock rhythm,
 and no animation. New visitors get the selected clock rhythm; an explicit
