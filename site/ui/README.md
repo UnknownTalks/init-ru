@@ -116,3 +116,30 @@ motion. There is no separate contextual sidebar.
 Chat history and drafts use `unknowntalks:agent-chats:v1` in localStorage. No model
 is connected yet, and the interface explicitly says that messages are saved
 locally. Interface settings allow disabling the agent without deleting chats.
+
+## Selected instrument: Balance · Signature
+
+The production watch uses the selected spring drive (inertia 1.1, stiffness 320,
+damping 32, friction 3), compliant transmission (400 / 34 / 0.45°), and coupled
+25 / 20 / 13 tooth wheels. `mechanism-profile.js` owns the fixed-step physics;
+`mechanism.js` owns native scroll input, pointer capture, keyboard control and the
+single wakeable animation loop. The rim/marker can be dragged without opening
+the agent. The centre/Enter keeps the original agent access path; opening occurs
+alongside three revolutions over 1.3 seconds. No laboratory controls or authoring
+tools are part of the site.
+
+`mechanism-sound.js` plays one quiet licensed gear texture. Settings offer Off,
+Watch interactions, All actions except scroll, and All actions including scroll.
+The default is Off; a user gesture is required to create/resume audio. Preferences
+are stored alongside scale and agent visibility. The sample and its attribution
+ship in `static/sound/`; notices also appear in `static/ui-licenses.txt`.
+
+`page-flow.js`, `page-transitions.js`, and `mechanism-memory.js` preserve native
+navigation and the instrument pose. A handoff freezes the departing pose before
+capturing it. Recent forward navigation can retain physical momentum; reload and
+history restore position at rest. Physical memory does not own lesson or chat UI.
+
+Mobile headers use one safe-area-aware visible-viewport anchor. At normal scale,
+the dial has 18 CSS px clearance from the usable top and side edges. Touch
+landscape uses the same anchor. `mobile-header.js` observes viewport changes
+without changing document scroll; scale changes retain accessible layouts.

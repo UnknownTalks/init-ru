@@ -165,3 +165,55 @@ html[data-ui-density=narrow] .reading-options { grid-template-columns:minmax(0,1
 html[data-ui-density=narrow] .settings-reset button { max-width:100%; white-space:normal; }
 html[data-theme=zinc][data-material=embossed][data-clock][data-ui-density=narrow] [data-clock-tabs] .clock-key--tab .clock-label { background:none; color:var(--muted-foreground); }
 html[data-theme=zinc][data-material=embossed][data-clock][data-ui-density=narrow] [data-clock-tabs] [aria-current=page] .clock-label { color:#000; }
+/* Static tab faces match their interactive form before any JS decoration. */
+html[data-theme=zinc][data-material=embossed] .lesson-tools .clock-key--tab > .clock-face { min-height:44px; padding:10px 12px; border-color:transparent; border-radius:8px; background:none; box-shadow:none; color:var(--muted-foreground); }
+html[data-initial-view=read] .lesson-tools:not([data-clock-tabs]) [data-view-nav=read] > .clock-face,
+html[data-initial-view=chapters] .lesson-tools:not([data-clock-tabs]) [data-view-nav=chapters] > .clock-face,
+html[data-initial-view=skills] .lesson-tools:not([data-clock-tabs]) [data-view-nav=skills] > .clock-face,
+html[data-initial-view=settings] .lesson-tools:not([data-clock-tabs]) [data-view-nav=settings] > .clock-face { background:var(--accent-face); color:#000; }
+/* Programmatically focused headings have no browser-blue focus rectangle.
+   Interactive controls keep their visible ivory keyboard focus. */
+:is(h1,h2,h3,h4)[tabindex="-1"]:focus { outline:none; }
+html[data-theme=zinc][data-material=embossed] { accent-color:var(--primary); }
+.lesson-tools { user-select:none; -webkit-user-select:none; }
+html[data-page-flow] .lesson-mechanism-case { view-transition-name:ut-watch; }
+::view-transition-group(root),::view-transition-group(ut-watch) { animation-duration:var(--page-transition-duration,240ms); animation-timing-function:cubic-bezier(.2,0,.2,1); }
+::view-transition-old(root) { animation:page-leave var(--page-transition-duration,240ms) ease-out both; }
+::view-transition-new(root) { animation:page-enter var(--page-transition-duration,240ms) ease-out both; }
+::view-transition-old(ut-watch) { display:none; }
+::view-transition-new(ut-watch) { animation:none; opacity:1; mix-blend-mode:normal; }
+@keyframes page-leave { to { opacity:0; } }
+@keyframes page-enter { from { opacity:0; } }
+
+/* One visible-viewport anchor and equal clearances for the mobile instrument. */
+html[data-ui-layout=phone] { --toolbar-gap:calc(18px / var(--interface-scale,1)); --mechanism-header-height:calc(154px + env(safe-area-inset-top,0px) / var(--interface-scale,1)); }
+html[data-ui-layout=phone] body { padding-top:var(--mechanism-header-height,154px); }
+html[data-theme=zinc][data-material=embossed][data-ui-layout=phone] .lesson-toolbar {
+ position:fixed; inset:var(--toolbar-viewport-top,0px) 0 auto; z-index:30;
+ padding-top:calc(env(safe-area-inset-top,0px) / var(--interface-scale,1) + var(--toolbar-gap));
+}
+html[data-theme=zinc][data-material=embossed][data-ui-layout=phone] .lesson-toolbar .page-container {
+ grid-template-columns:minmax(0,1fr) 68px; grid-template-rows:minmax(68px,auto) 52px;
+ min-height:0; row-gap:8px; padding-top:0; padding-bottom:8px;
+ padding-left:calc(env(safe-area-inset-left,0px) / var(--interface-scale,1) + var(--toolbar-gap));
+ padding-right:calc(env(safe-area-inset-right,0px) / var(--interface-scale,1) + var(--toolbar-gap));
+}
+html[data-ui-layout=phone] .lesson-mechanism { width:68px; height:68px; align-self:start; }
+html[data-theme=zinc][data-material=embossed][data-ui-layout=phone] .lesson-breadcrumbs { align-self:center; padding-block:0; }
+html[data-ui-density=narrow] { --toolbar-gap:calc(12px / var(--interface-scale,1)); }
+html[data-theme=zinc][data-material=embossed][data-ui-layout=phone][data-ui-density=narrow] .lesson-toolbar .page-container { grid-template-columns:minmax(0,1fr) 54px; grid-template-rows:minmax(54px,auto) auto; }
+html[data-ui-layout=phone][data-ui-density=narrow] .lesson-mechanism { width:54px; height:54px; }
+.interface-sound { padding-block:4px 24px; }
+.interface-sound label { display:block; font-size:15px; font-weight:600; margin-bottom:10px; }
+.interface-sound select { width:100%; max-width:440px; min-height:44px; padding:10px 12px; font:inherit; color:var(--foreground); background:var(--background); border:1px solid var(--input); border-radius:8px; }
+.interface-sound p { font-size:13px; line-height:1.7; color:var(--muted-foreground); margin:10px 0 5px; }
+.interface-sound small { font-size:11px; color:var(--muted-foreground); }
+.interface-sound a { text-decoration:underline; }
+
+/* Touch landscape keeps the same safe anchor even above the phone breakpoint. */
+html[data-mobile-header=true][data-ui-layout=tablet] { --toolbar-gap:calc(18px / var(--interface-scale,1)); --mechanism-header-height:calc(158px + env(safe-area-inset-top,0px) / var(--interface-scale,1)); }
+html[data-mobile-header=true][data-ui-layout=tablet] body { padding-top:var(--mechanism-header-height); }
+html[data-theme=zinc][data-material=embossed][data-mobile-header=true][data-ui-layout=tablet] .lesson-toolbar { position:fixed; inset:var(--toolbar-viewport-top,0px) 0 auto; z-index:30; padding-top:calc(env(safe-area-inset-top,0px) / var(--interface-scale,1) + var(--toolbar-gap)); }
+html[data-theme=zinc][data-material=embossed][data-mobile-header=true][data-ui-layout=tablet] .lesson-toolbar .page-container { grid-template-columns:minmax(0,1fr) 72px; grid-template-rows:minmax(72px,auto) 52px; min-height:0; row-gap:8px; padding-block:0 8px; padding-left:calc(env(safe-area-inset-left,0px) / var(--interface-scale,1) + var(--toolbar-gap)); padding-right:calc(env(safe-area-inset-right,0px) / var(--interface-scale,1) + var(--toolbar-gap)); }
+html[data-mobile-header=true][data-ui-layout=tablet] .lesson-mechanism { width:72px; height:72px; align-self:start; }
+html[data-theme=zinc][data-material=embossed][data-mobile-header=true][data-ui-layout=tablet] .lesson-breadcrumbs { padding-block:0; align-self:center; }

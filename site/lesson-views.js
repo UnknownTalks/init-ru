@@ -40,6 +40,7 @@ export function createLessonViews({ storageKey, rememberReading, restoreReading,
       const active = item.dataset.viewNav === name || name === 'skill' && item.dataset.viewNav === 'skills';
       if (active) item.setAttribute('aria-current', 'page'); else item.removeAttribute('aria-current');
     }
+    document.documentElement.removeAttribute('data-initial-view');
     if (name === 'read') {
       if (restore) restoreReading();
       if (resume) resumeReading();

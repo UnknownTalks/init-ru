@@ -48,10 +48,9 @@ export function initClockLayout(pool) {
   const entering=[...document.querySelectorAll('.lesson-tools > :is([data-view-nav=chapters],[data-view-nav=skills])')],animations=[];
   const finish=()=>{root.removeAttribute('data-lesson-entry');for(const animation of animations)animation?.cancel();};
   pool.enqueue({key:'lesson-menu-entry',valid:()=>entering.every(tab=>pool.visible(tab)),run:async signal=>{
-   for(const tab of entering){
-    if(signal.aborted)return;
-    animations.push(await pool.play(tab,[{opacity:0,transform:'translateY(6px)'},{opacity:1,transform:'translateY(0)'}],{kind:'enter',hold:true},signal));
-   }
+   if(signal.aborted)return;
+   const group=await Promise.all(entering.map(tab=>pool.play(tab,[{opacity:0},{opacity:1}],{kind:'enter',hold:true},signal)));
+   animations.push(...group);
   },finish,cancel:finish});
  }
  const nextFrame=()=>new Promise(resolve=>requestAnimationFrame(resolve));

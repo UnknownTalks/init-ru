@@ -15,8 +15,8 @@ export function mechanism(prefix,small=false,{relief=false}={}){
  const spiral=Array.from({length:150},(_,i)=>{const a=i/149*Math.PI*8,r=3+i/149*23;return `${(Math.cos(a)*r).toFixed(2)},${(Math.sin(a)*r).toFixed(2)}`;}).join('L');
  return `<svg class="mechanism ${small?'mechanism-small':'mechanism-large'}" data-mechanism viewBox="0 0 320 320" aria-hidden="true">
  <defs>
-  <radialGradient id="${prefix}-case" cx="30%" cy="12%" r="94%"><stop stop-color="#34383b"/><stop offset=".48" stop-color="#181b1d"/><stop offset="1" stop-color="#07080a"/></radialGradient>
-  <linearGradient id="${prefix}-steel" x1="0" y1="0" x2=".7" y2="1"><stop stop-color="${relief?'#555b5e':'#3f444a'}"/><stop offset=".46" stop-color="#202429"/><stop offset="1" stop-color="#101215"/></linearGradient>
+  <radialGradient id="${prefix}-case" cx="30%" cy="12%" r="94%"><stop stop-color="#41474b"/><stop offset=".48" stop-color="#111416"/><stop offset="1" stop-color="#080a0b"/></radialGradient>
+  <linearGradient id="${prefix}-steel" x1="0" y1="0" x2=".7" y2="1"><stop stop-color="#41474b"/><stop offset=".46" stop-color="#22272b"/><stop offset="1" stop-color="#111416"/></linearGradient>
   ${relief?`<linearGradient id="${prefix}-rim" x1="0" y1="0" x2=".4" y2="1"><stop stop-color="#555b5e"/><stop offset=".55" stop-color="#292e32"/><stop offset=".86" stop-color="#41484e"/><stop offset="1" stop-color="#1c2024"/></linearGradient>`:''}
   <linearGradient id="${prefix}-edge" x1="0" y1="0" x2=".75" y2="1"><stop stop-color="#8b8d8d"/><stop offset=".36" stop-color="#383c40"/><stop offset=".8" stop-color="#141619"/><stop offset="1" stop-color="#64676a"/></linearGradient>
   <radialGradient id="${prefix}-well"><stop stop-color="#0b0d0f"/><stop offset=".84" stop-color="#101316"/><stop offset="1" stop-color="#020304"/></radialGradient>
@@ -30,8 +30,8 @@ export function mechanism(prefix,small=false,{relief=false}={}){
  <g data-turn="index" transform="rotate(0 160 160)"><path d="M157 24h6l-1.5 10h-3Z" fill="#e5e1d1"/><path d="M160 39v6" stroke="#e5e1d1" stroke-width="1.2"/></g></g>
  <g filter="url(#${prefix}-shadow)">
   <g transform="translate(128 178)"><g data-turn="wheel">${gear(50,25,prefix,5,relief)}<path d="M0-40v6" stroke="#e5e1d1" stroke-width="1.5"/></g></g>
-  <g transform="translate(211 143)"><g data-turn="transfer">${gear(40,20,prefix,4,relief)}</g></g>
-  <g transform="translate(225 208)"><g data-turn="escape">${gear(25,13,prefix,3,relief)}</g></g>
+  <g transform="translate(210.93 143.03)"><g data-turn="transfer">${gear(40,20,prefix,4,relief)}</g></g>
+  <g transform="translate(224.83 207.55)"><g data-turn="escape">${gear(26,13,prefix,3,relief)}</g></g>
  </g>
  <g transform="translate(111 93)"><g data-turn="balance">
   <circle r="37" fill="none" stroke="#111315" stroke-width="9"/><circle r="36" fill="none" stroke="#a4a399" stroke-width="1.4"/>
@@ -50,7 +50,7 @@ export function mechanism(prefix,small=false,{relief=false}={}){
 }
 
 export function renderMechanismButton(){
- return `<button type="button" id="mechanism-agent-open" class="lesson-mechanism" data-lesson-mechanism aria-label="Открыть ИИ-агента" aria-controls="mechanism-agent" aria-expanded="false" title="Открыть ИИ-агента"><span class="lesson-mechanism-case" aria-hidden="true">${mechanism('lesson-watch',true,{relief:true})}<span class="mechanism-heat" aria-hidden="true"></span></span><canvas class="mechanism-sparks" aria-hidden="true"></canvas></button><span id="mechanism-agent-status" class="sr-only" role="status"></span>`;
+ return `<button type="button" id="mechanism-agent-open" class="lesson-mechanism" data-lesson-mechanism aria-label="Открыть ИИ-агента" aria-controls="mechanism-agent" aria-expanded="false" title="Открыть ИИ-агента"><span class="lesson-mechanism-case" aria-hidden="true">${mechanism('lesson-watch',true,{relief:true})}<span class="mechanism-heat" aria-hidden="true"></span></span><canvas class="mechanism-sparks" aria-hidden="true"></canvas></button><script>window.UnknownTalksPage?.restoreWatch();</script><span id="mechanism-agent-status" class="sr-only" role="status"></span>`;
 }
 export function renderMechanismAgent(){
  return `<section id="mechanism-agent" class="app-view mechanism-agent" aria-labelledby="mechanism-agent-title" hidden>

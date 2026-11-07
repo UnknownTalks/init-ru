@@ -1,228 +1,139 @@
-import {createMechanismFriction} from './mechanism-friction.js';
-import {agentEnabled} from './preferences.js';
+import {agentEnabled,soundMode} from './preferences.js';
+import {readWatchPose} from './mechanism-memory.js';
+import {signature as c,clamp,createWatchState,advanceWatch,watchMoving,watchAngles,agentRotation} from './mechanism-profile.js';
+import {createSignatureStress,signatureStress,createSignatureAppearance} from './mechanism-surface.js';
+import {createWatchSound} from './mechanism-sound.js';
 
 export function initLessonMechanism({openAgentView}){
-
-const host=document.querySelector('[data-lesson-mechanism]');
-if(!host)return;
-const friction=createMechanismFriction(host);
-const parts=[...host.querySelectorAll('[data-mechanism]')].map(svg=>Object.fromEntries([...svg.querySelectorAll('[data-turn]')].map(el=>[el.dataset.turn,el])));
-const springs=[...host.querySelectorAll('[data-spring]')];
-const clamp=t=>Math.max(0,Math.min(1,t)),ease=t=>{t=clamp(t);return t*t*(3-2*t);};
-const agentWindDuration=650,agentSettleDuration=650;
-// Three complete turns, including the deceleration. Navigation runs alongside.
-const agentTopSpeed=360*3/(agentWindDuration/2+agentSettleDuration/3);
-const allowed=()=>document.documentElement.dataset.motion!=='off'&&!document.hidden;
-let position={drive:0,index:0,balance:0,lever:0},active=null,waiting=null,frame=0,last=0;
-let agentPhase='closed',forwardDrive=0,forwardIndex=0,playbackKind=null;
-// Chosen ×4 slower motion: 100 px of page travel moves the dial marker 6.25 px.
-const scrollMode={gain:.0625,lag:45};
-let scrollTarget=0,scrollShown=0,scrollAt=0,scrollIntentUntil=0,lastScrollTop=scrollY,scrollRadius=36;
-function label(kind){
- if(host.dataset.state!==kind)host.dataset.state=kind;
- const name=!agentEnabled()?'Часовой механизм. ИИ-агент выключен':kind==='agent-close'?'Механизм возвращается':document.body.dataset.appView==='agent'?'ИИ-агент открыт':kind==='agent-open'?'Открываем ИИ-агента':'Открыть ИИ-агента';
- if(host.title!==name){host.title=name;host.setAttribute('aria-label',name);}
-}
-function paint(value){
- position=value;
- for(const p of parts){
-  p.wheel.setAttribute('transform',`rotate(${value.drive})`);p.transfer.setAttribute('transform',`rotate(${-value.drive*1.25})`);p.escape.setAttribute('transform',`rotate(${value.drive*25/13})`);
-  p.balance.setAttribute('transform',`rotate(${value.balance})`);p.lever.setAttribute('transform',`rotate(${value.lever})`);p.index.setAttribute('transform',`rotate(${value.index} 160 160)`);
+ const host=document.querySelector('[data-lesson-mechanism]');if(!host)return;
+ host.dataset.profile='balance-signature';
+ const s=createWatchState(),parts=Object.fromEntries([...host.querySelectorAll('[data-turn]')].map(p=>[p.dataset.turn,p]));
+ const sound=createWatchSound(soundMode),stress=createSignatureStress(host),material=createSignatureAppearance(host);
+ let frame=0,last=0,gesture=null,coast=false,ritual=null,suppressClick=0,micro=0,microVelocity=0,previousVelocity=0;
+ let feedbackAt=-Infinity,markerOffset=0,lastTop=scrollY,intentUntil=0,radius=36,checkpoint=0,kind='action',kindAt=0,paused=false;
+ const allowed=()=>document.documentElement.dataset.motion!=='off'&&!document.hidden;
+ const rim=document.createElement('span'),point=document.createElement('span');
+ rim.className='watch-rim-hit';point.className='watch-point-hit';rim.setAttribute('aria-hidden','true');point.setAttribute('aria-hidden','true');host.append(rim,point);
+ let dialBox={left:0,top:0,width:0,height:0};
+ function label(){
+  host.dataset.state=gesture?'drag':ritual?'agent-open':watchMoving(s)?kind:'idle';
+  const open=document.body.dataset.appView==='agent';host.dataset.agent=open?'open':'closed';host.setAttribute('aria-expanded',String(open));
+  host.setAttribute('aria-label',agentEnabled()?'Часовой механизм. Enter — открыть ИИ-агента. Стрелки — вращать; Shift — точно.':'Часовой механизм. Стрелки — вращать; Shift — точно.');
  }
- const path='M'+Array.from({length:110},(_,i)=>{const t=i/109,a=t*Math.PI*8+value.balance*Math.PI/180*(1-t),r=3+t*23;return (Math.cos(a)*r).toFixed(2)+','+(Math.sin(a)*r).toFixed(2);}).join('L');
- for(const spring of springs)spring.setAttribute('d',path);
-}
-function wake(){if(!frame&&allowed()){last=performance.now();frame=requestAnimationFrame(tick);}}
-function feedback(kind,duration=360){
- // Navigation can also start through browser history or a chapter link.
- if(kind==='transition'&&agentPhase==='open'&&new URL(location.href).searchParams.get('view')!=='agent')rewindAgent();
- if(agentPhase!=='closed')return;
- if(!allowed())return;
- if(active?.kind===kind&&kind==='transition')return;
- resetScroll();
- active={kind,duration:kind==='transition'?375:duration,elapsed:0,base:{...position}};label(kind);wake();
-}
-function resetScroll({keepFriction=false}={}){
- if(!keepFriction)friction.reset();
- scrollTarget=scrollShown=0;scrollAt=0;scrollIntentUntil=0;lastScrollTop=Math.max(0,scrollY);
- if(active?.kind==='scroll'){active=null;paint({...position,balance:0,lever:0});label(waiting||'idle');}
-}
-function measureScroll(){
- // The ivory marker's centre is 131 SVG units from the dial's centre.
- // Use its rendered CSS radius, so a pixel of arc really is a screen pixel
- // on both the 88 px desktop watch and the smaller mobile watch.
- scrollRadius=host.querySelector('[data-mechanism]').getBoundingClientRect().width*131/320;
- friction.resize();
- resetScroll();
-}
-function stop(complete=true){
- cancelAnimationFrame(frame);frame=0;active=null;resetScroll();paint({...position,balance:0,lever:0});
- // Turning motion off or hiding the tab must never strand the reader halfway
- // through opening a page. Navigation still completes without further motion.
- if(complete&&agentPhase==='opening')setAgentPhase('open');
- else if(complete&&agentPhase==='closing')finishRewind();
- else label(agentPhase==='open'?'agent':'idle');
-}
-function setAgentPhase(phase){
- agentPhase=phase;host.dataset.agent=phase;
- host.setAttribute('aria-disabled',String(!agentEnabled()));
- host.setAttribute('aria-expanded',String(phase==='open'));
-}
-function openAgent(){
- if(!agentEnabled())return;
- if(agentPhase==='open'){document.getElementById('mechanism-agent-title').focus({preventScroll:true});return;}
- if(agentPhase==='opening')return;
- resetScroll();waiting=null;forwardDrive=forwardIndex=0;setAgentPhase('opening');
- if(allowed()){
-  active={kind:'agent-open',duration:agentWindDuration,elapsed:0,base:{...position}};label('agent-open');wake();
- }else setAgentPhase('open');
- openAgentView();
-}
-function finishRewind(){
- active=null;forwardDrive=forwardIndex=0;setAgentPhase('closed');
- document.getElementById('mechanism-agent-status').textContent='';
- playback();label(waiting||'idle');
-}
-function rewindAgent(){
- if(agentPhase!=='opening'&&agentPhase!=='open')return;
- resetScroll();waiting=null;setAgentPhase('closing');
- if(!allowed()||!forwardDrive){finishRewind();return;}
- // Rewind half the distance actually wound, including an interrupted launch.
- active={kind:'agent-close',duration:950,elapsed:0,base:{...position},drive:forwardDrive/2,index:forwardIndex/2};
- label('agent-close');wake();
-}
-host.addEventListener('click',openAgent);
-document.addEventListener('click',event=>{
- if(event.defaultPrevented||event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
- const navigation=event.target.closest('[data-view-nav],[data-read-return],[data-view-back]');
- if(navigation)rewindAgent();
-},true);
-addEventListener('popstate',()=>{
- if(new URL(location.href).searchParams.get('view')!=='agent')rewindAgent();
-});
-function advanceScroll(now,dt){
- const a=active;a.elapsed+=dt;
- const target=scrollTarget;
- let next=scrollShown+(target-scrollShown)*(1-Math.exp(-dt/scrollMode.lag));
- // Preserve the same short settling period in either direction. Changing
- // speed changes the transmission ratio, not the lag behind the page.
- if(now-scrollAt>=180||Math.abs(target-next)<1e-7)next=target;
- const delta=next-scrollShown;scrollShown=next;
- a.speed+=(Math.abs(delta)*1000/Math.max(1,dt)-a.speed)*(1-Math.exp(-dt/60));
- a.phase+=Math.min(4,.65+a.speed/140)*dt/1000*Math.PI*2;
- const returning=1-ease(a.elapsed/80),amplitude=Math.min(16,a.speed*.12)*clamp(1-(now-scrollAt)/120);
- const settled=Math.abs(target-scrollShown)<1e-7&&now-scrollAt>=120;
- paint({drive:position.drive+delta*2.4,index:position.index+delta,
-  balance:settled?0:a.baseBalance*returning+Math.sin(a.phase)*amplitude,
-  lever:settled?0:a.baseLever*returning-Math.sin(a.phase)*amplitude*.4});
- if(settled){active=null;label(waiting||'idle');}
-}
-function tick(now){
- frame=0;if(!allowed()){stop();return;}
- // A scroll event can wake this loop after the frame's timestamp was sampled.
- // Never integrate a negative first step into the distance follower.
- const dt=Math.max(0,Math.min(64,now-last));last=now;
- const materialMoving=friction.tick(now,dt);
- if(active?.kind==='scroll'){
-  advanceScroll(now,dt);
-  if(active||waiting||materialMoving)frame=requestAnimationFrame(tick);
-  return;
+ function paint(){
+  const angles=watchAngles({...s,angle:s.angle+micro,gear:s.gear+micro});
+  ['wheel','transfer','escape'].forEach((name,i)=>parts[name].setAttribute('transform',`rotate(${angles[i]%(360*156)})`));
+  parts.index.setAttribute('transform',`rotate(${(s.angle+markerOffset+micro)%360} 160 160)`);
+  const torque=clamp((s.target-s.angle)*.35,-12,12);
+  parts.balance.setAttribute('transform',`rotate(${torque})`);parts.lever.setAttribute('transform',`rotate(${-torque*.4})`);material(s.angle);
+  const a=(s.angle+markerOffset-90)*Math.PI/180,r=dialBox.width*131/320;
+  point.style.left=dialBox.left+dialBox.width/2+Math.cos(a)*r-10+'px';point.style.top=dialBox.top+dialBox.height/2+Math.sin(a)*r-10+'px';
+  label();return angles;
  }
- if(!active&&waiting)active={kind:waiting,duration:800,elapsed:0,base:{...position},continuous:true};
- if(!active){label(agentPhase==='open'?'agent':'idle');if(materialMoving)frame=requestAnimationFrame(tick);return;}
- const a=active;a.elapsed+=dt;const t=clamp(a.elapsed/a.duration);let drive=0,index=0,balance=0,lever=0;
- if(a.kind==='message'){drive=14.4*ease(t/.32);index=6*ease(t/.32);balance=Math.sin(t*Math.PI*2)*19;lever=balance*.35;}
- if(a.kind==='loading'){drive=24*t;index=6*t;balance=Math.sin(t*Math.PI*2)*9;}
- if(a.kind==='transition'){drive=18*ease(t);index=30*ease(t);lever=-12*Math.sin(t*Math.PI);balance=16*Math.sin(t*Math.PI*2)*(1-t*.5);}
- if(a.kind==='unfold'){drive=16*ease(t);index=9*ease(t);lever=-22*Math.sin(t*Math.PI);balance=14*Math.sin(t*Math.PI);}
- if(a.kind==='save'){const phase=t*3;drive=14.4*(Math.floor(phase)+ease((phase%1)/.6));index=12*ease(t);lever=-14*Math.sin(t*Math.PI*6)*(1-t);balance=12*Math.sin(t*Math.PI*6)*(1-t*.5);}
- if(a.kind==='denied'){drive=Math.sin(t*Math.PI*4)*6*(1-t);index=drive/3;lever=drive;balance=drive*1.8;}
- if(a.kind==='agent-open'){
-  index=agentTopSpeed*agentWindDuration*t*t/2;drive=index*2.4;forwardDrive=drive;forwardIndex=index;
-  balance=Math.sin(index*Math.PI/90)*14;lever=balance*.4;
-  if(t>.2)friction.spin((t-.2)/.8,now);
+ function capture(){
+  const torque=clamp((s.target-s.angle)*.35,-12,12);
+  return {drive:(s.angle+micro)*2.4,index:s.angle+markerOffset+micro,gearDrive:(s.gear+micro)*2.4,balance:torque,lever:-torque*.4,
+   physical:{angle:s.angle,target:s.target,transmitted:s.transmitted,gear:s.gear,velocity:s.velocity,gearVelocity:s.gearVelocity,at:Date.now(),source:location.href}};
  }
- if(a.kind==='agent-settle'){
-  // Integrate velocity v*(1-t)^2: continuous speed at entry, then a gentle
-  // finish with zero velocity and zero acceleration. Count this travel too.
-  index=a.speed*a.duration*(1-(1-t)**3)/3;drive=index*2.4;
-  forwardIndex=a.wound+index;forwardDrive=forwardIndex*2.4;
-  balance=Math.sin(forwardIndex*Math.PI/90)*14*(1-t)**2;lever=balance*.4;
+ function restore(pose){
+  if(!pose)return;
+  const oldAngle=s.angle;s.angle=pose.drive/2.4;markerOffset=pose.index-s.angle;s.gear=(pose.gearDrive??pose.drive)/2.4;s.target=s.transmitted=s.angle;
+  s.velocity=s.gearVelocity=0;micro=microVelocity=previousVelocity=0;s.accumulator=0;
+  const p=pose.physical;
+  try{
+   const nav=performance.getEntriesByType('navigation')[0]?.type,transfer=JSON.parse(sessionStorage.getItem('unknowntalks:page-transfer:v1')||'null');
+   if(p&&Date.now()-p.at<1400&&Date.now()>=p.at&&transfer?.to===location.href&&nav==='navigate'&&allowed()&&['angle','target','transmitted','gear','velocity','gearVelocity'].every(key=>Number.isFinite(p[key]))){
+    Object.assign(s,{angle:p.angle,target:p.target,transmitted:p.transmitted,gear:p.gear,velocity:clamp(p.velocity,-c.maxVelocity,c.maxVelocity),gearVelocity:clamp(p.gearVelocity,-c.maxVelocity*2,c.maxVelocity*2)});markerOffset=pose.index-s.angle;
+   }
+  }catch{}
+  if(ritual)ritual.base+=s.angle-oldAngle;
+  lastTop=scrollY;paint();if(watchMoving(s))wake();
  }
- if(a.kind==='agent-close'){drive=-a.drive*ease(t);index=-a.index*ease(t);balance=-10*Math.sin(t*Math.PI*6)*(1-t);lever=balance*.4;}
- paint({drive:a.base.drive+drive,index:a.base.index+index,balance,lever});
- if(t===1){
-  active=null;
-  if(a.kind==='agent-open'){
-   active={kind:'agent-settle',duration:agentSettleDuration,elapsed:0,base:{...position},speed:agentTopSpeed,wound:forwardIndex};
-   label('agent-settle');
-  }
-  else if(a.kind==='agent-close')finishRewind();
-  else label(agentPhase==='open'?'agent':waiting||'idle');
+ function wake(){if(!frame&&allowed()&&!paused){last=performance.now();frame=requestAnimationFrame(tick);}}
+ function park(){s.target=s.transmitted=s.angle;s.velocity=s.gearVelocity=0;s.gear=s.angle;s.accumulator=0;micro=microVelocity=previousVelocity=0;coast=false;}
+ function stop(){cancelAnimationFrame(frame);frame=0;ritual=null;gesture=null;park();stress.reset();sound.silence(true);paint();}
+ function tick(now){
+  frame=0;if(!allowed()||paused){stop();return;}
+  const dt=clamp((now-last)/1000,0,.064);last=now;
+  if(ritual){
+   const point=agentRotation(now-ritual.start);s.angle=s.target=s.transmitted=s.gear=ritual.base+point.angle;s.velocity=point.velocity;s.gearVelocity=point.velocity;
+   if(now-ritual.start>=1300){ritual=null;park();}
+  }else advanceWatch(s,dt,{held:!!gesture,coast});
+  if(coast&&!s.velocity)coast=false;
+  const load=clamp((s.velocity-previousVelocity)/Math.max(.004,dt)*.004,-80,80);
+  for(let left=dt;left>0;){const h=Math.min(1/240,left);microVelocity+=(load-220*micro-14*microVelocity)*h;micro+=microVelocity*h;left-=h;}
+  micro=clamp(micro,-.5,.5);if(Math.abs(micro)<.002&&Math.abs(microVelocity)<.01)micro=microVelocity=0;previousVelocity=s.velocity;
+  const particles=stress.step(signatureStress,s.velocity,dt,now,false),angles=paint();
+  const source=gesture||ritual?'watch':kind;
+  sound.motion(angles[2],coast?0:s.gearVelocity*60/13,now,{source,activationAge:ritual?now-ritual.start:null});
+  if(now-checkpoint>250){window.UnknownTalksPage?.saveWatch();checkpoint=now;}
+  if(ritual||gesture||watchMoving(s)||micro||microVelocity||particles)frame=requestAnimationFrame(tick);
  }
- if(active||waiting||materialMoving)frame=requestAnimationFrame(tick);
-}
-// Only actual page movement following a reading gesture drives the clock.
-// Restored positions, incoming content and programmatic jumps do not do so.
-function intendScroll(duration=750){if(allowed()&&agentPhase==='closed')scrollIntentUntil=performance.now()+duration;}
-addEventListener('wheel',event=>{if(!event.ctrlKey&&event.deltaY)intendScroll();},{passive:true});
-for(const event of ['touchstart','touchmove','touchend'])addEventListener(event,()=>intendScroll(1200),{passive:true});
-addEventListener('keydown',event=>{
- if(event.defaultPrevented||event.ctrlKey||event.metaKey||event.altKey||!['ArrowDown','ArrowUp','PageDown','PageUp','Home','End',' '].includes(event.key))return;
- if(event.target.closest?.('input,textarea,select,[contenteditable]:not([contenteditable=false]),[role=combobox],[role=slider]'))return;
- if(event.key===' '&&event.target.closest?.('button,summary,[role=button]'))return;
- intendScroll();
-});
-for(const event of ['pointerdown','pointermove'])addEventListener(event,e=>{
- if(e.pointerType==='mouse'&&e.buttons===1&&e.clientX>=document.documentElement.clientWidth-16)intendScroll(1200);
-},{passive:true});
-addEventListener('scroll',()=>{
- const now=performance.now(),top=Math.max(0,Math.min(scrollY,document.documentElement.scrollHeight-innerHeight)),distance=top-lastScrollTop;lastScrollTop=top;
- if(!allowed()||agentPhase!=='closed'||now>scrollIntentUntil||distance===0)return;
- scrollIntentUntil=Math.max(scrollIntentUntil,now+220);
- // Deliberate lesson feedback keeps priority over incidental scrolling.
- if(active&&!active.continuous&&active.kind!=='scroll')return;
- friction.feed(distance,now);
- // Integrate actual page travel, not wheel deltas or event counts. Native
- // touchpad inertia is already part of scrollY; there is no extra inertia.
- scrollTarget+=distance/scrollRadius*180/Math.PI*scrollMode.gain;scrollAt=now;
- if(active?.kind!=='scroll')active={kind:'scroll',elapsed:0,speed:0,phase:0,baseBalance:position.balance,baseLever:position.lever};
- label('scroll');wake();
-},{passive:true});
-addEventListener('resize',measureScroll,{passive:true});
-addEventListener('blur',resetScroll);
-document.addEventListener('mechanism:feedback',event=>feedback(event.detail.kind,event.detail.duration));
-function playback(){
- waiting=agentPhase==='closed'&&document.body.dataset.appView==='read'?playbackKind:null;
- if(!waiting&&active?.continuous){active=null;paint({...position,balance:0,lever:0});}
- if(waiting&&!active){label(waiting);wake();}else if(!active)label(agentPhase==='open'?'agent':'idle');
-}
-document.addEventListener('unknowntalks:playback',event=>{playbackKind=event.detail.kind;playback();});
-document.addEventListener('unknowntalks:view',event=>{
- if(event.detail.name==='agent'){
-  // Reload / browser Forward also opens the native route, without inventing
-  // a winding debt when there was no button animation in this page session.
-  if(agentPhase==='opening')setAgentPhase('open');
-  else if(agentPhase!=='open'){
-   active=null;forwardDrive=forwardIndex=0;setAgentPhase('open');
-  }
-  label(active?.kind||'agent');
- }else if(agentPhase==='open'||agentPhase==='opening')rewindAgent();
- resetScroll({keepFriction:event.detail.name==='agent'&&['agent-open','agent-settle'].includes(active?.kind)});
- playback();
-});
-const saved=new WeakSet();
-const messages=document.getElementById('messages');
-if(messages)new MutationObserver(records=>{
- for(const record of records){const card=record.target;if(card.matches?.('.discovery-card.is-claimed')&&!saved.has(card)){saved.add(card);feedback('save',390);}}
-}).observe(messages,{subtree:true,attributes:true,attributeFilter:['class']});
-new MutationObserver(()=>{if(!allowed())stop();else playback();}).observe(document.documentElement,{attributes:true,attributeFilter:['data-motion']});
-document.addEventListener('visibilitychange',()=>{if(document.hidden)stop();else playback();});
-addEventListener('pagehide',()=>stop(false));
-paint(position);label('idle');
-measureScroll();playback();
-function availability(){host.disabled=!agentEnabled();if(!agentEnabled())rewindAgent();label(host.dataset.state||'idle');measureScroll();}
-document.addEventListener('unknowntalks:preferences',availability);
-new ResizeObserver(measureScroll).observe(host);
-availability();
+ function input(delta,source='watch'){
+  if(ritual||document.hidden||paused)return;if(source!=='scroll'){intentUntil=0;lastTop=scrollY;}kind=source;kindAt=performance.now();coast=false;s.target+=delta;
+  if(!allowed()){const target=s.target;park();s.angle=s.target=s.transmitted=s.gear=target;paint();sound.tap(source,1);return;}
+  wake();
+ }
+ function feedback(eventKind){
+  if(ritual||gesture||performance.now()-feedbackAt<90)return;feedbackAt=performance.now();
+  const delta={transition:9,unfold:4,save:6,message:3,denied:-1.5}[eventKind]??2;
+  input(delta,'action');
+ }
+ function openAgent(){
+  if(!agentEnabled()||ritual)return;
+  if(document.body.dataset.appView==='agent'){document.getElementById('mechanism-agent-title')?.focus({preventScroll:true});return;}
+  coast=false;kind='watch';kindAt=performance.now();
+  if(allowed()){ritual={start:performance.now(),base:s.angle};wake();}else sound.tap('watch',3);
+  openAgentView();label();
+ }
+ host.addEventListener('click',event=>{
+  if(event.detail!==0&&performance.now()<suppressClick){event.preventDefault();event.stopImmediatePropagation();suppressClick=0;return;}openAgent();
+ });
+ function pointerAngle(e,g){return Math.atan2(e.clientY-g.cy,e.clientX-g.cx)*180/Math.PI;}
+ function begin(e){
+  if(ritual||gesture||e.button!==0||!e.isPrimary)return;
+  const box=host.querySelector('svg').getBoundingClientRect();
+  gesture={id:e.pointerId,element:e.currentTarget,cx:box.left+box.width/2,cy:box.top+box.height/2,x:e.clientX,y:e.clientY,at:performance.now(),moved:false,base:s.angle,baseMarker:markerOffset,releaseVelocity:0};
+  gesture.previous=pointerAngle(e,gesture);coast=false;s.velocity=0;s.target=s.angle;kind='watch';gesture.element.setPointerCapture(e.pointerId);wake();
+ }
+ function move(e){
+  const g=gesture;if(!g||e.pointerId!==g.id)return;
+  const now=performance.now(),angle=pointerAngle(e,g),diff=(angle-g.previous+540)%360-180,dt=Math.max(.004,(now-g.at)/1000);
+  if(Math.hypot(e.clientX-g.x,e.clientY-g.y)>4)g.moved=true;
+  if(g.moved){const precision=e.shiftKey||Math.abs(diff/dt)<25?c.precision:1,resistance=1/(1+Math.abs(diff/dt)/1800),delta=clamp(diff*precision*resistance,-c.maxVelocity*dt,c.maxVelocity*dt);s.angle+=delta;s.target=s.transmitted=s.angle;s.velocity=delta/dt;g.releaseVelocity=g.releaseVelocity*.45+s.velocity*.55;}
+  g.previous=angle;g.at=now;wake();
+  if(!allowed()){s.gear=s.angle;paint();if(g.moved)sound.tap('watch',1);}
+ }
+ function end(e,cancel=false){
+  const g=gesture;if(!g||e.pointerId!==g.id)return;gesture=null;suppressClick=performance.now()+500;host.classList.remove('is-pressed');
+  if(g.element.hasPointerCapture(g.id))g.element.releasePointerCapture(g.id);
+  if(cancel){s.angle=g.base;markerOffset=g.baseMarker;park();}
+  else if(g.moved){s.velocity=performance.now()-g.at<100?g.releaseVelocity:0;coast=allowed()&&Math.abs(s.velocity)>c.stop;if(!coast){s.velocity=0;s.target+=.35;}}
+  if(coast)kind='watch';paint();wake();window.UnknownTalksPage?.saveWatch();
+ }
+ for(const surface of [rim,point]){
+  surface.addEventListener('pointerdown',begin);surface.addEventListener('pointermove',move);surface.addEventListener('pointerup',e=>end(e));surface.addEventListener('pointercancel',e=>end(e,true));surface.addEventListener('lostpointercapture',e=>{if(gesture?.id===e.pointerId)end(e,true);});
+ }
+ host.addEventListener('keydown',e=>{if(!['ArrowLeft','ArrowRight'].includes(e.key)||ritual)return;e.preventDefault();input((e.key==='ArrowRight'?1:-1)*(e.shiftKey?c.precision:6));});
+ host.addEventListener('pointerenter',()=>host.classList.add('is-hovered'));host.addEventListener('pointerleave',()=>host.classList.remove('is-hovered'));
+ host.addEventListener('pointerdown',()=>{suppressClick=0;host.classList.add('is-pressed');});addEventListener('pointerup',()=>host.classList.remove('is-pressed'));
+ addEventListener('keydown',e=>{if(e.key==='Escape'&&(gesture||ritual)){if(gesture)end({pointerId:gesture.id},true);ritual=null;park();paint();sound.silence();}});
+ function intend(e){if(!e.ctrlKey&&!e.target?.closest?.('input,textarea,select,[contenteditable=true]'))intentUntil=performance.now()+1200;}
+ addEventListener('wheel',intend,{passive:true});for(const name of ['touchstart','touchmove','touchend'])addEventListener(name,intend,{passive:true});
+ addEventListener('keydown',e=>{if(!e.defaultPrevented&&['ArrowDown','ArrowUp','PageDown','PageUp','Home','End',' '].includes(e.key))intend(e);});
+ addEventListener('scroll',()=>{
+  const now=performance.now(),top=clamp(scrollY,0,Math.max(0,document.documentElement.scrollHeight-innerHeight)),delta=top-lastTop;lastTop=top;
+  if(!allowed()||gesture||ritual||now>intentUntil||!delta)return;
+  input(delta/radius*180/Math.PI*c.ratio,'scroll');
+ },{passive:true});
+ function measure(){const dial=host.querySelector('.lesson-mechanism-case');dialBox={left:dial.offsetLeft,top:dial.offsetTop,width:dial.offsetWidth,height:dial.offsetHeight};radius=host.querySelector('svg').getBoundingClientRect().width*131/320;rim.style.cssText=`left:${dialBox.left}px;top:${dialBox.top}px;width:${dialBox.width}px;height:${dialBox.height}px;`;stress.resize();lastTop=scrollY;paint();}
+ document.addEventListener('mechanism:feedback',e=>feedback(e.detail.kind));
+ document.addEventListener('click',e=>{if(!e.isTrusted||e.defaultPrevented||e.target.closest('[data-lesson-mechanism]'))return;if(e.target.closest('button,a,summary,input[type=checkbox],select'))feedback('transition');},true);
+ document.addEventListener('unknowntalks:view',()=>{if(ritual&&document.body.dataset.appView!=='agent'){ritual=null;park();}lastTop=scrollY;label();});
+ document.addEventListener('unknowntalks:preferences',()=>{host.setAttribute('aria-disabled',String(!agentEnabled()));if(!agentEnabled()&&ritual){ritual=null;park();}measure();});
+ new MutationObserver(()=>{if(!allowed())stop();}).observe(document.documentElement,{attributes:true,attributeFilter:['data-motion']});
+ document.addEventListener('visibilitychange',()=>{if(document.hidden){window.UnknownTalksPage?.saveWatch();stop();}else{last=performance.now();lastTop=scrollY;}});
+ addEventListener('pagehide',()=>{window.UnknownTalksPage?.saveWatch();paused=true;stop();});addEventListener('pageshow',()=>{paused=false;lastTop=scrollY;});
+ addEventListener('resize',measure,{passive:true});new ResizeObserver(measure).observe(host);
+ window.UnknownTalksPage?.attachWatch({capture,restore,prepare(){paused=true;cancelAnimationFrame(frame);frame=0;sound.silence(true);}});restore(readWatchPose());measure();label();
 }

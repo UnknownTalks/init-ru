@@ -1,0 +1,20 @@
+Quiet gear engagement — adapted from Small Gear Mechanism, by ReflektWave.
+Source: https://freesound.org/people/ReflektWave/sounds/855082/
+License: Creative Commons Attribution 4.0 International (CC BY 4.0).
+License text: https://creativecommons.org/licenses/by/4.0/
+
+Changes by UnknownTalks: mono PCM16 / 48 kHz; 12 short mechanical contacts
+selected from the public HQ MP3 preview; high-pass 650 Hz, low-pass 6000 Hz;
+soft transient compression; 2.5 ms attack, 7 ms release; shared gain to peak
+0.55. Each contact is 24 ms. Playback follows the visible gear phase;
+reverse movement uses a reversed contact. There are no added oscillator
+or synthetic noise layers. The source's exact mechanism is not identified;
+this is sound design, not a documentary recording of a particular caliber.
+
+Public preview used as input:
+https://cdn.freesound.org/previews/855/855082_17814297-hq.mp3
+Original preview SHA-256:
+8031b06c281bf287dcf22071fa874a88dd9856cee3db7afd66b73b0e4c4233da
+
+Adapted WAV SHA-256:
+a12057ff03879415352909e4b626627e69259dc50cb08d7f2e7303c85ec9695c
