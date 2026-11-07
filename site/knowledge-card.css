@@ -1,0 +1,79 @@
+/* The approved illustration card, used in the lesson and skill pages. */
+.knowledge-card, .knowledge-card.discovery-card {
+  container-type: inline-size;
+  box-sizing: border-box; padding: 20px; border: 1px solid #464a50;
+  border-radius: 15px; background: #23262b; color: #e3e5e8;
+  font-size: 14px; line-height: 1.65; overflow-wrap: anywhere;
+}
+.knowledge-card.discovery-card { margin: 24px 0; }
+.knowledge-card.discovery-card.is-claimed { border-color: #464a50; background: #23262b; }
+.knowledge-card .knowledge-card-byline { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; font-size: 10px; color: #aeb4bc; letter-spacing: .01em; }
+.knowledge-card .knowledge-card-mark { display: inline-grid; place-items: center; flex-shrink: 0; width: 21px; height: 21px; border-radius: 7px; background: var(--primary, #f4d44d); color: #22231f; font-size: 14px; font-weight: 700; }
+.knowledge-card .knowledge-card-brand { font-weight: 400; }
+.knowledge-card .knowledge-card-badge { margin-left: auto; color: #9fa6b0; font-size: 10px; }
+.knowledge-card .knowledge-card-title { max-width: 42ch; margin: 14px auto 10px; font-size: 17px; line-height: 1.4; font-weight: 550; letter-spacing: -.015em; text-align: center; color: inherit; }
+.knowledge-card .knowledge-card-figure { margin: 16px 0; }
+.knowledge-card .knowledge-card-situation { margin: 0 0 16px; font-size: 13px; line-height: 1.65; text-align: left; color: #c5cfdd; }
+.knowledge-card-figure > svg { display: block; width: 100%; height: auto; }
+.knowledge-card-wires { stroke: #b1bcce; stroke-width: 2; }
+.knowledge-card-icon { stroke-width: 1.5; }
+.knowledge-card-icon-left { fill: #2c3036; stroke: #8893a0; color: #b4bdc9; }
+.knowledge-card-icon-right { fill: #2c3036; stroke: #8893a0; color: #b4bdc9; }
+.knowledge-icon-lines { fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.knowledge-icon-dot { fill: currentColor; stroke: none; }
+.knowledge-icon-warning { fill: none; stroke: #dbb3a4; stroke-width: 3; stroke-linecap: round; }
+.knowledge-card .knowledge-card-captions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0; text-align: center; font-size: 12px; color: #b3c6d2; }
+.knowledge-card-caption { min-width: 0; padding-inline: 8px; }
+.knowledge-card-captions small { display: block; margin-top: 4px; font-size: 10px; line-height: 1.65; color: #9aabb9; }
+.knowledge-card .knowledge-card-description { margin: 24px 0 0; font-size: 13px; line-height: 1.65; text-align: left; }
+.knowledge-card-footer { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-top: 18px; padding-top: 14px; border-top: 1px solid #ffffff12; }
+.knowledge-card .knowledge-card-action { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; max-width: 100%; padding: 8px 12px; border: 1px solid #50565f; border-radius: 7px; background: #303338; color: #edf0f3; font-size: 13px; line-height: 1.5; font-weight: 700; text-align: center; white-space: normal; }
+.knowledge-card .knowledge-card-action:hover { background: #393d43; border-color: #6c7580; }
+.knowledge-card .knowledge-card-action:focus-visible { outline: 2px solid #bcc4ce; outline-offset: 4px; }
+.journal-entry.knowledge-journal-entry { margin: 0 0 24px; }
+.knowledge-card.knowledge-card-locked { border-style: dashed; opacity: .65; }
+.knowledge-journal-entry.is-selected > .knowledge-card { border-color: #8893a0; }
+#term-detail-body > .knowledge-card { margin-bottom: 28px; }
+@container (max-width: 480px) {
+  .knowledge-card, .knowledge-card.discovery-card { padding: 16px; }
+  .knowledge-card .knowledge-card-captions { font-size: 11px; }
+  .knowledge-card-caption { padding-inline: 4px; }
+  .knowledge-card-footer { justify-content: flex-start; }
+  .knowledge-card .knowledge-card-action { min-height: 44px; }
+}
+@media (max-width: 760px) {
+  .knowledge-card, .knowledge-card.discovery-card { padding: 16px; }
+}
+
+/* A request is task + source material. Keep both readable instead of shrinking
+   them into SVG captions; narrower cards follow the same order vertically. */
+.knowledge-request-example { margin: 0; color: var(--foreground); }
+.knowledge-request-example .knowledge-card-situation { margin: 0 0 16px; }
+.knowledge-request-inputs { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.knowledge-request-panel { min-width: 0; padding: 16px; border: 1px solid #57647d; border-radius: 10px; background: #2c30362e; text-align: left; }
+.knowledge-request-data { border-color: #52746b; background: #2c30362e; }
+.knowledge-request-panel h4 { margin: 0 0 14px; color: var(--foreground); font-size: 15px; font-weight: 600; line-height: 1.45; }
+.knowledge-request-panel h5 { margin: 0 0 6px; color: var(--foreground); font-size: 14px; font-weight: 600; line-height: 1.5; }
+.knowledge-request-panel p,
+.knowledge-request-panel blockquote { margin: 0; padding: 0; border: 0; color: var(--foreground); font: inherit; font-size: 14px; line-height: 1.65; }
+.knowledge-request-prompt ul { margin: 12px 0 0; padding-left: 20px; font-size: 15px; line-height: 1.65; }
+.knowledge-request-prompt li + li { margin-top: 8px; }
+.knowledge-request-review + .knowledge-request-review { margin-top: 16px; padding-top: 16px; border-top: 1px solid #8893a02b; }
+.knowledge-request-plus { justify-self: center; align-self: center; color: #b1bcce; font-size: 24px; line-height: 1; }
+.knowledge-request-model { display: grid; justify-items: center; gap: 8px; margin: 16px 0; }
+.knowledge-request-model p { max-width: 52ch; margin: 0; color: #c5cfdd; font-size: 14px; line-height: 1.65; text-align: left; }
+.knowledge-request-arrow { color: #9ebdb8; font-size: 24px; line-height: 1; }
+.knowledge-request-output { border-color: #668a7f; background: #ffffff04; }
+.knowledge-request-results { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+.knowledge-request-result + .knowledge-request-result { padding-top: 16px; border-top: 1px solid #8893a02b; }
+.knowledge-request-source { display: inline-flex; align-items: center; min-height: 44px; margin-top: 4px; color: var(--muted-foreground); font-size: 13px; line-height: 1.5; text-underline-offset: 3px; }
+@container (min-width: 640px) {
+  .knowledge-request-inputs { grid-template-columns: minmax(0, 1fr) 20px minmax(0, 1fr); }
+  .knowledge-request-results { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .knowledge-request-result + .knowledge-request-result { padding-top: 0; border-top: 0; padding-left: 16px; border-left: 1px solid #8893a02b; }
+}
+
+.knowledge-icon-dot { fill: var(--primary, #f4d44d); }
+.knowledge-card.is-claimed .knowledge-card-action { background: transparent; border-color: #555c65; color: #c5ccd4; }
+.knowledge-card .knowledge-card-description { color: #d0d5dc; }
+

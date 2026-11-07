@@ -1,0 +1,362 @@
+/* UnknownTalks: matte black material, pressed edges and ivory accents. */
+html[data-theme=zinc][data-material=embossed] {
+ color-scheme:dark;
+ --background:#101113; --foreground:#e8e8e9;
+ --card:#181a1c; --card-foreground:var(--foreground);
+ --popover:#1c1e21; --popover-foreground:var(--foreground);
+ --secondary:#27292d; --secondary-foreground:var(--foreground);
+ --muted-foreground:#aaadb3; --border:#565b63; --input:#666c75;
+ --primary:#e5e1d1; --primary-foreground:#000;
+ --ring:var(--primary); --action:#282b2e; --action-foreground:#ededee; --action-border:#656a72;
+ --discovery-action:var(--primary); --discovery-action-foreground:#000;
+ --material-surface:url('./material/black-matte.webp');
+ --material-pigment:url('./material/ochre-pigment.webp');
+ --material-background:linear-gradient(#08090b99,#08090b99),var(--material-surface);
+ --material-radius:19px 16px 21px 17px;
+ --control-radius:11px 13px 10px 12px;
+ --pressed-face:linear-gradient(#06070855,#06070855);
+ --pressed-edge:#050607;
+ --pressed-shadow:inset 1px 3px 7px #0009,1px 1px 0 #ffffff17;
+ --control-face:linear-gradient(#ffffff08,#0002),var(--material-surface);
+ --control-shadow:inset 0 1px #ffffff12,1px 3px 6px #0008;
+ --accent-face:radial-gradient(ellipse at 24% 0%,#fff7,transparent 74%),linear-gradient(160deg,#eae6d8,#e5e1d1 58%,#d4cfbd);
+ --accent-radius:9px 10px 9px 11px;
+ --accent-shadow:inset 0 1px 0 #fff9,inset 0 -1px 1px #8a837449,0 2px 3px #0005;
+ --accent-pressed-shadow:inset 0 2px 4px #8a837449,inset 0 -1px 0 #ffffff30,0 0 0 #0000;
+ --pigment-paint:var(--accent-face);
+ --pigment-mask:none; --pigment-filter:none;
+ --material-glint:#ffffff38; --material-glow:#ffffff0d;
+ --light-x:50%; --light-y:25%; --material-press-distance:1.5px;
+ --material-ease:cubic-bezier(.2,.75,.2,1);
+ --divider:linear-gradient(90deg,#73798235,#73798218);
+ --title-font:Georgia,"Times New Roman",serif;
+}
+html[data-theme=zinc][data-material=embossed] :is(body,.app-header,.lesson-toolbar) {
+ background-color:var(--background); background-image:var(--material-background);
+ background-size:auto,cover; background-repeat:no-repeat; background-position:center;
+ background-attachment:fixed; color:var(--foreground);
+}
+html[data-theme=zinc][data-material=embossed] ::selection { background:var(--primary); color:#000; }
+html[data-theme=zinc][data-material=embossed] .material-filters {
+ position:absolute; width:0; height:0; overflow:hidden; pointer-events:none;
+}
+html[data-theme=zinc][data-material=embossed] :is(h1,h2,h3,.chapter-heading h2) {
+ font-family:var(--title-font); font-weight:400; letter-spacing:-.015em;
+}
+html[data-theme=zinc][data-material=embossed] .chapter-heading h2 { font-size:25px; }
+html[data-theme=zinc][data-material=embossed] .app-view h2 { font-size:27px; }
+html[data-theme=zinc][data-material=embossed] :is(.skill-name,.term-record h3) { font-family:inherit; font-size:16px; font-weight:550; }
+/* One compact header. The active tab sits directly on the content separator. */
+html[data-theme=zinc][data-material=embossed] .app-header { border:0; }
+html[data-theme=zinc][data-material=embossed] .brand { font:600 20px/1.3 var(--title-font); letter-spacing:-.025em; }
+html[data-theme=zinc][data-material=embossed] .brand-note { font:italic 12px var(--title-font); }
+html[data-theme=zinc][data-material=embossed] .brand .brand-mark {
+ font-family:ui-sans-serif,system-ui,sans-serif; font-weight:700;
+}
+html[data-theme=zinc][data-material=embossed] .lesson-breadcrumbs .active-lesson-title { font:550 15px/1.4 var(--title-font); }
+html[data-theme=zinc][data-material=embossed] .lesson-toolbar { border:0; isolation:isolate; }
+html[data-theme=zinc][data-material=embossed] .lesson-toolbar::after {
+ content:""; position:absolute; left:0; right:0; bottom:0; height:1px;
+ background:var(--divider); pointer-events:none; z-index:0;
+}
+html[data-theme=zinc][data-material=embossed] .lesson-tools > [data-view-nav],
+html[data-theme=zinc][data-material=embossed] .lesson-tools #settings-open[data-view-nav] {
+ isolation:isolate; font:500 13px/1.4 ui-sans-serif,system-ui,sans-serif;
+ padding-inline:15px; border:0; border-radius:8px 8px 0 0; background:transparent; box-shadow:none;
+}
+html[data-theme=zinc][data-material=embossed] .lesson-tools > [data-view-nav]::before {
+ content:""; position:absolute; inset:0; border-radius:inherit; z-index:-1;
+ pointer-events:none; opacity:0;
+}
+html[data-theme=zinc][data-material=embossed] .lesson-tools > [data-view-nav]:not([aria-current=page]):hover { background:#ffffff09; }
+html[data-theme=zinc][data-material=embossed] .lesson-tools > [data-view-nav][aria-current=page],
+html[data-theme=zinc][data-material=embossed] .lesson-tools > [data-view-nav][aria-current=page]:hover {
+ background:transparent; color:#000; font-weight:700;
+}
+html[data-theme=zinc][data-material=embossed] .lesson-tools > [data-view-nav][aria-current=page]::before {
+ opacity:1; background:var(--accent-face); box-shadow:var(--accent-shadow);
+}
+html[data-theme=zinc][data-material=embossed] .brand .brand-mark,
+html[data-theme=zinc][data-material=embossed] .knowledge-card .knowledge-card-mark {
+ border-radius:7px; background:var(--accent-face); box-shadow:var(--accent-shadow); color:#000;
+}
+/* Reading controls have clear edges, comfortable touch areas and quiet states. */
+html[data-theme=zinc][data-material=embossed] :is(
+ .ui-button:not(:where([data-view-nav],.text-button,.ui-button-ghost,.ui-radio,.ui-checkbox,.choice-option,.knowledge-card-action,.timeline-jump,.unread-jump)),
+ .conversation-action,.reply-send,.chapter-navigation,.choice-select .choice-trigger,.choice-select[data-size=compact] .choice-trigger
+) {
+ border:1px solid var(--input); border-radius:var(--control-radius);
+ background:var(--control-face); background-size:auto,cover;
+ color:var(--action-foreground); box-shadow:var(--control-shadow); min-height:44px; font-weight:600;
+}
+html[data-theme=zinc][data-material=embossed] :is(
+ .ui-button:not(:where([data-view-nav],.text-button,.ui-button-ghost,.ui-radio,.ui-checkbox,.choice-option,.knowledge-card-action,.timeline-jump,.unread-jump)),
+ .conversation-action,.reply-send,.chapter-navigation,.choice-select .choice-trigger
+):hover:not(:disabled) { color:#fff; border-color:#90969f; background-image:var(--control-face); }
+html[data-theme=zinc][data-material=embossed] :is(button,a,input,textarea,select,summary):focus-visible {
+ outline:2px solid var(--ring); outline-offset:4px;
+}
+html[data-theme=zinc][data-material=embossed] .lesson-tools > [aria-current=page]:focus-visible { outline-color:#000; outline-offset:-5px; }
+html[data-theme=zinc][data-material=embossed] :is(.text-button,.view-back,.journal-back) {
+ background:none; border:0; color:var(--muted-foreground); text-decoration:none;
+}
+html[data-theme=zinc][data-material=embossed] :is(.text-button,.view-back,.journal-back):hover { color:var(--foreground); }
+/* Ordinary messages remain open; replies and tool output carry subtle depth. */
+html[data-theme=zinc][data-material=embossed] .avatar {
+ border:1px solid #8a909a60; border-radius:50%;
+ background:linear-gradient(#36393d,#1d1f22); box-shadow:inset 0 1px #ffffff09;
+}
+html[data-theme=zinc][data-material=embossed] .message.outgoing {
+ border:1px solid #0006; border-radius:22px 22px 7px 22px; padding:17px 20px;
+ background:linear-gradient(#ffffff09,#ffffff04),var(--material-surface); background-size:auto,cover;
+ box-shadow:inset 0 1px #ffffff0b,0 3px 9px #0008;
+}
+html[data-theme=zinc][data-material=embossed] :is(.message[data-speaker=tool],.message-attachment,.knowledge-request-panel,.knowledge-request-data,.knowledge-request-output) {
+ border:1px solid #686e7750; border-radius:10px; background:#12131599; box-shadow:inset 0 1px 4px #0003;
+}
+html[data-theme=zinc][data-material=embossed] .message[data-speaker=tool] { padding:16px 18px; }
+html[data-theme=zinc][data-material=embossed] .message-reaction { border:1px solid #73798150; border-radius:8px; background:#202226; }
+/* A discovery is pressed into the same material. The pigment never covers text. */
+html[data-theme=zinc][data-material=embossed] :is(.knowledge-card,.knowledge-card.discovery-card,.knowledge-card.discovery-card.is-claimed) {
+ position:relative; padding:23px 26px; border:1px solid var(--pressed-edge);
+ border-radius:var(--material-radius); background:var(--pressed-face); box-shadow:var(--pressed-shadow);
+}
+html[data-theme=zinc][data-material=embossed] .knowledge-card .knowledge-card-title {
+ font:400 24px/1.35 var(--title-font); max-width:34ch; margin:18px 0; letter-spacing:-.02em; text-align:left;
+}
+html[data-theme=zinc][data-material=embossed] .knowledge-card-byline { min-height:24px; }
+html[data-theme=zinc][data-material=embossed] .knowledge-card-badge { font:italic 12px var(--title-font); }
+html[data-theme=zinc][data-material=embossed] .knowledge-card-role { font:500 14px/1.5 ui-sans-serif,system-ui,sans-serif; }
+html[data-theme=zinc][data-material=embossed] .knowledge-card-figure > svg { filter:url(#material-pencil); }
+html[data-theme=zinc][data-material=embossed] .knowledge-card-icon { fill:none; stroke:#b2b6bd; stroke-width:1.6; }
+html[data-theme=zinc][data-material=embossed] .knowledge-icon-lines { stroke:#e0e1e4; stroke-width:2; }
+html[data-theme=zinc][data-material=embossed] .knowledge-card-wires { stroke:#989ea7; stroke-width:1.5; }
+html[data-theme=zinc][data-material=embossed] .knowledge-icon-dot { fill:var(--primary); }
+html[data-theme=zinc][data-material=embossed] .knowledge-card-footer { border:0; padding-top:26px; background:var(--divider) top left/100% 1px no-repeat; }
+html[data-theme=zinc][data-material=embossed] .knowledge-card .knowledge-card-action {
+ position:relative; isolation:isolate; padding:11px 18px; min-height:46px; border:1px solid transparent;
+ border-radius:var(--accent-radius); font-weight:750;
+}
+html[data-theme=zinc][data-material=embossed] .knowledge-card:not(.is-claimed) .knowledge-card-action,
+html[data-theme=zinc][data-material=embossed] .knowledge-card:not(.is-claimed) .knowledge-card-action:hover {
+ background:transparent; border-color:transparent; color:#000; box-shadow:none;
+}
+html[data-theme=zinc][data-material=embossed] .knowledge-card:not(.is-claimed) .knowledge-card-action::before {
+ content:""; position:absolute; inset:0; z-index:-1; pointer-events:none; border-radius:var(--accent-radius);
+ background:var(--pigment-paint); box-shadow:var(--accent-shadow);
+ mask-image:var(--pigment-mask); filter:var(--pigment-filter); opacity:1;
+}
+html[data-theme=zinc][data-material=embossed] .knowledge-card:not(.is-claimed) .knowledge-card-action:hover::before { opacity:1; }
+html[data-theme=zinc][data-material=embossed] .knowledge-card.is-claimed .knowledge-card-action {
+ border-color:var(--input); color:var(--foreground); background:var(--control-face);
+ background-size:auto,cover; box-shadow:var(--control-shadow);
+}
+html[data-theme=zinc][data-material=embossed] .knowledge-card-saved {
+ display:inline-flex; align-items:center; justify-content:center; min-height:46px;
+ color:var(--muted-foreground); font-size:13px;
+}
+/* Playback is a quiet line of conversation, without raised action buttons. */
+html[data-theme=zinc][data-material=embossed] #playback-controls {
+ justify-content:space-between; gap:8px; min-height:44px; margin:16px 0 24px;
+ color:var(--muted-foreground); font-size:12px;
+}
+html[data-theme=zinc][data-material=embossed] #playback-status { min-width:0; line-height:1.5; }
+html[data-theme=zinc][data-material=embossed] .playback-actions { display:flex; align-items:center; gap:2px; flex-shrink:0; }
+html[data-theme=zinc][data-material=embossed] #playback-controls button {
+ display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:44px; min-width:44px; padding:8px;
+ background:none; border:0; border-radius:8px; box-shadow:none; color:var(--muted-foreground); font-size:12px; font-weight:500;
+}
+html[data-theme=zinc][data-material=embossed] #playback-controls button:hover { background:#ffffff06; color:var(--foreground); }
+html[data-theme=zinc][data-material=embossed] #playback-controls svg { width:18px; height:18px; flex-shrink:0; fill:none; stroke:currentColor; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
+html[data-theme=zinc][data-material=embossed] #playback-controls .playback-play,
+html[data-theme=zinc][data-material=embossed] #playback-controls[data-paused=true] .playback-pause { display:none; }
+html[data-theme=zinc][data-material=embossed] #playback-controls[data-paused=true] .playback-play { display:block; }
+html[data-theme=zinc][data-material=embossed] #playback-controls[data-paused=true] #playback-status { color:var(--foreground); }
+html[data-theme=zinc][data-material=embossed] .typing { background:none; border-radius:0; padding:0; color:var(--muted-foreground); }
+html[data-theme=zinc][data-material=embossed] .chapter-continue { scroll-margin-block:24px; }
+/* Full-page chapter and skill views use the same spacing and selected state. */
+html[data-theme=zinc][data-material=embossed] :is(.chapter-continuation,.story-footer,.chapter-heading.new-day:not(:first-child)) {
+ border-top:0; padding-top:30px; background:var(--divider) top left/100% 1px no-repeat;
+}
+html[data-theme=zinc][data-material=embossed] .story-footer { padding-bottom:38px; }
+html[data-theme=zinc][data-material=embossed] .app-view :is(.journal-header,.dialog-heading,.term-sheet-header) {
+ border-bottom:0; padding-bottom:25px; background:var(--divider) bottom left/100% 1px no-repeat;
+}
+html[data-theme=zinc][data-material=embossed] #skills-journal .journal-header { min-height:0; padding-right:0; }
+html[data-theme=zinc][data-material=embossed] .timeline-jump,
+html[data-theme=zinc][data-material=embossed] .timeline-step.current .timeline-jump {
+ display:flex; align-items:center; gap:12px; min-height:54px; padding:14px 19px;
+ border:1px solid transparent; border-radius:var(--control-radius); background:transparent; box-shadow:none; font-weight:500;
+}
+html[data-theme=zinc][data-material=embossed] .timeline-step.current .timeline-jump {
+ border-color:var(--pressed-edge); background:var(--pressed-face); box-shadow:var(--pressed-shadow); font-weight:600;
+}
+html[data-theme=zinc][data-material=embossed] .timeline-step.current .chapter-state-icon { color:var(--primary); }
+html[data-theme=zinc][data-material=embossed] .timeline-jump:not(:disabled):not([aria-disabled=true]):hover { background:#ffffff08; }
+html[data-theme=zinc][data-material=embossed] .timeline-step.current .timeline-jump:hover { background:var(--pressed-face); }
+html[data-theme=zinc][data-material=embossed] .timeline-jump[aria-disabled=true] {
+ color:#8c9199; font-weight:400; cursor:not-allowed; background:none; box-shadow:none;
+}
+html[data-theme=zinc][data-material=embossed] .timeline-jump[aria-disabled=true] .chapter-time { display:none; }
+html[data-theme=zinc][data-material=embossed] .timeline-jump[aria-disabled=true] .chapter-state {
+ position:static; width:auto; height:auto; margin:3px 0 0; padding:0; overflow:visible; clip:auto; clip-path:none;
+ flex-basis:100%; white-space:normal; font-size:11px; line-height:1.5; color:var(--muted-foreground);
+}
+html[data-theme=zinc][data-material=embossed] #skills-journal .journal-skill { border-bottom:0; background:var(--divider) bottom left/100% 1px no-repeat; }
+html[data-theme=zinc][data-material=embossed] .skill-disclosure[open] { border-radius:var(--material-radius); background:#05060830; box-shadow:var(--pressed-shadow); }
+html[data-theme=zinc][data-material=embossed] .skill-summary { border-radius:var(--control-radius); }
+html[data-theme=zinc][data-material=embossed] .skill-summary:hover { background:#ffffff06; }
+html[data-theme=zinc][data-material=embossed] .skill-number { flex:0 0 30px; font:500 13px/1.5 ui-sans-serif,system-ui,sans-serif; text-align:center; }
+html[data-theme=zinc][data-material=embossed] .skill-disclosure[open] > .skill-summary .skill-number { color:var(--primary); }
+html[data-theme=zinc][data-material=embossed] .skill-inline-detail { padding-inline:18px; background:linear-gradient(#777e8740,#777e8740) left center/1px 100% no-repeat; }
+html[data-theme=zinc][data-material=embossed] #journal-progress-bar { height:5px; border:0; border-radius:4px; background:#40444a; }
+html[data-theme=zinc][data-material=embossed] #journal-progress-bar::-webkit-progress-bar { background:#40444a; }
+html[data-theme=zinc][data-material=embossed] #journal-progress-bar::-webkit-progress-value { background:var(--primary); border-radius:4px; }
+html[data-theme=zinc][data-material=embossed] #journal-progress-bar::-moz-progress-bar { background:var(--primary); border-radius:4px; }
+html[data-theme=zinc][data-material=embossed] :is(.settings-reset,.term-record,#skill-resources) { border-top:0; padding-top:26px; background:var(--divider) top left/100% 1px no-repeat; }
+html[data-theme=zinc][data-material=embossed] .skill-source-group { border-bottom:0; padding-bottom:20px; background:var(--divider) bottom left/100% 1px no-repeat; }
+html[data-theme=zinc][data-material=embossed] .comparison-table :is(td,th) { border-color:#50555e; }
+/* Form labels reserve their own space beside the radio, including on phones. */
+html[data-theme=zinc][data-material=embossed] :is(
+ .ui-input,.ui-textarea,.exercise-input,.participant-input-row input,.ui-native-select,
+ input[type=text],input[type=email],input[type=search],textarea,.reading-options label,.choice-list
+) {
+ border:1px solid var(--input); border-radius:var(--control-radius);
+ background:#131518; color:var(--foreground); box-shadow:inset 0 2px 4px #0005;
+}
+html[data-theme=zinc][data-material=embossed] .reading-options label { padding:15px 14px 15px 38px; background:transparent; border-color:#626974; }
+html[data-theme=zinc][data-material=embossed] .reading-options :is(.ui-radio,input[type=radio]) { left:14px; top:18px; }
+html[data-theme=zinc][data-material=embossed] #settings > label { display:block; margin:0 0 10px; }
+html[data-theme=zinc][data-material=embossed] #settings .choice-select { width:min(100%,280px); max-width:100%; }
+html[data-theme=zinc][data-material=embossed] .reading-options label:has([data-state=checked]),
+html[data-theme=zinc][data-material=embossed] .reading-options label:has(input:checked) {
+ border-color:var(--primary); background:#24262a; box-shadow:inset 0 1px #ffffff09;
+}
+html[data-theme=zinc][data-material=embossed] .choice-list { background:var(--popover); box-shadow:0 10px 24px #0008; }
+html[data-theme=zinc][data-material=embossed] .choice-option { border-radius:5px; }
+html[data-theme=zinc][data-material=embossed] .choice-option:is([data-state=checked],[data-highlighted]) { background:#3b3f45; color:var(--foreground); }
+/* Skills keep the discovery visible; the long reference material opens on demand. */
+html[data-theme=zinc][data-material=embossed] .skill-inline-detail > .knowledge-card { margin:0 0 24px; }
+html[data-theme=zinc][data-material=embossed] .skill-actions {
+ list-style:none; counter-reset:skill-action; margin:0 0 26px; padding:0;
+}
+html[data-theme=zinc][data-material=embossed] .skill-actions > li {
+ counter-increment:skill-action; position:relative; margin:16px 0; padding-left:32px;
+}
+html[data-theme=zinc][data-material=embossed] .skill-actions > li::before {
+ content:counter(skill-action,decimal-leading-zero); position:absolute; left:0; top:0;
+ font-size:11px; line-height:2.2; color:var(--muted-foreground); font-variant-numeric:tabular-nums;
+}
+html[data-theme=zinc][data-material=embossed] .skill-reading { border-top:1px solid #73798230; }
+html[data-theme=zinc][data-material=embossed] .skill-reading > summary {
+ display:flex; align-items:center; justify-content:space-between; gap:16px; min-height:48px;
+ padding:12px 0; color:var(--foreground); font-size:14px; cursor:pointer; list-style:none;
+}
+html[data-theme=zinc][data-material=embossed] .skill-reading > summary::-webkit-details-marker { display:none; }
+html[data-theme=zinc][data-material=embossed] .skill-reading > summary::after { content:'+'; flex-shrink:0; color:var(--muted-foreground); }
+html[data-theme=zinc][data-material=embossed] .skill-reading[open] > summary::after { content:'−'; }
+html[data-theme=zinc][data-material=embossed] .skill-reading-body { padding:0 0 20px; }
+html[data-theme=zinc][data-material=embossed] .skill-reading-body > :first-child { margin-top:0; }
+html[data-theme=zinc][data-material=embossed] .skill-reading-body > :last-child { margin-bottom:0; }
+html[data-theme=zinc][data-material=embossed] .term-record > .term-fragment { display:inline-flex; align-items:center; min-height:44px; margin-top:16px; }
+html[data-theme=zinc][data-material=embossed] .ui-radio { border:1px solid #989ea7; border-radius:50%; background:#121416; color:var(--foreground); }
+html[data-theme=zinc][data-material=embossed] .reading-options .ui-radio[data-state=checked] { border-color:var(--primary); color:var(--primary); }
+html[data-theme=zinc][data-material=embossed] .ui-checkbox { border:1px solid #989ea7; border-radius:4px; background:#121416; }
+html[data-theme=zinc][data-material=embossed] .ui-checkbox[data-state=checked] { background:var(--primary); border-color:var(--primary); color:#000; }
+@media(max-width:760px) {
+ html[data-theme=zinc][data-material=embossed] .brand { font-size:19px; }
+ html[data-theme=zinc][data-material=embossed] .brand-note { font-size:10px; }
+ html[data-theme=zinc][data-material=embossed] .lesson-breadcrumbs .active-lesson-title { font-size:14px; }
+ html[data-theme=zinc][data-material=embossed] .lesson-tools > [data-view-nav],
+ html[data-theme=zinc][data-material=embossed] .lesson-tools #settings-open[data-view-nav] { font-size:12px; padding-inline:12px; }
+ html[data-theme=zinc][data-material=embossed] .chapter-heading h2 { font-size:23px; }
+ html[data-theme=zinc][data-material=embossed] .app-view h2 { font-size:24px; }
+ html[data-theme=zinc][data-material=embossed] :is(.knowledge-card,.knowledge-card.discovery-card,.knowledge-card.discovery-card.is-claimed) { padding:18px 16px 20px; }
+ html[data-theme=zinc][data-material=embossed] .knowledge-card .knowledge-card-title { font-size:21px; }
+ html[data-theme=zinc][data-material=embossed] .knowledge-card-role { font-size:13px; }
+ html[data-theme=zinc][data-material=embossed] .knowledge-card-badge { margin-left:0; }
+ html[data-theme=zinc][data-material=embossed] .message.outgoing { padding:15px 17px; border-radius:20px 20px 7px 20px; }
+ html[data-theme=zinc][data-material=embossed] .timeline-jump,
+ html[data-theme=zinc][data-material=embossed] .timeline-step.current .timeline-jump { padding-inline:15px; }
+ html[data-theme=zinc][data-material=embossed] .skill-inline-detail { padding-inline:12px; margin-left:0; background:none; }
+ html[data-theme=zinc][data-material=embossed] .reading-options label { padding:38px 12px 14px; }
+ html[data-theme=zinc][data-material=embossed] .reading-options :is(.ui-radio,input[type=radio]) { left:13px; top:15px; }
+}
+@media(prefers-reduced-motion:reduce) {
+ html[data-theme=zinc][data-material=embossed] * { scroll-behavior:auto!important; }
+}
+/* Quiet material faces with a short press; no recessed wells or thick edges. */
+html[data-theme=zinc][data-material=embossed][data-clock] .clock-key.clock-key {
+ --clock-y:0px;
+ --key-face:var(--control-face); --key-text:var(--foreground); --key-border:var(--input); --key-top:#ffffff17;
+ position:relative; display:inline-flex; align-items:stretch; justify-content:center; isolation:isolate;
+ box-sizing:border-box; max-width:100%; min-width:0; min-height:0; padding:0; margin:0;
+ border:0; border-radius:10px; background:none; color:var(--key-text); box-shadow:none;
+ transform:none; transition:none; cursor:pointer; text-align:center; white-space:normal;
+ -webkit-tap-highlight-color:transparent; touch-action:pan-y;
+}
+html[data-theme=zinc][data-material=embossed][data-clock] .clock-key[data-clock-key=ivory] {
+ --key-face:var(--accent-face); --key-text:#000; --key-border:#c3beae; --key-top:#ffffff70;
+}
+html[data-theme=zinc][data-material=embossed][data-clock] .clock-key.clock-key::before,
+html[data-theme=zinc][data-material=embossed][data-clock] .clock-key.clock-key::after { content:none; }
+html[data-theme=zinc][data-material=embossed][data-clock] .clock-key > .clock-face {
+ position:relative; display:flex; align-items:center; justify-content:center; flex:1; min-width:0;
+ box-sizing:border-box; padding:12px 18px; min-height:44px; border:1px solid var(--key-border); border-radius:10px;
+ background:var(--key-face); background-size:auto,cover; color:var(--key-text);
+ transform:translateY(var(--clock-y));
+ box-shadow:inset 0 1px 0 var(--key-top),0 1px 2px #0002;
+ font:inherit; line-height:1.5; font-weight:700; transition:none; pointer-events:none;
+}
+html[data-theme=zinc][data-material=embossed][data-clock] .clock-face::before,
+html[data-theme=zinc][data-material=embossed][data-clock] .clock-face::after { content:none; }
+html[data-theme=zinc][data-material=embossed][data-clock] .clock-face > .clock-label { position:relative; z-index:1; min-width:0; }
+html[data-theme=zinc][data-material=embossed][data-clock] .clock-key:focus-visible { outline:2px solid var(--primary); outline-offset:4px; }
+html[data-theme=zinc][data-material=embossed][data-clock] .clock-key:disabled { cursor:default; opacity:.5; }
+html[data-theme=zinc][data-material=embossed][data-clock] .clock-key.clock-key--tab { border-radius:8px 8px 0 0; padding:0; }
+html[data-theme=zinc][data-material=embossed][data-clock] #settings-open.clock-key.clock-key--tab { padding:0; border:0; background:none; box-shadow:none; transform:none; }
+html[data-theme=zinc][data-material=embossed][data-clock] .clock-key.clock-key--tab > .clock-face { border-radius:8px 8px 0 0; min-height:44px; padding:10px 12px; border-color:transparent; box-shadow:none; }
+html[data-theme=zinc][data-material=embossed][data-clock] .clock-key.clock-key--tab[data-clock-key=dark] > .clock-face { background:none; border-color:transparent; box-shadow:none; color:var(--muted-foreground); }
+/* One moving tab face; the label ink follows its edges without a colour flash. */
+@property --clock-tab-x { syntax:"<length>"; inherits:true; initial-value:0px; }
+@property --clock-tab-y { syntax:"<length>"; inherits:true; initial-value:0px; }
+@property --clock-tab-width { syntax:"<length>"; inherits:true; initial-value:0px; }
+html[data-theme=zinc][data-material=embossed][data-clock] .lesson-tools[data-clock-tabs] { position:relative; }
+html[data-theme=zinc][data-material=embossed][data-clock] .clock-tab-surface {
+ position:absolute; left:var(--clock-tab-x); top:var(--clock-tab-y); width:var(--clock-tab-width); border-radius:8px 8px 0 0;
+ background:var(--accent-face); pointer-events:none; z-index:0;
+}
+html[data-theme=zinc][data-material=embossed][data-clock] [data-clock-tabs] .clock-key.clock-key--tab > .clock-face { background:none; }
+html[data-theme=zinc][data-material=embossed][data-clock] [data-clock-tabs] .clock-key--tab .clock-label {
+ --ink-start:calc(var(--clock-tab-x) - var(--clock-label-x));
+ --ink-end:calc(var(--ink-start) + var(--clock-tab-width));
+ background:linear-gradient(90deg,var(--muted-foreground) var(--ink-start),#000 var(--ink-start),#000 var(--ink-end),var(--muted-foreground) var(--ink-end));
+ background-clip:text; -webkit-background-clip:text; color:transparent;
+}
+@media(forced-colors:active) {
+ html[data-theme=zinc][data-material=embossed][data-clock] [data-clock-tabs] .clock-key--tab .clock-label { background:none; color:ButtonText; }
+ html[data-theme=zinc][data-material=embossed][data-clock] [data-clock-tabs] [aria-current=page] { outline:2px solid Highlight; outline-offset:-2px; }
+}
+html[data-theme=zinc][data-material=embossed][data-clock] .clock-key.clock-key--summary { display:flex; width:100%; text-align:left; }
+/* The animated container must not cut across the header's smaller corners. */
+html[data-theme=zinc][data-material=embossed][data-clock] .skill-disclosure[open] { border-top-left-radius:10px; border-top-right-radius:10px; }
+html[data-theme=zinc][data-material=embossed][data-clock] .clock-key.clock-key--summary > .clock-face { padding:16px 10px; }
+html[data-theme=zinc][data-material=embossed][data-clock] .clock-key.clock-key--summary .clock-label { display:flex; align-items:center; gap:18px; width:100%; }
+html[data-theme=zinc][data-material=embossed][data-clock] .clock-key.clock-key--summary .skill-summary-copy { flex:1; }
+html[data-theme=zinc][data-material=embossed][data-clock] .clock-key.clock-key--summary .skill-chevron { flex-shrink:0; }
+
+
+html[data-clock] :is(#lesson-layout,.lesson-tools,.choice-list) *,
+html[data-clock] :is(#lesson-layout,.lesson-tools,.choice-list) *::before,
+html[data-clock] :is(#lesson-layout,.lesson-tools,.choice-list) *::after,
+html[data-clock] .choice-list { transition:none!important; animation:none!important; }
+html[data-clock] .clock-press:not(.clock-key) { transform:translateY(var(--clock-y,0px)); }
+html[data-theme=zinc][data-material=embossed][data-clock] .lesson-tools > .clock-key:hover { background:none; }
+html[data-clock] details { box-sizing:border-box; }
+.motion-setting { margin:26px 0; }
+.motion-setting > label { display:block; margin-bottom:10px; }
+.motion-setting .choice-select { width:min(100%,280px); }
+@media(max-width:760px) {
+ html[data-theme=zinc][data-material=embossed][data-clock] .clock-key.clock-key--tab > .clock-face { padding-inline:7px; font-size:12px; }
+ html[data-theme=zinc][data-material=embossed][data-clock] .clock-key.clock-key--summary .clock-label { gap:10px; }
+}

@@ -1,0 +1,146 @@
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@import "tw-animate-css";
+@import "../knowledge-card.css";
+@import "./lesson-theme.css";
+@source "./";
+@custom-variant dark (&:is(.dark *));
+
+/* Zinc surfaces with a sparse yellow system accent. These names deliberately
+   avoid --muted, already used for text by the existing presentation. */
+:root {
+  --background: #101112;
+  --foreground: #eeeeef;
+  --card: #1d1f22;
+  --card-foreground: #eeeeef;
+  --popover: #1d1f22;
+  --popover-foreground: #eeeeef;
+  --primary: #e7cf65;
+  --primary-foreground: #232218;
+  --secondary: #2b2d31;
+  --secondary-foreground: #eeeeef;
+  --muted-surface: #2b2d31;
+  --muted-foreground: #a4a7ae;
+  --accent: #2b2d31;
+  --accent-foreground: #eeeeef;
+  --destructive: #e59b9b;
+  --border: #5a606a;
+  --input: #5a606a;
+  --ring: var(--primary);
+  --radius: 12px;
+  --action: #dedfe3;
+  --action-foreground: #1c1d20;
+  --action-border: #dedfe3;
+  --discovery-action: #d2b75c;
+  --discovery-action-foreground: #26251e;
+}
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted-surface);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: 7px;
+  --radius-md: 10px;
+  --radius-lg: var(--radius);
+}
+.ui-button {
+    @apply border border-input bg-transparent rounded-xl px-4 py-2.5 text-left cursor-pointer;
+    font: inherit; color: inherit; line-height: 1.45;
+  }
+  .ui-button:hover { background: #36393d; }
+  .ui-button:disabled { opacity: .65; cursor: default; }
+  .ui-button:focus-visible, .ui-input:focus-visible, .ui-textarea:focus-visible, .ui-native-select:focus-visible {
+    outline: 2px solid var(--ring); outline-offset: 4px;
+  }
+  .ui-button-ghost { border: 0; background: transparent; }
+  .ui-input, .ui-textarea, .ui-native-select { font: inherit; color: inherit; }
+/* Preserve the old combobox dimensions and palette; Radix supplies interaction,
+   keyboard handling, typeahead, focus return, scroll controls and collision. */
+.choice-select { position: relative; width: 100%; margin: 10px 0 16px; font: inherit; }
+.choice-trigger {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  width: 100%; height: auto; min-height: 48px; padding: 12px 15px;
+  border: 1px solid #596772; border-radius: 12px; background: #2a3137;
+  color: #e2e9ee; font: inherit; font-size: 14px; line-height: 1.5;
+  text-align: left; white-space: normal; cursor: pointer; box-shadow: none;
+}
+/* Compact variant keeps the reading-speed control in its existing label row. */
+.choice-select[data-size=compact] { display: inline-block; width: 194px; max-width: 100%; margin: 0; vertical-align: middle; }
+.choice-select[data-size=compact] .choice-trigger { gap: 8px; min-height: 41px; padding: 9px 12px; background: #282e34; border-color: #46515a; }
+.choice-chevron { width: 8px; height: 8px; border-right: 1.5px solid #b7c8d4; border-bottom: 1.5px solid #b7c8d4; transform: rotate(45deg) translateY(-2px); flex-shrink: 0; margin-right: 3px; }
+.choice-trigger[data-state=open] .choice-chevron { transform: rotate(225deg) translate(-2px, -2px); }
+.choice-trigger:hover { background: #313b43; border-color: #8093a1; }
+.choice-trigger[data-state=open] { border-color: #a0bdcf; box-shadow: 0 0 0 3px #a0bdcf16; }
+.choice-trigger:focus-visible { outline: 2px solid #b5d3e5; outline-offset: 3px; }
+.choice-trigger [data-slot=select-value] { display: block; min-width: 0; text-align: left; overflow-wrap: anywhere; }
+.choice-list {
+  box-sizing: border-box; width: var(--radix-select-trigger-width);
+  min-width: 0; max-width: calc(100vw - 24px);
+  max-height: min(320px, var(--radix-select-content-available-height));
+  padding: 1px; border: 1px solid #5e707e; border-radius: 14px;
+  background: var(--popover); color: var(--popover-foreground);
+  font: 14px/1.5 system-ui, sans-serif; box-shadow: 0 14px 35px #0008, 0 1px 0 #ffffff08 inset;
+  overflow: hidden; overscroll-behavior: contain;
+  transform: none; z-index: 30;
+}
+.choice-list [data-radix-select-viewport] { box-sizing: border-box; height: auto; width: 100%; min-width: 0; }
+/* Release the select's focus/pointer guard immediately on dismissal, including
+   when the system motion preference changes during the interaction. */
+.choice-list[data-state=closed] { animation: none; }
+@media (prefers-reduced-motion: reduce) { .choice-list { animation: none; } }
+.choice-option {
+  display: flex; align-items: center; min-height: 44px; padding: 10px 34px 10px 12px;
+  border-radius: 9px; cursor: pointer; font-size: 14px; line-height: 1.5;
+  min-width: 0; white-space: normal; overflow-wrap: anywhere;
+}
+.choice-option > span:last-child { min-width: 0; }
+.choice-option[data-highlighted] { background: #3b4a55; }
+.choice-option[data-state=checked] { color: #cae6f7; background: #34434e; }
+.choice-option[data-disabled] { opacity: .45; cursor: default; }
+.ui-radio-host, .ui-radio-group, .ui-radio-copy, .ui-checkbox-host { display: contents; }
+.ui-radio {
+  display: block; width: 18px; height: 18px; min-width: 18px; padding: 0;
+  margin: 4px 0 0; border: 1.5px solid #8e9296; border-radius: 50%;
+  background: transparent; color: #e6e7e9; cursor: pointer; box-shadow: none;
+}
+.ui-radio:hover { background: transparent; }
+.ui-radio [data-slot=radio-group-indicator] { display: block; position: relative; width: 100%; height: 100%; }
+.ui-radio [data-slot=radio-group-indicator] svg { position: absolute; width: 8px; height: 8px; fill: currentColor; }
+.ui-radio[data-state=checked] { border-color: #d5d7da; }
+.ui-radio:focus-visible { outline: 2px solid var(--ring); outline-offset: 4px; box-shadow: none; }
+.reading-options .ui-radio { position: absolute; left: 12px; top: 15px; width: 14px; min-width: 14px; height: 14px; margin: 0; border-width: 1px; color: #aecdc7; }
+.reading-options .ui-radio[data-state=checked] { border-color: var(--primary); color: var(--primary); }
+.reading-options .ui-radio [data-slot=radio-group-indicator] svg { width: 8px; height: 8px; }
+.reading-options label:has([data-state=checked]) { border-color: #858c96; background: #ffffff05; color: var(--foreground); }
+.reading-options label:has(.ui-radio:focus-visible) { outline: 2px solid var(--ring); outline-offset: 3px; }
+.reading-options .ui-radio:focus-visible { outline: 0; }
+.reply-choice:has([data-state=checked]) { background: #2b2d2f; color: #f1f1f2; }
+.ui-reply-separator { width: auto; height: auto; background: transparent; }
+.ui-checkbox {
+  width: 18px; min-width: 18px; height: 18px; margin-top: 5px; padding: 0;
+  border: 1px solid var(--input); border-radius: 3px; background: transparent; box-shadow: none;
+}
+.ui-checkbox[data-state=checked] { background: var(--primary); color: var(--primary-foreground); border-color: var(--primary); }
+.ui-checkbox:focus-visible { outline: 2px solid var(--ring); outline-offset: 4px; }
+.ui-checkbox svg { display: block; }
+@media(max-width:760px) {
+  .reading-options .ui-radio { top: 13px; left: 11px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  [data-slot] { animation: none !important; transition: none !important; }
+}

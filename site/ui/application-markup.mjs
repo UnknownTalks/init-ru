@@ -1,0 +1,8 @@
+export function preferencesHead(){
+ return `<script>(()=>{let p={};try{p=JSON.parse(localStorage.getItem('unknowntalks:interface:v1')||'{}')}catch{}const s=[100,110,125,150,200].includes(p?.scale)?p.scale:100,r=document.documentElement,w=innerWidth/(s/100);r.style.zoom=s/100;r.dataset.interfaceScale=s;r.dataset.agentEnabled=p?.agentEnabled!==false;r.dataset.uiLayout=w<=760?'phone':w<=1100?'tablet':'desktop';r.dataset.uiDensity=w<280?'narrow':'normal'})()</script>`;
+}
+export function renderPreferences(){
+ return `<section class="interface-settings" aria-labelledby="interface-title"><h3 id="interface-title">Интерфейс</h3>
+ <fieldset class="interface-scale"><legend>Масштаб интерфейса</legend><p>Увеличить текст, кнопки и остальные элементы на всех страницах.</p><div class="interface-scale-options" role="group" aria-label="Масштаб интерфейса">${[100,110,125,150,200].map(n=>`<button type="button" data-interface-scale="${n}" aria-pressed="${n===100}">${n}%</button>`).join('')}</div></fieldset>
+ <label class="interface-agent-toggle" for="agent-enabled"><input id="agent-enabled" type="checkbox" checked><span><strong>ИИ-агент</strong><small>Чаты и вопросы по сообщениям. При выключении переписки сохраняются.</small></span></label><p id="interface-status" class="small muted" role="status"></p></section>`;
+}

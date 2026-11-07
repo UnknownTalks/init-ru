@@ -3,3 +3,12 @@
 node_modules/
 public/
 .obsidian/
+authoring/
+.local-reviews/
+agent-review.json
+comments.json
+LEARNING_FORMULA.md
+AUTHORING_PLAYBOOK.md
+RESEARCH_FOUNDATIONS.md
+QUALITY_GATES.md
+site/review*

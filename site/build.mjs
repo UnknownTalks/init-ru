@@ -1,3 +1,4 @@
+import { buildUI } from './ui/build.mjs';
 import { cp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
@@ -6,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { renderLesson } from "./render-lesson.mjs";
 import { renderAgentView } from "./render-agent.mjs";
 import { renderGlossary } from "./render-glossary.mjs";
+import { renderHome } from './render-home.mjs';
 
 // Lesson sources live in the repository; generated pages and build dependencies stay in ignored directories.
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -77,9 +79,12 @@ const allowed = new Set([
   ".mp4",
 ]);
 const toWebPath = (name) => name.replace(/(^|\/)README\.md$/g, "$1index.md");
+// Only these finished materials are inputs to the site build.
+const publishedEntries = new Set(["README.md", "glossary.json", "01-foundations", "02-solutions", "03-practice"]);
 async function stage(source, destination) {
   await mkdir(destination, { recursive: true });
   for (const entry of await readdir(source, { withFileTypes: true })) {
+    if (source === root && !publishedEntries.has(entry.name)) continue;
     if (
       entry.name.startsWith(".") ||
       entry.name === "site" ||
@@ -99,7 +104,7 @@ async function stage(source, destination) {
       const markdown = (await readFile(from, "utf8")).replace(
         /\]\(([^\s)]*)README\.md([#?][^)]*)?\)/g,
         "]($1index.md$2)",
-      );
+      ).replace(/\]\(((?:\.\.\/)*)LICENSE\)/g, "]($1license.txt)");
       await writeFile(to, markdown);
     } else {
       await cp(from, to);
@@ -121,6 +126,7 @@ run(process.execPath, args);
 // work from local files and from GitHub Pages.
 async function copyDemos(source, relative = "") {
   for (const entry of await readdir(source, { withFileTypes: true })) {
+    if (source === root && !publishedEntries.has(entry.name)) continue;
     if (
       !entry.isDirectory() ||
       entry.name.startsWith(".") ||
@@ -160,13 +166,12 @@ await cp(
   path.join(root, "site/lesson.css"),
   path.join(root, "public/static/lesson.css"),
 );
-await cp(
-  path.join(root, "site/lesson.js"),
-  path.join(root, "public/static/lesson.js"),
-);
+await buildUI(root);
 await renderLesson(root);
 await renderAgentView(root);
 await renderGlossary(root);
+await renderHome(root);
+await cp(path.join(root, "LICENSE"), path.join(root, "public/license.txt"));
 await cp(
   path.join(cache, "LICENSE.txt"),
   path.join(root, "public/static/quartz-license.txt"),

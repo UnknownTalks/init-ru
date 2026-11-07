@@ -1,0 +1,115 @@
+/* Selected Zinc palette applied to lesson components and shadcn controls. */
+html[data-theme=zinc] {
+ --bg:var(--background); --text:var(--foreground); --muted:var(--muted-foreground);
+ --line:var(--border); --panel:var(--card); --system-accent:var(--primary);
+ --system-edge:var(--border); --system-muted:var(--muted-foreground);
+ --knowledge-bg:var(--background); --knowledge-panel:var(--secondary);
+ --knowledge-border:var(--border); --knowledge-text:var(--foreground); --knowledge-muted:var(--muted-foreground);
+}
+html[data-theme=zinc] body { background:var(--background); color:var(--foreground); }
+html[data-theme=zinc] .brand .brand-mark { background:var(--primary); color:var(--primary-foreground); }
+html[data-theme=zinc] .brand-note, html[data-theme=zinc] .course-crumb, html[data-theme=zinc] #lesson-location, html[data-theme=zinc] .episode-meta, html[data-theme=zinc] .message time, html[data-theme=zinc] .chapter-time { color:var(--muted-foreground); }
+html[data-theme=zinc] .lesson-breadcrumbs .active-lesson-title, html[data-theme=zinc] .chapter-heading, html[data-theme=zinc] .message, html[data-theme=zinc] h2, html[data-theme=zinc] h3, html[data-theme=zinc] h4 { color:var(--foreground); }
+html[data-theme=zinc] .lesson-toolbar { background:var(--background); border-bottom-color:var(--border); }
+html[data-theme=zinc] .lesson-tools > a, html[data-theme=zinc] .lesson-tools > button { color:var(--muted-foreground); }
+html[data-theme=zinc] .lesson-tools > :hover { background:var(--secondary); color:var(--foreground); }
+html[data-theme=zinc] .lesson-tools > [aria-current=page] { background:var(--secondary); color:var(--foreground); box-shadow:inset 0 -2px var(--primary); }
+html[data-theme=zinc] .message.outgoing { background:var(--secondary); color:var(--foreground); }
+html[data-theme=zinc] .message[data-speaker=tool] { background:color-mix(in srgb,var(--secondary) 60%,var(--background)); border-color:var(--input); }
+html[data-theme=zinc] .tone-lead { --name:color-mix(in srgb,var(--foreground) 78%,#6389c2); }
+html[data-theme=zinc] .tone-data { --name:color-mix(in srgb,var(--foreground) 78%,#57936b); }
+html[data-theme=zinc] .tone-models { --name:color-mix(in srgb,var(--foreground) 78%,#9270b2); }
+html[data-theme=zinc] .tone-quality { --name:color-mix(in srgb,var(--foreground) 78%,#b78a4b); }
+html[data-theme=zinc] .tone-agents { --name:color-mix(in srgb,var(--foreground) 78%,#55939e); }
+html[data-theme=zinc] .tone-agent { --name:color-mix(in srgb,var(--foreground) 78%,#59976b); }
+html[data-theme=zinc] .tone-neutral, html[data-theme=zinc] .tone-system, html[data-theme=zinc] .message.outgoing { --name:var(--foreground); }
+html[data-theme=zinc] .avatar { background:var(--secondary); color:var(--name); }
+html[data-theme=zinc] .message-reaction { background:var(--secondary); color:var(--foreground); }
+html[data-theme=zinc] .knowledge-card, html[data-theme=zinc] .knowledge-card.discovery-card, html[data-theme=zinc] .knowledge-card.discovery-card.is-claimed { background:var(--card); color:var(--card-foreground); border-color:var(--border); border-radius:var(--radius); }
+html[data-theme=zinc] .knowledge-card .knowledge-card-title, html[data-theme=zinc] .knowledge-card .knowledge-card-description, html[data-theme=zinc] .knowledge-card .knowledge-card-situation, html[data-theme=zinc] .knowledge-card .knowledge-card-role { color:var(--card-foreground); }
+html[data-theme=zinc] .knowledge-card .knowledge-card-byline, html[data-theme=zinc] .knowledge-card .knowledge-card-badge, html[data-theme=zinc] .knowledge-card-captions small { color:var(--muted-foreground); }
+html[data-theme=zinc] .knowledge-card .knowledge-card-mark { background:var(--primary); color:var(--primary-foreground); }
+html[data-theme=zinc] .knowledge-card-icon { fill:var(--secondary); stroke:var(--muted-foreground); color:var(--foreground); }
+html[data-theme=zinc] .knowledge-card-wires { stroke:var(--muted-foreground); }
+html[data-theme=zinc] .knowledge-icon-warning { stroke:var(--muted-foreground); }
+html[data-theme=zinc] .knowledge-card-footer { border-top-color:var(--border); }
+html[data-theme=zinc] .ui-button { color:var(--foreground); border-color:var(--input); }
+html[data-theme=zinc] .ui-button:hover { background:var(--secondary); }
+html[data-theme=zinc] .knowledge-card .knowledge-card-action, html[data-theme=zinc] .conversation-action, html[data-theme=zinc] .reply-send { background:var(--action); color:var(--action-foreground); border-color:var(--action-border); font-weight:700; }
+html[data-theme=zinc] .knowledge-card .knowledge-card-action:hover, html[data-theme=zinc] .conversation-action:hover, html[data-theme=zinc] .reply-send:hover { background:color-mix(in srgb,var(--action) 90%,var(--action-foreground)); border-color:var(--muted-foreground); }
+html[data-theme=zinc] .knowledge-card.is-claimed .knowledge-card-action { background:transparent; border-color:var(--input); color:var(--foreground); }
+html[data-theme=zinc] .knowledge-request-panel, html[data-theme=zinc] .knowledge-request-data, html[data-theme=zinc] .knowledge-request-output { background:var(--secondary); border-color:var(--border); }
+html[data-theme=zinc] .knowledge-card .knowledge-request-panel :is(h4,h5,p,blockquote), html[data-theme=zinc] .knowledge-request-model p, html[data-theme=zinc] .knowledge-request-source { color:var(--foreground); }
+html[data-theme=zinc] .knowledge-request-arrow, html[data-theme=zinc] .knowledge-request-plus { color:var(--muted-foreground); }
+html[data-theme=zinc] :is(button,a,input,select,summary):focus-visible { outline-color:var(--ring); }
+html[data-theme=zinc] .ui-input, html[data-theme=zinc] .exercise-input, html[data-theme=zinc] .ui-textarea, html[data-theme=zinc] .participant-input-row input, html[data-theme=zinc] .choice-trigger { background:var(--secondary); color:var(--foreground); border-color:var(--input); }
+html[data-theme=zinc] .choice-list { background:var(--popover); color:var(--popover-foreground); border-color:var(--border); }
+html[data-theme=zinc] .choice-option[data-state=checked], html[data-theme=zinc] .choice-option[data-highlighted] { background:var(--secondary); color:var(--foreground); }
+html[data-theme=zinc] .ui-radio { border-color:var(--muted-foreground); color:var(--foreground); }
+html[data-theme=zinc] .reading-options .ui-radio[data-state=checked] { color:var(--foreground); border-color:var(--foreground); }
+html[data-theme=zinc] .reading-options label { background:transparent; border-color:var(--border); color:var(--foreground); }
+html[data-theme=zinc] .reading-options label:has([data-state=checked]), html[data-theme=zinc] .reading-options label:has(input:checked) { border-color:var(--muted-foreground); background:var(--secondary); color:var(--foreground); }
+html[data-theme=zinc] .reading-options label:has(.ui-radio:focus-visible) { outline-color:var(--ring); }
+html[data-theme=zinc] .timeline-step.current .timeline-jump { background:var(--secondary); color:var(--foreground); box-shadow:inset 2px 0 var(--primary); }
+html[data-theme=zinc] .timeline-step.done .timeline-jump, html[data-theme=zinc] .timeline-jump { color:var(--foreground); }
+html[data-theme=zinc] .timeline-jump:disabled { color:var(--muted-foreground); }
+html[data-theme=zinc] :is(.chapter-state-icon,.timeline-jump .chapter-state-icon) { color:var(--muted-foreground); }
+html[data-theme=zinc] #skills-journal, html[data-theme=zinc] #term-detail { --knowledge-bg:var(--background); --knowledge-border:var(--border); --knowledge-text:var(--foreground); --knowledge-muted:var(--muted-foreground); --system-muted:var(--muted-foreground); --system-accent:var(--primary); color:var(--foreground); }
+html[data-theme=zinc] .skill-name, html[data-theme=zinc] .term-record h3 { color:var(--foreground); }
+html[data-theme=zinc] :is(.skill-ability,.skill-number,.skill-chevron,.skill-progress,.journal-caption,.term-section-label,.term-record h4,.term-record-number,.skill-inline-detail .term-fragment,.view-back,.journal-back,.skill-sources a,#skill-resources-jump) { color:var(--muted-foreground); }
+html[data-theme=zinc] .skill-summary:hover { background:var(--secondary); }
+html[data-theme=zinc] .skill-disclosure[open] > .skill-summary .skill-number { color:var(--foreground); }
+html[data-theme=zinc] .skill-inline-detail { color:var(--foreground); }
+html[data-theme=zinc] .app-view :is(.journal-header,.dialog-heading,.term-sheet-header) { border-bottom-color:var(--border); }
+html[data-theme=zinc] :is(.story-footer,.chapter-continuation,#skill-resources,.skill-source-group,.term-record) { border-color:var(--border); }
+html[data-theme=zinc] .chapter-heading.new-day { border-color:var(--border); }
+html[data-theme=zinc] .message-attachment { border-color:var(--border); background:var(--card); color:var(--foreground); }
+html[data-theme=zinc] .comparison-table :is(td,th) { border-color:var(--border); background:transparent; color:var(--foreground); }
+html[data-theme=zinc] .choice-select[data-size=compact] .choice-trigger { background:var(--secondary); color:var(--foreground); border-color:var(--input); }
+html[data-theme=zinc] .choice-trigger:hover, html[data-theme=zinc] .choice-select[data-size=compact] .choice-trigger:hover { background:color-mix(in srgb,var(--secondary) 90%,var(--foreground)); border-color:var(--muted-foreground); }
+html[data-theme=zinc] .choice-trigger[data-state=open] { box-shadow:none; border-color:var(--muted-foreground); }
+html[data-theme=zinc] .choice-chevron { border-color:var(--muted-foreground); }
+html[data-theme=zinc] .choice-trigger:focus-visible { outline-color:var(--ring); }
+/* A discovery action may have its own accent without colouring navigation. */
+html[data-theme=zinc] .knowledge-card:not(.is-claimed) .knowledge-card-action { background:var(--discovery-action,var(--action)); border-color:var(--discovery-action,var(--action-border)); color:var(--discovery-action-foreground,var(--action-foreground)); }
+html[data-theme=zinc] .knowledge-card:not(.is-claimed) .knowledge-card-action:hover { background:color-mix(in srgb,var(--discovery-action,var(--action)) 90%,var(--discovery-action-foreground,var(--action-foreground))); }
+
+/* Lesson routes read as attached tabs; the current tab meets the content rule. */
+html[data-theme=zinc] .lesson-toolbar .page-container {
+  min-height: 56px; padding-block: 0; align-items: stretch; gap: 16px;
+}
+html[data-theme=zinc] .lesson-breadcrumbs { align-self: center; padding-block: 8px; }
+html[data-theme=zinc] .lesson-tools {
+  align-self: stretch; align-items: stretch; justify-content: flex-start;
+  flex-wrap: wrap; gap: 0 3px; margin: 0; padding-top: 8px;
+}
+html[data-theme=zinc] .lesson-tools > [data-view-nav] {
+  position: relative; display: inline-flex; align-items: center; justify-content: center;
+  min-height: 44px; margin-bottom: -1px; padding: 10px 12px;
+  border: 1px solid transparent; border-bottom: 0; border-radius: 8px 8px 0 0;
+  color: var(--muted-foreground); background: transparent; box-shadow: none;
+  font-size: 12px; line-height: 1.4; font-weight: 500; text-decoration: none;
+}
+html[data-theme=zinc] .lesson-tools > [data-view-nav]:hover { background: var(--secondary); color: var(--foreground); }
+html[data-theme=zinc] .lesson-tools > [data-view-nav][aria-current=page],
+html[data-theme=zinc] .lesson-tools > [data-view-nav][aria-current=page]:hover {
+  z-index: 1; border-color: var(--primary); background: var(--primary);
+  color: #000; font-weight: 650; box-shadow: none;
+}
+html[data-theme=zinc] .lesson-tools > [data-view-nav]:focus-visible { outline-offset: -4px; }
+html[data-theme=zinc] .lesson-tools > [data-view-nav][aria-current=page]:focus-visible { outline-color: #000; }
+html[data-theme=zinc] body[data-app-view=read] .lesson-tools > [data-view-nav=read] { display: inline-flex; }
+html[data-theme=zinc] #jump.unread-jump {
+  order: -1; flex: 1 0 100%; width: 100%; min-height: 28px; margin: 0 0 4px;
+  padding: 3px 0; justify-content: flex-end; border: 0; background: transparent;
+  color: var(--foreground); box-shadow: none; border-radius: 0;
+}
+@media (max-width: 1199px) {
+  html[data-theme=zinc] .lesson-toolbar .page-container { flex-wrap: wrap; gap: 0; padding-block: 0; }
+  html[data-theme=zinc] .lesson-breadcrumbs { flex-basis: 100%; min-height: 38px; padding-block: 6px; }
+  html[data-theme=zinc] .lesson-tools { width: 100%; padding-top: 4px; margin: 0; }
+}
+@media (max-width: 760px) {
+  html[data-theme=zinc] .lesson-tools > [data-view-nav] { min-height: 44px; padding: 10px; font-size: 11px; }
+  html[data-theme=zinc] #settings-open[data-view-nav] { padding: 10px; font-size: 11px; }
+}

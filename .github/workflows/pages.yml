@@ -1,8 +1,6 @@
 name: Publish learning materials
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -28,12 +26,13 @@ jobs:
         with:
           path: .cache/quartz
           key: quartz-${{ runner.os }}-${{ hashFiles('site/quartz-revision.txt') }}
+      - run: npm ci --no-audit --no-fund
       - name: Build learning site
         run: node site/build.mjs
       - name: Check material links and generated pages
-        run: node site/check.mjs
-      - name: Check local review storage and isolation
-        run: node --test site/review.test.mjs
+        run: npm run check
+      - name: Check learning behavior
+        run: npm test
       - uses: actions/upload-pages-artifact@v3
         with:
           path: public

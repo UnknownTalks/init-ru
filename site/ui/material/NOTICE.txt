@@ -1,0 +1,8 @@
+UnknownTalks material theme
+
+black-matte.webp and ochre-pigment.webp are original material samples generated
+with imagegen for UnknownTalks. They contain no third-party photographs or
+illustrations. The WebP files preserve visible colour and transparency losslessly.
+
+These materials form part of the lesson presentation and are subject to the
+UnknownTalks licence supplied with this course.

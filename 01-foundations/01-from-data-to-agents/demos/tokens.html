@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Текст становится токенами · UnknownTalks</title>
+    <title>Текст становится токенами · UnknownHero</title>
     <style>
       :root {
         color-scheme: dark;
@@ -50,12 +50,23 @@
         margin: 25px 0;
       }
       .piece {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
         white-space: pre;
         font-size: 24px;
         padding: 12px 9px;
         border: 1px solid var(--color);
         border-radius: 8px;
         background: #1c2938;
+      }
+      .piece small {
+        font-size: 13px;
+        color: #c3cedb;
+      }
+      #token-ids {
+        overflow-wrap: anywhere;
+        font-family: ui-monospace, monospace;
       }
       button {
         color: #d6f7eb;
@@ -92,25 +103,37 @@
   </head>
   <body>
     <main>
-      <a href="../story.html#tokens">← К истории Саши</a>
-      <h1>У текста есть границы токенов</h1>
+      <a href="../story.html#tokens">← К вашей истории</a>
+      <h1>От текста к последовательности ID</h1>
+      <p class="note">Вычисление в браузере · без вызова языковой модели</p>
+      <p class="note">На чтение и два изменения фразы можно отвести ~3 минуты. Это предварительная оценка, не ограничение времени.</p>
       <p>
-        Измените фразу. Настоящий токенизатор разобьёт её на элементы своего
-        словаря. Пробел показан знаком ␠.
+        Замените точку восклицательным знаком или придумайте название наушников.
+        До изменения попробуйте предсказать, что сохранится. Токенизатор каждый
+        раз вычисляет части и их номера по прежним правилам и словарю; он не
+        обучается на введённой фразе. Пробел показан знаком ␠.
       </p>
       <label for="input">Фраза</label
-      ><textarea id="input">Нужны наушники для звонков.</textarea>
+      ><textarea id="input" maxlength="300" aria-describedby="input-note">Проверьте микрофон.</textarea>
+      <p class="note" id="input-note">До 300 знаков. Текст остаётся в браузере.</p>
       <div>
-        <button data-text="Нужны наушники для звонков.">Просьба Саши</button
-        ><button data-text="Проверьте микрофон.">Продолжение ответа</button>
+        <button data-text="Нужны наушники для звонков.">Ваша просьба</button
+        ><button data-text="Проверьте микрофон.">Пример из истории</button
+        ><button data-text="Проверьте Ауролис.">Выдуманное название</button>
       </div>
       <div id="tokens" aria-live="polite"></div>
+      <h2>Последовательность номеров</h2>
+      <p id="token-ids"></p>
       <p class="note">
         Токен не обязан совпадать со словом. Порядок элементов сохраняется.
         Границы зависят от словаря и правил токенизатора.
       </p>
       <h2>Восстановленный текст</h2>
       <p id="reconstructed"></p>
+      <p>Восстановленная строка показывает, что написание сохранилось.
+        Она не доказывает, что модель знает названный предмет. В языковой модели
+        эти ID выбрали бы строки таблицы представлений — здесь этот следующий
+        шаг не выполняется.</p>
       <p id="error" hidden></p>
       <details>
         <summary>＋ Как проверено</summary>
@@ -127,6 +150,6 @@
     </main>
     <script src="tokenizers.js"></script>
     <script src="qwen-tokenizer.js"></script>
-    <script src="tokens.js?v=headphones-story"></script>
+    <script src="tokens.js?v=ids-and-reconstruction"></script>
   </body>
 </html>

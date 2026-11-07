@@ -35,12 +35,17 @@
         const piece = document.createElement("span");
         piece.className = "piece";
         piece.style.setProperty("--color", colors[index % colors.length]);
-        piece.textContent = tokenizer
+        const fragment = document.createElement("span");
+        fragment.textContent = tokenizer
           .decode([id], { skip_special_tokens: false })
           .replaceAll(" ", "␠")
           .replaceAll("\n", "↵");
+        const identifier = document.createElement("small");
+        identifier.textContent = "ID " + id;
+        piece.append(fragment, identifier);
         output.append(piece);
       }
+      document.getElementById("token-ids").textContent = "[" + result.ids.join(", ") + "]";
       document.getElementById("reconstructed").textContent = tokenizer.decode(
         result.ids,
         { skip_special_tokens: false },

@@ -1,4 +1,4 @@
-UnknownTalks token demonstration
+UnknownHero token demonstration
 
 Tokenizer data: Qwen/Qwen2.5-0.5B
 Revision: 060db6499f32faf8b98477b0a26969ef7d8b9987
