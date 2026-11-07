@@ -1,5 +1,5 @@
 // UnknownTalks watch: the selected case and engraved gear geometry.
-function gear(radius,teeth,prefix,spokes=4,relief=false){
+export function gear(radius,teeth,prefix,spokes=4,relief=false){
  const points=[];
  for(let tooth=0;tooth<teeth;tooth++)for(const [part,r] of [[0,radius-3],[.18,radius-3],[.28,radius+1.8],[.7,radius+1.8],[.8,radius-3]]){
   const a=(tooth+part)*Math.PI*2/teeth;points.push(`${(Math.cos(a)*r).toFixed(2)},${(Math.sin(a)*r).toFixed(2)}`);

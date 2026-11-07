@@ -1,3 +1,4 @@
+import {viewportRect} from './ui/viewport.js';
 import { validAnswer, correctAnswer, answerText, solutionText, exerciseForm } from "./exercise.mjs";
 import { createDiscoverySystem } from "./discovery.js";
 import { enhanceSelects, refreshControls } from './select.js';
@@ -198,7 +199,7 @@ import { freshExam, nextForm, formQuestions, isComplete, outcomeResult, compatib
       // Message feedback never builds a delayed animation backlog or hides
       // unread text. Old and off-screen entrances simply remain readable.
       options = { ...options, valid: () => {
-        const box = element.getBoundingClientRect();
+        const box = viewportRect(element);
         return element.isConnected && performance.now() - arrival < 300 &&
           (!appViews || appViews.isReading()) && box.bottom > 0 && box.top < innerHeight;
       } };
@@ -458,7 +459,7 @@ import { freshExam, nextForm, formQuestions, isComplete, outcomeResult, compatib
   const measurementKey = "unknowntalks:init-ru:learning-time:v1:original";
   function visibleInViewport(node) {
     if (!node || !node.getClientRects().length) return false;
-    const r = node.getBoundingClientRect();
+    const r = viewportRect(node);
     return r.bottom > 0 && r.top < innerHeight;
   }
   function measurementContext() {
@@ -466,7 +467,7 @@ import { freshExam, nextForm, formQuestions, isComplete, outcomeResult, compatib
     let mode = dialog ? "navigation" : "reading";
     if (!dialog && [...document.querySelectorAll(".quiz-options")].some(visibleInViewport)) mode = "response";
     else if (!dialog && [...document.querySelectorAll(".assessment-review[open], .answer-feedback, .forwards, .quiz-body .message")].some(visibleInViewport)) mode = "review";
-    const conversation = document.querySelector(".conversation").getBoundingClientRect();
+    const conversation = viewportRect(document.querySelector(".conversation"));
     const centre = document.elementFromPoint(Math.max(0, Math.min(innerWidth - 1, conversation.left + conversation.width / 2)), innerHeight / 2);
     return { visible: !document.hidden, focused: document.hasFocus(), mode,
       section: state.activeView || "opening",
@@ -583,7 +584,7 @@ import { freshExam, nextForm, formQuestions, isComplete, outcomeResult, compatib
     addEventListener("pagehide", () => { measureTick(); persistMeasurement(); });
   }
 
-  const readingTop = () => Math.max(20, document.querySelector('.lesson-toolbar').getBoundingClientRect().height + 16 * interfaceScale());
+  const readingTop = () => Math.max(20, viewportRect(document.querySelector('.lesson-toolbar')).height + 16 * interfaceScale());
   const encounterObserver = new IntersectionObserver(
     (entries) => {
       let changed = false;
@@ -887,21 +888,21 @@ import { freshExam, nextForm, formQuestions, isComplete, outcomeResult, compatib
     if (agentContextOpen || appViews && !appViews.isReading() || transitioning || !state.participantName || participantEditing) return;
     const container = state.activeView === "intro" ? $("participant-chat") : state.activeView === "final-check" ? $("final-check") : groupNodes.get(state.activeView);
     const anchor = container && [...container.querySelectorAll("[id]")].find((node) => {
-      const r = node.getBoundingClientRect(); return r.height && r.bottom > readingTop() && r.top < innerHeight;
+      const r = viewportRect(node); return r.height && r.bottom > readingTop() && r.top < innerHeight;
     });
-    state.positions[state.activeView] = { y: scrollY, anchor: anchor?.id, offset: anchor?.getBoundingClientRect().top };
+    state.positions[state.activeView] = { y: scrollY, anchor: anchor?.id, offset: (anchor?viewportRect(anchor).top:undefined) };
   }
   function restorePosition(view, target = null) {
     const position = state.positions[view];
     if (target) {
       const node = document.getElementById(target);
       if (node?.getClientRects().length) {
-        window.scrollTo({ top: scrollY + node.getBoundingClientRect().top - readingTop(), behavior: "instant" }); return;
+        window.scrollTo({ top: scrollY + viewportRect(node).top - readingTop(), behavior: "instant" }); return;
       }
     }
     const anchor = position?.anchor && document.getElementById(position.anchor);
     const top = anchor?.getClientRects().length
-      ? scrollY + anchor.getBoundingClientRect().top - position.offset : position?.y || 0;
+      ? scrollY + viewportRect(anchor).top - position.offset : position?.y || 0;
     window.scrollTo({ top: Math.max(0, top), behavior: "instant" });
   }
   async function animateFrame(keyframes, duration) {
@@ -1155,7 +1156,7 @@ import { freshExam, nextForm, formQuestions, isComplete, outcomeResult, compatib
       content.hidden = false;
       content.style.overflow = "hidden";
       content.style.height = "";
-      const height = content.getBoundingClientRect().height / interfaceScale();
+      const height = viewportRect(content).height / interfaceScale();
       content.style.height = open ? "0px" : height + "px";
       const motion = animateUI(content, open
         ? [{ height: "0px", opacity: 0 }, { height: height + "px", opacity: 1 }]
@@ -1262,7 +1263,7 @@ import { freshExam, nextForm, formQuestions, isComplete, outcomeResult, compatib
       startQuiz(c.id, c.checks, body);
     }
     if (animate && !reduced) {
-      const height = body.getBoundingClientRect().height / interfaceScale();
+      const height = viewportRect(body).height / interfaceScale();
       body.style.overflow = 'clip'; body.style.height = open ? '0px' : height + 'px';
       const animation = animateUI(body, open
         ? [{ height: '0px' }, { height: height + 'px' }]
@@ -1384,7 +1385,7 @@ import { freshExam, nextForm, formQuestions, isComplete, outcomeResult, compatib
       run: async signal => {
         if (!await motion.begin(signal) || !valid()) return;
         started = true;
-        const box = target.getBoundingClientRect();
+        const box = viewportRect(target);
         if (box.bottom <= innerHeight - 24 && box.top >= readingTop()) return;
         await new Promise(resolve => {
           const done = () => { clearTimeout(timeout); document.removeEventListener('scrollend', done); signal.removeEventListener('abort', stop); resolve(); };
@@ -1421,11 +1422,11 @@ import { freshExam, nextForm, formQuestions, isComplete, outcomeResult, compatib
       "#participant-chat .message, #messages .message, #messages .chapter-heading, #messages .visual, .quiz-body > .message",
     );
     const anchor = [...candidates].find((node) => {
-      const r = node.getBoundingClientRect();
+      const r = viewportRect(node);
       return r.height && r.bottom > readingTop() && r.top < innerHeight - 60;
     });
     const y = scrollY,
-      top = anchor?.getBoundingClientRect().top;
+      top = (anchor?viewportRect(anchor).top:undefined);
     // Retain reading space while a large composer is replaced by a short reply.
     // Otherwise the browser clamps scrollY to a temporarily smaller document.
 
@@ -1438,7 +1439,7 @@ import { freshExam, nextForm, formQuestions, isComplete, outcomeResult, compatib
       // scrollY during layout (including focus-related scrolling).
       const destination =
         anchor?.isConnected && anchor.getClientRects().length
-          ? scrollY + anchor.getBoundingClientRect().top - top
+          ? scrollY + viewportRect(anchor).top - top
           : y;
       if (Math.abs(scrollY - destination) > 0.5)
         window.scrollTo({ top: destination, behavior: "instant" });
@@ -1731,10 +1732,10 @@ import { freshExam, nextForm, formQuestions, isComplete, outcomeResult, compatib
       let target = $("final-check");
       if (revealFeedback) {
         const question = $("assessment-question"), feedback = $("assessment-feedback");
-        const fits = feedback.getBoundingClientRect().bottom - question.getBoundingClientRect().top < innerHeight - readingTop();
+        const fits = viewportRect(feedback).bottom - viewportRect(question).top < innerHeight - readingTop();
         target = fits ? question : body.querySelector('[data-speaker="learner"]');
       }
-      window.scrollTo({ top: Math.max(0, scrollY + target.getBoundingClientRect().top - readingTop()), behavior: "instant" });
+      window.scrollTo({ top: Math.max(0, scrollY + viewportRect(target).top - readingTop()), behavior: "instant" });
       delete state.positions["final-check"];
     }
     animation?.cancel();

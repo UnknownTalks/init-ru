@@ -1,3 +1,4 @@
+import { initMobileNavigation } from './mobile-navigation.js';
 import { createMotion } from './motion.js';
 import { initClockKeys } from './clock-keys.js';
 import { initClockLayout } from './clock-layout.js';
@@ -8,6 +9,7 @@ export function initTactile() {
  root.dataset.clock='';
  const setting=document.querySelector('.motion-setting');if(setting)setting.hidden=false;
  const motion=createMotion();
+ initMobileNavigation();
  initClockKeys(motion);
  return Object.assign(motion,initClockLayout(motion));
 }

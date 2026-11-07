@@ -1,3 +1,4 @@
+import {renderMobileNavigation} from './ui/mobile-navigation-markup.mjs';
 import {readFile,writeFile} from 'node:fs/promises';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
@@ -11,7 +12,7 @@ export async function renderHome(root){
  const revision=hash.digest('hex').slice(0,12),lesson='01-foundations/01-from-data-to-agents/chat.html';
  const config={storageKey:'unknowntalks:init-ru:messenger:v4'+(story.storageId?':'+story.storageId:''),chapters:story.chapterGroups.map(g=>({id:g.id,title:g.title}))};
  const html=`<!doctype html><html lang="ru" data-theme="zinc" data-material="embossed" data-accent="ivory" data-tactile><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#101112"><title>UnknownTalks — уроки о моделях и агентах</title>${preferencesHead({home:true,revision})}${['ui','lesson','embossed','mechanism','application'].map(name=>`<link rel="stylesheet" href="static/${name}.css?v=${revision}">`).join('')}<script type="module" blocking="render" src="static/home.js?v=${revision}"></script></head>
- <body class="home-page"><section class="lesson-toolbar home-toolbar" aria-label="UnknownTalks"><div class="page-container"><nav class="lesson-breadcrumbs" aria-label="Вы здесь"><span class="lesson-product-path"><a class="product-crumb" href="./">UnknownTalks</a></span></nav>${renderMechanismButton()}<nav class="lesson-tools" aria-label="Навигация">${renderViewTab({name:'read',label:'Уроки',read:true})}${renderViewTab({name:'settings',label:'Настройки'})}</nav></div></section>
+ <body class="home-page"><section class="lesson-toolbar home-toolbar" aria-label="UnknownTalks"><div class="page-container"><nav class="lesson-breadcrumbs" aria-label="Вы здесь"><span class="lesson-product-path"><a class="product-crumb" href="./">UnknownTalks</a></span></nav>${renderMechanismButton()}<nav class="lesson-tools" aria-label="Навигация">${renderViewTab({name:'read',label:'Уроки',read:true})}${renderViewTab({name:'settings',label:'Настройки'})}</nav></div></section>${renderMobileNavigation()}
  <main id="lesson-layout" data-view="read"><section id="lesson-reader" class="home-reader" aria-labelledby="home-title">
  <header class="home-intro"><p class="home-kicker">Истории о технологиях</p><h1 id="home-title">Понимать модели.<br>Работать с агентами.</h1><p class="home-description">Задачи, решения и объяснения — в переписке, которую вы читаете в своём темпе.</p></header>
  <section class="home-lessons" aria-labelledby="home-lessons-title"><div class="home-section-heading"><h2 id="home-lessons-title">Уроки</h2><span>Начните с основ</span></div>

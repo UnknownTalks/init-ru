@@ -1,9 +1,10 @@
+import {viewportRect} from './viewport.js';
 import {clamp} from './mechanism-profile.js';
 export function createSignatureStress(host){
  const canvas=host.querySelector('canvas'),ctx=canvas?.getContext('2d');
  let particles=[],width=0,height=0,scale=1,source={x:0,y:0},last=-Infinity,previous=0,heat=0;
  function resize(){
-  const box=host.getBoundingClientRect(),dial=host.querySelector('svg').getBoundingClientRect();
+  const box=viewportRect(host),dial=viewportRect(host.querySelector('svg'));
   width=host.clientWidth;height=host.clientHeight;
   const dpr=Math.min(2,devicePixelRatio||1);canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);ctx?.setTransform(dpr,0,0,dpr,0,0);
   // Wheel / transfer mesh contact: (174,159) in original SVG coordinates.

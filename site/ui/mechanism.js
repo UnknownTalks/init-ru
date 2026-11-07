@@ -1,3 +1,4 @@
+import {viewportRect} from './viewport.js';
 import {agentEnabled,soundMode} from './preferences.js';
 import {readWatchPose} from './mechanism-memory.js';
 import {signature as c,clamp,createWatchState,advanceWatch,watchMoving,watchAngles,agentRotation} from './mechanism-profile.js';
@@ -74,10 +75,10 @@ export function initLessonMechanism({openAgentView}){
   if(!allowed()){const target=s.target;park();s.angle=s.target=s.transmitted=s.gear=target;paint();sound.tap(source,1);return;}
   wake();
  }
- function feedback(eventKind){
+ function feedback(eventKind,source='action'){
   if(ritual||gesture||performance.now()-feedbackAt<90)return;feedbackAt=performance.now();
   const delta={transition:9,unfold:4,save:6,message:3,denied:-1.5}[eventKind]??2;
-  input(delta,'action');
+  input(delta,source);
  }
  function openAgent(){
   if(!agentEnabled()||ritual)return;
@@ -92,7 +93,7 @@ export function initLessonMechanism({openAgentView}){
  function pointerAngle(e,g){return Math.atan2(e.clientY-g.cy,e.clientX-g.cx)*180/Math.PI;}
  function begin(e){
   if(ritual||gesture||e.button!==0||!e.isPrimary)return;
-  const box=host.querySelector('svg').getBoundingClientRect();
+  const box=viewportRect(host.querySelector('svg'));
   gesture={id:e.pointerId,element:e.currentTarget,cx:box.left+box.width/2,cy:box.top+box.height/2,x:e.clientX,y:e.clientY,at:performance.now(),moved:false,base:s.angle,baseMarker:markerOffset,releaseVelocity:0};
   gesture.previous=pointerAngle(e,gesture);coast=false;s.velocity=0;s.target=s.angle;kind='watch';gesture.element.setPointerCapture(e.pointerId);wake();
  }
@@ -126,9 +127,9 @@ export function initLessonMechanism({openAgentView}){
   if(!allowed()||gesture||ritual||now>intentUntil||!delta)return;
   input(delta/radius*180/Math.PI*c.ratio,'scroll');
  },{passive:true});
- function measure(){const dial=host.querySelector('.lesson-mechanism-case');dialBox={left:dial.offsetLeft,top:dial.offsetTop,width:dial.offsetWidth,height:dial.offsetHeight};radius=host.querySelector('svg').getBoundingClientRect().width*131/320;rim.style.cssText=`left:${dialBox.left}px;top:${dialBox.top}px;width:${dialBox.width}px;height:${dialBox.height}px;`;stress.resize();lastTop=scrollY;paint();}
- document.addEventListener('mechanism:feedback',e=>feedback(e.detail.kind));
- document.addEventListener('click',e=>{if(!e.isTrusted||e.defaultPrevented||e.target.closest('[data-lesson-mechanism]'))return;if(e.target.closest('button,a,summary,input[type=checkbox],select'))feedback('transition');},true);
+ function measure(){const dial=host.querySelector('.lesson-mechanism-case');dialBox={left:dial.offsetLeft,top:dial.offsetTop,width:dial.offsetWidth,height:dial.offsetHeight};radius=viewportRect(host.querySelector('svg')).width*131/320;rim.style.cssText=`left:${dialBox.left}px;top:${dialBox.top}px;width:${dialBox.width}px;height:${dialBox.height}px;`;stress.resize();lastTop=scrollY;paint();}
+ document.addEventListener('mechanism:feedback',e=>feedback(e.detail.kind,e.detail.source));
+ document.addEventListener('click',e=>{if(!e.isTrusted||e.defaultPrevented||e.target.closest('[data-lesson-mechanism]'))return;if(e.target.closest('button,a,summary,input[type=checkbox],select'))feedback('transition',e.target.closest('.mobile-menu-open,.mobile-menu-close')?'watch':'action');},true);
  document.addEventListener('unknowntalks:view',()=>{if(ritual&&document.body.dataset.appView!=='agent'){ritual=null;park();}lastTop=scrollY;label();});
  document.addEventListener('unknowntalks:preferences',()=>{host.setAttribute('aria-disabled',String(!agentEnabled()));if(!agentEnabled()&&ritual){ritual=null;park();}measure();});
  new MutationObserver(()=>{if(!allowed())stop();}).observe(document.documentElement,{attributes:true,attributeFilter:['data-motion']});

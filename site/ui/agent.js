@@ -1,3 +1,4 @@
+import {viewportRect,viewportRangeRect} from './viewport.js';
 import {agentEnabled,interfaceScale} from './preferences.js';
 
 const storageKey='unknowntalks:agent-chats:v1';
@@ -139,11 +140,11 @@ export function initAgent({lesson=null,onSource=null,onContextChange=()=>{},moti
   }
  }
  function animateThread(open,done){
-  const from=thread.getBoundingClientRect().height/interfaceScale();
+  const from=viewportRect(thread).height/interfaceScale();
   threadMotion?.cancel();const revision=++threadRevision;threadMotion=null;
   thread.style.height='';thread.style.overflow='';thread.style.marginBottom='';
   if(!motion?.enabled()){done();return;}
-  const height=thread.getBoundingClientRect().height/interfaceScale(),margin=getComputedStyle(thread).marginBottom;
+  const height=viewportRect(thread).height/interfaceScale(),margin=getComputedStyle(thread).marginBottom;
   thread.style.height=(open?0:from)+'px';thread.style.overflow='clip';thread.style.marginBottom=open?'0px':margin;
   const collapsed={height:'0px',opacity:0,marginBottom:'0px'},expanded={height:(open?height:from)+'px',opacity:1,marginBottom:margin};
   const ticket=threadMotion=motion.frame(thread,open?[collapsed,expanded]:[expanded,collapsed],{kind:'fold'});
@@ -155,7 +156,7 @@ export function initAgent({lesson=null,onSource=null,onContextChange=()=>{},moti
   if(contextTarget)closeContext(false);
   const source=describe(message,text),previous=chatFor(message);
   if(previous){activeId=previous.id;if(text||!previous.messages.length)previous.pendingSource=source;}else makeChat(source);
-  contextTarget=message;returnOffset=message.getBoundingClientRect().top;onContextChange(true);render();hideSelection();getSelection()?.removeAllRanges();
+  contextTarget=message;returnOffset=viewportRect(message).top;onContextChange(true);render();hideSelection();getSelection()?.removeAllRanges();
   message.after(thread);thread.hidden=false;
   animateThread(true,()=>{if(contextTarget!==message)return;contextWidget.input.focus({preventScroll:true});contextWidget.input.scrollIntoView({block:'nearest',behavior:motion?.enabled()?'smooth':'instant'});});
  }
@@ -163,7 +164,7 @@ export function initAgent({lesson=null,onSource=null,onContextChange=()=>{},moti
   const target=contextTarget;if(!target)return;
   const finish=()=>{
    contextTarget=null;thread.hidden=true;document.body.append(thread);updateTriggers();
-   if(restore&&target.isConnected){scrollBy(0,target.getBoundingClientRect().top-returnOffset);target.querySelector('[data-agent-thread-toggle]')?.focus({preventScroll:true});}
+   if(restore&&target.isConnected){scrollBy(0,viewportRect(target).top-returnOffset);target.querySelector('[data-agent-thread-toggle]')?.focus({preventScroll:true});}
    onContextChange(false);
   };
   if(animate)animateThread(false,finish);
@@ -190,10 +191,10 @@ export function initAgent({lesson=null,onSource=null,onContextChange=()=>{},moti
   const first=range.anchorNode?.parentElement?.closest('.message'),last=range.focusNode?.parentElement?.closest('.message');
   if(!first||first!==last||!first.querySelector('[data-agent-thread-toggle]')){hideSelection();return;}
   const text=range.toString().trim();if(text.length<3){hideSelection();return;}
-  const rect=range.getRangeAt(0).getBoundingClientRect(),scale=interfaceScale();
-  if(rect.bottom<=(document.querySelector('.lesson-toolbar')?.getBoundingClientRect().bottom||0)||rect.top>=innerHeight){hideSelection();return;}
+  const rect=viewportRangeRect(range.getRangeAt(0)),scale=interfaceScale();
+  if(rect.bottom<=((document.querySelector('.lesson-toolbar')?viewportRect(document.querySelector('.lesson-toolbar')).bottom:0)||0)||rect.top>=innerHeight){hideSelection();return;}
   selection={message:first,text};selectionAsk.hidden=false;
-  const width=selectionAsk.offsetWidth,height=selectionAsk.offsetHeight,top=Math.min(innerHeight/scale-height-8,Math.max((document.querySelector('.lesson-toolbar')?.getBoundingClientRect().bottom||0)/scale+4,rect.bottom/scale+8));
+  const width=selectionAsk.offsetWidth,height=selectionAsk.offsetHeight,top=Math.min(innerHeight/scale-height-8,Math.max(((document.querySelector('.lesson-toolbar')?viewportRect(document.querySelector('.lesson-toolbar')).bottom:0)||0)/scale+4,rect.bottom/scale+8));
   selectionAsk.style.left=Math.max(8,Math.min(innerWidth/scale-width-8,rect.right/scale-width))+'px';selectionAsk.style.top=top+'px';
  }
  if(lesson){

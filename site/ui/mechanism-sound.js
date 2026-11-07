@@ -65,7 +65,7 @@ export function createWatchSound(getMode){
   if(suspend){epoch++;ready=false;context?.suspend().catch(()=>{});}
  }
  function gesture(event){
-  const target=event.target.closest?.('[data-lesson-mechanism]')?'watch':event.type==='wheel'?'scroll':'action';
+  const target=event.target.closest?.('[data-lesson-mechanism],.mobile-menu-open,.mobile-menu-close,.mobile-menu-heading')?'watch':event.type==='wheel'?'scroll':'action';
   if(event.isTrusted&&soundAllowed(getMode(),target))void unlock();
  }
  for(const name of ['pointerdown','touchstart','keydown'])document.addEventListener(name,gesture,{capture:true,passive:true});

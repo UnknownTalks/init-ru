@@ -1,4 +1,5 @@
 import * as React from "react"
+import { normalizeSelectReference } from "../viewport.js"
 import { cn } from "@/ui/lib/utils"
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react"
 import { Select as SelectPrimitive } from "radix-ui"
@@ -6,7 +7,29 @@ import { Select as SelectPrimitive } from "radix-ui"
 function Select({
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Root>) {
-  return <SelectPrimitive.Root data-slot="select" {...props} />
+  const [open, setOpen] = React.useState(props.defaultOpen ?? false)
+  React.useEffect(() => {
+    const close = () => setOpen(false)
+    const hidden = () => { if (document.hidden) close() }
+    // A persisted page or a scale change must not retain Radix's modal pointer
+    // guard with an obsolete/invisible popup.
+    addEventListener('pagehide', close)
+    addEventListener('pageshow', close)
+    addEventListener('popstate', close)
+    addEventListener('resize', close)
+    document.addEventListener('visibilitychange', hidden)
+    document.addEventListener('unknowntalks:preferences', close)
+    return () => {
+      removeEventListener('pagehide', close)
+      removeEventListener('pageshow', close)
+      removeEventListener('popstate', close)
+      removeEventListener('resize', close)
+      document.removeEventListener('visibilitychange', hidden)
+      document.removeEventListener('unknowntalks:preferences', close)
+    }
+  }, [])
+  return <SelectPrimitive.Root data-slot="select" {...props} open={props.open ?? open}
+    onOpenChange={value => { setOpen(value); props.onOpenChange?.(value) }} />
 }
 
 function SelectGroup({
@@ -31,6 +54,7 @@ function SelectTrigger({
 }) {
   return (
     <SelectPrimitive.Trigger
+      ref={normalizeSelectReference}
       data-slot="select-trigger"
       data-size={size}
       className={cn(

@@ -318,18 +318,18 @@ html[data-theme=zinc][data-material=embossed][data-clock] #settings-open.clock-k
 html[data-theme=zinc][data-material=embossed][data-clock] .clock-key.clock-key--tab > .clock-face { border-radius:8px 8px 0 0; min-height:44px; padding:10px 12px; border-color:transparent; box-shadow:none; }
 html[data-theme=zinc][data-material=embossed][data-clock] .clock-key.clock-key--tab[data-clock-key=dark] > .clock-face { background:none; border-color:transparent; box-shadow:none; color:var(--muted-foreground); }
 /* One moving tab face; the label ink follows its edges without a colour flash. */
-@property --clock-tab-x { syntax:"<length>"; inherits:true; initial-value:0px; }
-@property --clock-tab-y { syntax:"<length>"; inherits:true; initial-value:0px; }
-@property --clock-tab-width { syntax:"<length>"; inherits:true; initial-value:0px; }
+@property --clock-tab-x { syntax:"<number>"; inherits:true; initial-value:0; }
+@property --clock-tab-y { syntax:"<number>"; inherits:true; initial-value:0; }
+@property --clock-tab-width { syntax:"<number>"; inherits:true; initial-value:0; }
 html[data-theme=zinc][data-material=embossed][data-clock] .lesson-tools[data-clock-tabs] { position:relative; }
 html[data-theme=zinc][data-material=embossed][data-clock] .clock-tab-surface {
- position:absolute; left:var(--clock-tab-x); top:var(--clock-tab-y); width:var(--clock-tab-width); border-radius:8px 8px 0 0;
+ position:absolute; left:calc(var(--clock-tab-x) * 1px); top:calc(var(--clock-tab-y) * 1px); width:calc(var(--clock-tab-width) * 1px); border-radius:8px 8px 0 0;
  background:var(--accent-face); pointer-events:none; z-index:0;
 }
 html[data-theme=zinc][data-material=embossed][data-clock] [data-clock-tabs] .clock-key.clock-key--tab > .clock-face { background:none; }
 html[data-theme=zinc][data-material=embossed][data-clock] [data-clock-tabs] .clock-key--tab .clock-label {
- --ink-start:calc(var(--clock-tab-x) - var(--clock-label-x));
- --ink-end:calc(var(--ink-start) + var(--clock-tab-width));
+ --ink-start:calc((var(--clock-tab-x) - var(--clock-label-x)) * 1px);
+ --ink-end:calc(var(--ink-start) + var(--clock-tab-width) * 1px);
  background:linear-gradient(90deg,var(--muted-foreground) var(--ink-start),#000 var(--ink-start),#000 var(--ink-end),var(--muted-foreground) var(--ink-end));
  background-clip:text; -webkit-background-clip:text; color:transparent;
 }

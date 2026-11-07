@@ -1,3 +1,4 @@
+import {viewportRect} from './viewport.js';
 import {interfaceScale} from './preferences.js';
 // The same ivory surface follows the active lesson tab. Its position also
 // clips the label ink, so text stays dark wherever the surface passes beneath it.
@@ -7,12 +8,12 @@ function initTabSurface(pool) {
  const surface=document.createElement('span');surface.className='clock-tab-surface';surface.setAttribute('aria-hidden','true');
  nav.prepend(surface);nav.dataset.clockTabs='';let moving=null;
  const active=()=>tabs.find(tab=>tab.getAttribute('aria-current')==='page');
- const set=(name,value)=>nav.style.setProperty('--clock-tab-'+name,value+'px');
+ const set=(name,value)=>nav.style.setProperty('--clock-tab-'+name,String(value));
  function measure(tab){
-  const bounds=nav.getBoundingClientRect(),scale=interfaceScale();
-  for(const item of tabs){const label=item.querySelector('.clock-label');if(label)item.style.setProperty('--clock-label-x',((label.getBoundingClientRect().left-bounds.left)/scale)+'px');}
+  const bounds=viewportRect(nav),scale=interfaceScale();
+  for(const item of tabs){const label=item.querySelector('.clock-label');if(label)item.style.setProperty('--clock-label-x',String((viewportRect(label).left-bounds.left)/scale));}
   if(!tab||!pool.visible(tab))return null;
-  const rect=tab.getBoundingClientRect();return {x:(rect.left-bounds.left)/scale,y:(rect.top-bounds.top)/scale,width:rect.width/scale,height:rect.height/scale};
+  const rect=viewportRect(tab);return {x:(rect.left-bounds.left)/scale,y:(rect.top-bounds.top)/scale,width:rect.width/scale,height:rect.height/scale};
  }
  function place(rect){
   surface.hidden=!rect;set('width',rect?.width||0);
@@ -21,7 +22,7 @@ function initTabSurface(pool) {
  function sync(){if(!moving||moving.signal.aborted)place(measure(active()));}
  async function move(name,signal){
   const target=tabs.find(tab=>tab.dataset.viewNav===(name==='skill'?'skills':name)),rect=measure(target);
-  if(!rect||surface.hidden)return false;
+  if(nav.closest('dialog')||!rect||surface.hidden)return false;
   const style=getComputedStyle(nav),x=style.getPropertyValue('--clock-tab-x'),y=style.getPropertyValue('--clock-tab-y'),width=style.getPropertyValue('--clock-tab-width');
   if(Math.abs(parseFloat(x)-rect.x)<.5&&Math.abs(parseFloat(y)-rect.y)<.5&&Math.abs(parseFloat(width)-rect.width)<.5)return false;
   const job=moving={signal};
@@ -29,12 +30,13 @@ function initTabSurface(pool) {
   const freeze=()=>{const current=getComputedStyle(nav);for(const key of ['x','y','width'])nav.style.setProperty('--clock-tab-'+key,current.getPropertyValue('--clock-tab-'+key));};
   signal.addEventListener('abort',freeze,{once:true});
   try{
-   const animation=await pool.play(nav,[{'--clock-tab-x':x,'--clock-tab-y':y,'--clock-tab-width':width},{'--clock-tab-x':rect.x+'px','--clock-tab-y':rect.y+'px','--clock-tab-width':rect.width+'px'}],{kind:'exit',hold:true},signal);
+   const animation=await pool.play(nav,[{'--clock-tab-x':x,'--clock-tab-y':y,'--clock-tab-width':width},{'--clock-tab-x':String(rect.x),'--clock-tab-y':String(rect.y),'--clock-tab-width':String(rect.width)}],{kind:'exit',hold:true},signal);
    if(!signal.aborted){place(rect);animation?.cancel();}
   }finally{signal.removeEventListener('abort',freeze);if(moving===job)moving=null;}
   return true;
  }
- const resize=new ResizeObserver(sync);resize.observe(nav);for(const tab of tabs)resize.observe(tab);
+ let measureFrame=0;
+ const resize=new ResizeObserver(()=>{if(!measureFrame)measureFrame=requestAnimationFrame(()=>{measureFrame=0;sync();});});resize.observe(nav);for(const tab of tabs)resize.observe(tab);
  // Player updates can replace a button's label without changing its size.
  new MutationObserver(sync).observe(nav,{childList:true,subtree:true,characterData:true});
  document.addEventListener('unknowntalks:view',sync);document.fonts.ready.then(sync);sync();
@@ -64,11 +66,11 @@ export function initClockLayout(pool) {
   const clean=()=>{details.style.height='';details.style.overflow='';};
   pool.enqueue({key:details,valid:()=>pool.visible(details),run:async signal=>{
    if(details.open===open)return;
-   const scale=interfaceScale(),from=details.getBoundingClientRect().height/scale;details.style.height=from+'px';details.style.overflow='clip';
+   const scale=interfaceScale(),from=viewportRect(details).height/scale;details.style.height=from+'px';details.style.overflow='clip';
    try{
     if(open){details.open=true;await nextFrame();if(signal.aborted)return;}
-    details.style.height='';const full=details.getBoundingClientRect().height/scale,style=getComputedStyle(details);
-    const to=open?full:summary.getBoundingClientRect().height/scale+['paddingTop','paddingBottom','borderTopWidth','borderBottomWidth'].reduce((n,p)=>n+parseFloat(style[p]||0),0);
+    details.style.height='';const full=viewportRect(details).height/scale,style=getComputedStyle(details);
+    const to=open?full:viewportRect(summary).height/scale+['paddingTop','paddingBottom','borderTopWidth','borderBottomWidth'].reduce((n,p)=>n+parseFloat(style[p]||0),0);
     details.style.height=from+'px';
     await pool.play(details,[{height:from+'px'},{height:to+'px'}],{kind:'fold'},signal);
     if(!signal.aborted)details.open=open;
@@ -101,9 +103,13 @@ export function initClockLayout(pool) {
  const seen=new WeakSet();
  new MutationObserver(()=>{
   for(const popup of document.querySelectorAll('[data-slot=select-content]')){
-   if(seen.has(popup))continue;seen.add(popup);popup.style.opacity='0';
-   const clean=()=>{popup.style.opacity='';};
-   pool.enqueue({key:popup,valid:()=>pool.visible(popup),run:signal=>pool.play(popup,[{opacity:0,transform:'translateY(-4px)'},{opacity:1,transform:'translateY(0)'}],{kind:'enter'},signal),finish:clean,cancel:clean});
+   if(seen.has(popup))continue;seen.add(popup);
+   // A select is already modal when mounted. Its visibility cannot wait behind
+   // lesson animations, otherwise an invisible popup intercepts every tap.
+   if(pool.enabled()){
+    const animation=popup.animate([{opacity:0},{opacity:1}],{duration:140,easing:'ease-out'});
+    animation.finished.catch(()=>{}).finally(()=>animation.cancel());
+   }
   }
  }).observe(document.body,{childList:true,subtree:true});
  return {transition};

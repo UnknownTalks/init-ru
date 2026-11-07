@@ -49,10 +49,9 @@ workflow remains manually triggered; nothing is deployed by these commands.
 ## Clock motion
 
 The approved ivory material uses a single motion queue (`motion.js`) for keys,
-tabs, full-page navigation, disclosures, select entrances and player transitions.
+tabs, full-page navigation, disclosures and player transitions. Selects fade in immediately so a queued lesson animation cannot leave an invisible modal blocking input.
 `clock-keys.js` supplies a short 1 px press without spring overshoot or a recessed
-background; `clock-layout.js` coordinates content changes. There is no moving
-tab indicator. Press/release takes 135 ms, disclosures 337.5 ms. Navigation and
+background; `clock-layout.js` coordinates content changes. One moving ivory surface follows the active desktop tab. Press/release takes 135 ms, disclosures 337.5 ms. Navigation and
 disclosures skip the decorative press/release cycle so content responds promptly.
 Content replacement uses 135 ms out, a 75 ms pause, and 165 ms in. Other
 movements also have a 75 ms pause. Repeated pending intents are coalesced.
@@ -62,7 +61,7 @@ The watch opens the agent through the ordinary page transition immediately.
 Its three turns run independently: 650 ms acceleration and 650 ms deceleration.
 Leaving the agent rewinds half the actual travel without sparks. Scroll motion
 and the rare sparks on vigorous scrolling retain their selected behavior.
-Opening a lesson from the course entrance reveals Chapters and Skills in order.
+Opening a lesson from the course entrance reveals Chapters and Skills together on desktop.
 Mobile header height grows with its text and respects safe areas at every scale.
 
 The conversation has no unread badges, unread shortcut or playback toolbar.
@@ -143,3 +142,29 @@ Mobile headers use one safe-area-aware visible-viewport anchor. At normal scale,
 the dial has 18 CSS px clearance from the usable top and side edges. Touch
 landscape uses the same anchor. `mobile-header.js` observes viewport changes
 without changing document scroll; scale changes retain accessible layouts.
+
+## Mobile navigation and magnification
+
+On phones and touch landscape layouts the fixed header contains the breadcrumb
+and watch. Navigation moves into the lower gear button and a native modal
+`dialog` sheet; desktop uses the same original navigation nodes as tabs. The
+sheet supports downward handle dragging, cancellation, Escape, outside taps,
+focus return, reduced motion, and releases modal inertness before changing view.
+Gear movement is coupled by 24 / 14 / 16 teeth. Opening and closing use the
+selected quiet watch feedback and sound preference. There is no idle gear loop.
+
+Fixed headers never add `visualViewport.offsetTop`: elastic Safari scrolling
+must not become a persistent header offset. Root overscroll is disabled on
+mobile; safe-area insets and viewport height keep lower controls above the home
+indicator, browser chrome and keyboard. No document scroll correction is used.
+Physical iPhone overscroll still requires verification on a device.
+
+New desktop settings use 125%, phones 100%; each saves its own magnification.
+Legacy scale migrates to desktop; phone starts at 100%. CSS zoom belongs to
+the body, with a neutral coordinate space for Popper portals and scaling only
+their contents. `viewport.js` detects older WebKit's pre-zoom rectangles and
+normalizes instrument/player measurements and the Select reference locally. Tab
+coordinates use registered numbers, converted to lengths at the element, so
+inherited typed lengths cannot apply magnification a second time.
+Selects close on scale/viewport changes, history navigation, backgrounding
+and bfcache lifecycle events to release their native Radix pointer guard.

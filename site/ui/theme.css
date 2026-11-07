@@ -89,9 +89,10 @@
 .choice-trigger:focus-visible { outline: 2px solid #b5d3e5; outline-offset: 3px; }
 .choice-trigger [data-slot=select-value] { display: block; min-width: 0; text-align: left; overflow-wrap: anywhere; }
 .choice-list {
-  box-sizing: border-box; width: var(--radix-select-trigger-width);
+  box-sizing: border-box; width: calc(var(--radix-select-trigger-width) / var(--interface-scale,1));
+  zoom: var(--interface-scale,1); translate:none;
   min-width: 0; max-width: calc(100vw - 24px);
-  max-height: min(320px, var(--radix-select-content-available-height));
+  max-height: min(320px, calc(var(--radix-select-content-available-height) / var(--interface-scale,1)));
   padding: 1px; border: 1px solid #5e707e; border-radius: 14px;
   background: var(--popover); color: var(--popover-foreground);
   font: 14px/1.5 system-ui, sans-serif; box-shadow: 0 14px 35px #0008, 0 1px 0 #ffffff08 inset;
@@ -144,3 +145,7 @@
 @media(prefers-reduced-motion:reduce) {
   [data-slot] { animation: none !important; transition: none !important; }
 }
+
+/* Popper positions in viewport pixels. Cancel page zoom on its coordinate
+   space, then scale only the content. Do not multiply coordinates twice. */
+[data-radix-popper-content-wrapper] { zoom:calc(1 / var(--interface-scale,1)); }
