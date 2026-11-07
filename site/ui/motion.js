@@ -1,8 +1,10 @@
 // One clock for interface feedback. Lesson state never belongs to this queue.
 export function createMotion() {
  const root=document.documentElement,media=matchMedia('(prefers-reduced-motion: reduce)');
- const storageKey='unknowntalks:motion:v1',choices=['system','clock','off'];
- let preference='system';
+ const storageKey='unknowntalks:motion:v1',choices=['system','clock','off'],defaultPreference='clock';
+ // Use the selected clock experience on a new origin as well as in previews.
+ // Explicit "system" and "off" choices still take precedence.
+ let preference=defaultPreference;
  try { const saved=localStorage.getItem(storageKey);if(choices.includes(saved))preference=saved; } catch {}
  const url=new URL(location.href),requested=url.searchParams.get('motion');
  if(choices.includes(requested)){
@@ -80,9 +82,9 @@ export function createMotion() {
   if(!enabled())flush();notify();
  }
  const control=document.getElementById('motion-mode');
- control?.addEventListener('change',()=>{preference=choices.includes(control.value)?control.value:'system';try{localStorage.setItem(storageKey,preference);}catch{}sync();});
+ control?.addEventListener('change',()=>{preference=choices.includes(control.value)?control.value:defaultPreference;try{localStorage.setItem(storageKey,preference);}catch{}sync();});
  media.addEventListener('change',sync);
- addEventListener('storage',event=>{if(event.key===storageKey){preference=choices.includes(event.newValue)?event.newValue:'system';sync();}});
+ addEventListener('storage',event=>{if(event.key===storageKey){preference=choices.includes(event.newValue)?event.newValue:defaultPreference;sync();}});
  addEventListener('pagehide',flush);document.addEventListener('visibilitychange',()=>{if(document.hidden)flush();});
  sync();
  return {enqueue,play,frame,flush,begin,end,duration,gap,easing,enabled,visible,

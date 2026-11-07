@@ -60,8 +60,10 @@ Message entrances are brief, optional feedback and never form a reading backlog.
 
 The motion preference is separate from progress, under
 `unknowntalks:motion:v1`. Reading settings offer system behavior, the clock rhythm,
-and no animation. The default honors reduced motion; an explicit `?motion=clock`
-link saves the chosen rhythm and removes that parameter from the address.
+and no animation. New visitors get the selected clock rhythm; an explicit
+"system" choice honors reduced motion. Saved "system" and "off" choices are
+preserved. A `?motion=clock` link saves the chosen rhythm and removes that
+parameter from the address.
 Disabling motion completes pending visual effects without discarding actions.
 Focus loss and viewport resizing do not fast-forward the queue.
 
