@@ -150,7 +150,7 @@ and watch. Navigation moves into the lower gear button and a native modal
 `dialog` sheet; desktop uses the same original navigation nodes as tabs. The
 sheet supports downward handle dragging, cancellation, Escape, outside taps,
 focus return, reduced motion, and releases modal inertness before changing view.
-Gear movement is coupled by 24 / 14 / 16 teeth. A shared fixed-step spring drive moves the drawer, rack and gear train with an 8:1 reduction, retaining progress and momentum when reversed. Opening and closing use the
+A 72-tooth crown surrounds three fixed menu lines. A shared fixed-step spring drive moves the drawer and crown with an 8:1 reduction, retaining progress and momentum when reversed; a 1.5× simulation rate shortens both directions without changing their path. Opening and closing use the
 selected quiet watch feedback and sound preference. There is no idle gear loop.
 
 Header and modal share the visible viewport's origin, width and height, converted
@@ -179,8 +179,9 @@ top layer and reverses the same drive instead of starting separate CSS effects.
 A rim/marker tap opens the agent; only a real drag or cancellation suppresses
 its click. Touch dragging starts beyond 8px to tolerate ordinary finger jitter.
 
-The floating control is 92 × 108px, with individual dark gear wells and a local
-caption plate; it has no shared rectangular rear housing. The modal focuses its
+The floating control is 56 × 56px with a 49px fine-tooth ring and enlarged
+three-line glyph. Its whole touch target intercepts taps, including outside the
+visible ring. There is no caption, rear housing, auxiliary gear or right rack. The modal focuses its
 stationary shell during carriage motion and only focuses the heading at rest.
 Its outer layer uses `overflow: clip` so automatic focus reveal cannot scroll
 the whole carriage above its stop. Visible history dismissal runs the same
@@ -189,3 +190,10 @@ mechanical return; page lifecycle cleanup remains immediate.
 Menu motion follows the same preference as the rest of the interface. Explicit
 Clock mode enables the selected motion; System mode honors reduced motion; Off
 settles immediately. The menu no longer applies an independent media-query veto.
+
+Menu items use centered, semibold system typography, without row dividers or
+an active-tab dot, following the mobile Apple navigation reference with the
+requested centered alignment. The Agent item delegates to the existing watch
+click after the modal closes and follows the agent-enabled preference. It stays
+hidden in the full desktop tab bar. The item is marked as agent UI so lesson
+reading terminology cannot rename the interface label.

@@ -5,6 +5,12 @@ export function initMobileNavigation(){
  if(!dialog||!nav||!button)return;
  const sheet=dialog.querySelector('.mobile-menu-sheet'),heading=dialog.querySelector('.mobile-menu-heading');
  const slot=dialog.querySelector('.mobile-menu-content'),dock=document.querySelector('.mobile-menu-dock');
+ const agent=document.getElementById('mobile-agent-open'),watch=document.querySelector('[data-lesson-mechanism]');
+ // Reuse the watch's existing activation/access path, after modal dismissal.
+ nav.insertBefore(agent,nav.querySelector('[data-view-nav=settings]'));
+ const syncAgent=()=>{agent.disabled=root.dataset.agentEnabled==='false';};syncAgent();
+ document.addEventListener('unknowntalks:preferences',syncAgent);
+ agent.addEventListener('click',()=>{if(!dialog.open&&!agent.disabled)watch?.click();});
  const home=document.createComment('desktop navigation'),dockHome=document.createComment('instrument dock');nav.before(home);dock.before(dockHome);
  const drive=createMenuDrive();let frame=0,last=0,travel=0,drag=null,focusAfter=null,pendingItem=null,savedGutter=null;
  const mobile=()=>root.dataset.mobileHeader==='true';
@@ -14,11 +20,9 @@ export function initMobileNavigation(){
  function paint(){
   const q=drive.position;dialog.style.setProperty('--menu-progress',q);
   sheet.style.transform=`translate3d(0,${(1-q)*travel}px,0)`;
-  // Rack travel is reduced 8:1 before reaching the 30px / 24 tooth wheel.
-  const angle=q*travel/30/8*180/Math.PI;
+  // Carriage travel is reduced 8:1 before reaching the 24px fine-tooth ring.
+  const angle=q*travel/24/8*180/Math.PI;
   dock.querySelector('.menu-gear-main').setAttribute('transform',`rotate(${angle})`);
-  dock.querySelector('.menu-gear-middle').setAttribute('transform',`rotate(${-angle*24/14})`);
-  dock.querySelector('.menu-gear-small').setAttribute('transform',`rotate(${angle*24/16})`);
   dock.style.setProperty('--menu-travel',q);
   dialog.dataset.menuPhase=drag?'held':drive.position===drive.target?(drive.target?'open':'closed'):(drive.target?'opening':'closing');
  }
@@ -36,7 +40,7 @@ export function initMobileNavigation(){
  }
  function tick(now){
   frame=0;if(!animated()){drive.position=drive.target;drive.velocity=0;}
-  const moving=animated()&&stepMenuDrive(drive,(now-last)/1000);last=now;paint();
+  const moving=animated()&&stepMenuDrive(drive,(now-last)/1000,1.5);last=now;paint();
   if(!moving&&!drag){
    if(!drive.target){const item=pendingItem;finish();if(item&&!document.hidden)item.click();}
    else if(document.activeElement===dialog)dialog.querySelector('#mobile-menu-title').focus({preventScroll:true});

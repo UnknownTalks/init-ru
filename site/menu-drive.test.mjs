@@ -16,3 +16,13 @@ test('reversing a partly open drawer retains its position and dissipates momentu
  for(let i=0;i<240;i++)stepMenuDrive(s,1/120);
  assert.equal(s.position,0);assert.equal(s.velocity,0);
 });
+test('the 1.5× transmission rate compresses travel time without changing the path',()=>{
+ for(const fps of [30,60,120]){
+  const normal=createMenuDrive(),fast=createMenuDrive();normal.target=fast.target=1;
+  let a=0,b=0;
+  while(stepMenuDrive(normal,1/fps)&&a<3)a+=1/fps;
+  while(stepMenuDrive(fast,1/fps,1.5)&&b<3)b+=1/fps;
+  assert.equal(fast.position,normal.position);assert.equal(fast.velocity,0);
+  assert(Math.abs(a/b-1.5)<.08,JSON.stringify({fps,a,b}));
+ }
+});
