@@ -32,10 +32,14 @@ export function initMobileNavigation(){
   if(gesture&&heading.hasPointerCapture(gesture.id))heading.releasePointerCapture(gesture.id);
  }
  function finish(){
-  cancelAnimationFrame(frame);frame=0;release();drive.position=drive.previous=drive.velocity=drive.target=drive.accumulator=0;paint();
-  pendingItem=null;delete root.dataset.menuOpen;if(savedGutter!==null){root.style.scrollbarGutter=savedGutter;savedGutter=null;}button.setAttribute('aria-expanded','false');button.setAttribute('aria-label','Открыть меню');
-  if(dialog.open)dialog.close();
+  cancelAnimationFrame(frame);frame=0;release();
+  // Seal the outgoing layer before native focus restoration/compositing. The
+  // opener must already be outside the dialog when close() restores focus.
+  dialog.dataset.menuPhase='closed';
   if(dock.parentElement!==dockHome.parentElement)dockHome.after(dock);
+  if(dialog.open)dialog.close();
+  drive.position=drive.previous=drive.velocity=drive.target=drive.accumulator=0;paint();
+  pendingItem=null;delete root.dataset.menuOpen;if(savedGutter!==null){root.style.scrollbarGutter=savedGutter;savedGutter=null;}button.setAttribute('aria-expanded','false');button.setAttribute('aria-label','Открыть меню');
   if(focusAfter){focusAfter.focus({preventScroll:true});focusAfter=null;}
  }
  function tick(now){
@@ -43,7 +47,6 @@ export function initMobileNavigation(){
   const moving=animated()&&stepMenuDrive(drive,last===null?0:(now-last)/1000,1.5);last=now;paint();
   if(!moving&&!drag){
    if(!drive.target){const item=pendingItem;finish();if(item&&!document.hidden)item.click();}
-   else if(document.activeElement===dialog)dialog.querySelector('#mobile-menu-title').focus({preventScroll:true});
    return;
   }
   if(!drag)frame=requestAnimationFrame(tick);
@@ -70,6 +73,7 @@ export function initMobileNavigation(){
   if(!dialog.open){
    // Both initial position and scrim are set before the native top layer paints.
    drive.position=drive.previous=drive.velocity=drive.accumulator=0;dialog.style.setProperty('--menu-progress',0);
+   dialog.dataset.menuPhase='opening';
    sheet.style.transform='translate3d(0,var(--mobile-viewport-height,100dvh),0)';sheet.scrollTop=0;
    dialog.append(dock);dialog.showModal();dialog.focus({preventScroll:true});dialog.scrollTop=0;measure();
   }

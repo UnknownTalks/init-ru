@@ -195,6 +195,12 @@ html[data-page-flow] .lesson-mechanism-case { view-transition-name:ut-watch; }
 
 /* Mobile: a stable compact header; navigation lives in the lower gear drawer. */
 .mobile-menu-dock,.mobile-navigation { display:none; }
+/* This modal is driven exclusively by menu-drive. The shared dialog exit
+   transition otherwise keeps a closed, differently sized window in top layer. */
+dialog.mobile-navigation,dialog.mobile-navigation::backdrop {
+ opacity:1; transform:none; transition:none; animation:none;
+}
+dialog.mobile-navigation { border-radius:0; }
 html[data-mobile-header=true] {
  --toolbar-gap:calc(18px / var(--interface-scale,1));
  --mechanism-header-height:calc(98px + env(safe-area-inset-top,0px) / var(--interface-scale,1));
@@ -243,9 +249,15 @@ html[data-mobile-header=true] .mobile-navigation[open] {
  --sheet-top:calc(var(--mechanism-header-height) + 8px);
  display:block; position:fixed; inset:var(--mobile-viewport-top,0px) auto auto var(--mobile-viewport-left,0px); margin:0; padding:0; width:var(--mobile-viewport-width,100%); max-width:none;
  height:var(--mobile-viewport-height,100dvh); max-height:none; border:0; background:rgb(0 0 0 / calc(var(--menu-progress,0) * .55)); color:var(--foreground);
- overflow:clip; overscroll-behavior:contain;
+ overflow:clip; overscroll-behavior:contain; outline:0;
 }
-.mobile-navigation::backdrop { background:transparent; }
+.mobile-navigation[data-menu-phase=closed] { visibility:hidden; pointer-events:none; }
+.mobile-navigation::backdrop {
+ /* Safari can show page pixels beyond the visual viewport through its lower
+    browser chrome. Cover that extension without raising the menu controls. */
+ inset:0 0 -100lvh; backdrop-filter:none;
+ background:linear-gradient(to bottom,transparent var(--mobile-viewport-screen-bottom,100svh),#0d1012 var(--mobile-viewport-screen-bottom,100svh));
+}
 .mobile-menu-sheet {
  position:absolute; top:var(--sheet-top); inset-inline:0; bottom:0;
  display:flex; flex-direction:column; min-height:0; border:1px solid #ffffff1c; border-inline:0; border-bottom:0;

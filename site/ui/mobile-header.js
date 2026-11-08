@@ -10,11 +10,13 @@ export function installMobileHeader(scale){
  function sync(){
   frame=0;
   const pinched=viewport?.scale>1.01;
-  const box=mobileViewport({width:pinched?innerWidth:viewport?.width||innerWidth,height:pinched?innerHeight:viewport?.height||innerHeight,
+  const uiScale=scale(),box=mobileViewport({width:pinched?innerWidth:viewport?.width||innerWidth,height:pinched?innerHeight:viewport?.height||innerHeight,
    top:viewport?.offsetTop||0,left:viewport?.offsetLeft||0,visualScale:viewport?.scale||1,scroll:scrollY,
-   maxScroll:Math.max(0,root.scrollHeight-root.clientHeight)},scale());
+   maxScroll:Math.max(0,root.scrollHeight-root.clientHeight)},uiScale);
   for(const key of ['top','left','width','height'])root.style.setProperty('--mobile-viewport-'+key,box[key]+'px');
   root.style.setProperty('--mobile-viewport-bottom',Math.max(0,innerHeight/scale()-box.top-box.height)+'px');
+  // Native ::backdrop uses viewport pixels, outside the body's UI zoom.
+  root.style.setProperty('--mobile-viewport-screen-bottom',(box.top+box.height)*uiScale+'px');
   document.dispatchEvent(new CustomEvent('unknowntalks:viewport'));
  }
  function schedule(){if(!frame)frame=requestAnimationFrame(sync);}

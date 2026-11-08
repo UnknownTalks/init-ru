@@ -173,19 +173,27 @@ and bfcache lifecycle events to release their native Radix pointer guard.
 
 The compact header breakpoint uses available layout width on both touch and
 mouse devices. It removes the artificial scrollbar gutter; an actual classic
-scrollbar keeps its space during modal scroll lock. The opaque PVD dock isolates
-the gearwork/caption from page text. The same dock remains visible in the modal
+scrollbar keeps its space during modal scroll lock. The compact PVD crown remains visible in the modal
 top layer and reverses the same drive instead of starting separate CSS effects.
 A rim/marker tap opens the agent; only a real drag or cancellation suppresses
 its click. Touch dragging starts beyond 8px to tolerate ordinary finger jitter.
 
 The floating control is 56 × 56px with a 49px fine-tooth ring and enlarged
 three-line glyph. Its whole touch target intercepts taps, including outside the
-visible ring. There is no caption, rear housing, auxiliary gear or right rack. The modal focuses its
-stationary shell during carriage motion and only focuses the heading at rest.
+visible ring. There is no caption, rear housing, auxiliary gear or right rack. The modal initially focuses its
+stationary labelled shell and leaves focus there until the user moves it.
 Its outer layer uses `overflow: clip` so automatic focus reveal cannot scroll
 the whole carriage above its stop. Visible history dismissal runs the same
 mechanical return; page lifecycle cleanup remains immediate.
+
+This modal and its backdrop explicitly disable the generic dialog opacity,
+transform, display and overlay transitions. Only the physical drive animates it.
+The final layer is hidden and the opener is returned to the page before native
+`close()` restores focus; scroll lock is then released. The closed state stays
+hidden until the next explicit opening, including native top-layer teardown.
+An opaque backdrop extension covers the page beyond the visible viewport under
+Safari's lower browser chrome. Its boundary uses viewport pixels independent of
+UI magnification; controls retain their existing visible-viewport safe spacing.
 
 Menu motion follows the same preference as the rest of the interface. Explicit
 Clock mode enables the selected motion; System mode honors reduced motion; Off
