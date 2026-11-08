@@ -8,7 +8,7 @@ export function initMobileNavigation(){
  const home=document.createComment('desktop navigation'),dockHome=document.createComment('instrument dock');nav.before(home);dock.before(dockHome);
  const drive=createMenuDrive();let frame=0,last=0,travel=0,drag=null,focusAfter=null,pendingItem=null,savedGutter=null;
  const mobile=()=>root.dataset.mobileHeader==='true';
- const animated=()=>root.dataset.motion!=='off'&&!matchMedia('(prefers-reduced-motion: reduce)').matches;
+ const animated=()=>root.dataset.motion!=='off';
  const scale=()=>Number(root.style.getPropertyValue('--interface-scale'))||1;
  const feedback=kind=>document.dispatchEvent(new CustomEvent('mechanism:feedback',{detail:{kind,source:'watch'}}));
  function paint(){
@@ -35,9 +35,11 @@ export function initMobileNavigation(){
   if(focusAfter){focusAfter.focus({preventScroll:true});focusAfter=null;}
  }
  function tick(now){
-  frame=0;const moving=stepMenuDrive(drive,(now-last)/1000);last=now;paint();
+  frame=0;if(!animated()){drive.position=drive.target;drive.velocity=0;}
+  const moving=animated()&&stepMenuDrive(drive,(now-last)/1000);last=now;paint();
   if(!moving&&!drag){
    if(!drive.target){const item=pendingItem;finish();if(item&&!document.hidden)item.click();}
+   else if(document.activeElement===dialog)dialog.querySelector('#mobile-menu-title').focus({preventScroll:true});
    return;
   }
   if(!drag)frame=requestAnimationFrame(tick);
@@ -48,6 +50,7 @@ export function initMobileNavigation(){
  }
  function close({focus=true,immediate=false,quiet=false,item=null}={}){
   if(!dialog.open)return;
+  dialog.focus({preventScroll:true});
   release();pendingItem=item;focusAfter=focus?button:null;drive.target=0;root.dataset.menuOpen='closing';button.setAttribute('aria-expanded','false');button.setAttribute('aria-label','Открыть меню');
   if(!quiet)feedback('save');
   if(immediate){finish();return;}
@@ -61,8 +64,8 @@ export function initMobileNavigation(){
   if(!dialog.open){
    // Both initial position and scrim are set before the native top layer paints.
    drive.position=drive.velocity=0;dialog.style.setProperty('--menu-progress',0);
-   sheet.style.transform='translate3d(0,110vh,0)';dialog.append(dock);dialog.showModal();measure();
-   dialog.querySelector('#mobile-menu-title').focus({preventScroll:true});
+   sheet.style.transform='translate3d(0,var(--mobile-viewport-height,100dvh),0)';sheet.scrollTop=0;
+   dialog.append(dock);dialog.showModal();dialog.focus({preventScroll:true});dialog.scrollTop=0;measure();
   }
   feedback('unfold');wake();
  }
@@ -96,9 +99,10 @@ export function initMobileNavigation(){
  }
  heading.addEventListener('pointerup',event=>end(event));heading.addEventListener('pointercancel',event=>end(event,true));heading.addEventListener('lostpointercapture',event=>{if(drag)end(event,true);});
  addEventListener('pagehide',finish);addEventListener('pageshow',()=>{if(!dialog.open)finish();});
- addEventListener('popstate',()=>close({immediate:true,quiet:true}));
+ addEventListener('popstate',()=>close({quiet:true}));
  document.addEventListener('visibilitychange',()=>{if(document.hidden)finish();});
- addEventListener('resize',measure,{passive:true});visualViewport?.addEventListener('resize',measure,{passive:true});
+ document.addEventListener('unknowntalks:viewport',measure);
+ new ResizeObserver(()=>{if(dialog.open)requestAnimationFrame(measure);}).observe(sheet);
  new MutationObserver(sync).observe(root,{attributes:true,attributeFilter:['data-mobile-header']});
  sync();
 }

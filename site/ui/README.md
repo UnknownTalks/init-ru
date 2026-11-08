@@ -153,11 +153,13 @@ focus return, reduced motion, and releases modal inertness before changing view.
 Gear movement is coupled by 24 / 14 / 16 teeth. A shared fixed-step spring drive moves the drawer, rack and gear train with an 8:1 reduction, retaining progress and momentum when reversed. Opening and closing use the
 selected quiet watch feedback and sound preference. There is no idle gear loop.
 
-Fixed headers never add `visualViewport.offsetTop`: elastic Safari scrolling
-must not become a persistent header offset. Root overscroll is disabled on
-mobile; safe-area insets and viewport height keep lower controls above the home
-indicator, browser chrome and keyboard. No document scroll correction is used.
-Physical iPhone overscroll still requires verification on a device.
+Header and modal share the visible viewport's origin, width and height, converted
+to the current UI scale. Elastic overscroll cannot be stored as a header offset;
+pinch retains native behavior. The modal uses explicit visible dimensions instead
+of a percentage of the layout viewport. Lower controls use the same visible
+bottom, with local coordinates inside the modal. No scroll nudge is used.
+Physical iPhone behavior still needs device verification; native Safari on
+iPhone 17 Pro / iOS 26.2 Simulator is additionally exercised.
 
 New desktop settings use 125%, phones 100%; each saves its own magnification.
 Legacy scale migrates to desktop; phone starts at 100%. CSS zoom belongs to
@@ -176,3 +178,14 @@ the gearwork/caption from page text. The same dock remains visible in the modal
 top layer and reverses the same drive instead of starting separate CSS effects.
 A rim/marker tap opens the agent; only a real drag or cancellation suppresses
 its click. Touch dragging starts beyond 8px to tolerate ordinary finger jitter.
+
+The floating control is 92 × 108px, with individual dark gear wells and a local
+caption plate; it has no shared rectangular rear housing. The modal focuses its
+stationary shell during carriage motion and only focuses the heading at rest.
+Its outer layer uses `overflow: clip` so automatic focus reveal cannot scroll
+the whole carriage above its stop. Visible history dismissal runs the same
+mechanical return; page lifecycle cleanup remains immediate.
+
+Menu motion follows the same preference as the rest of the interface. Explicit
+Clock mode enables the selected motion; System mode honors reduced motion; Off
+settles immediately. The menu no longer applies an independent media-query veto.
