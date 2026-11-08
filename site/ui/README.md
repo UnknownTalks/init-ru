@@ -150,7 +150,7 @@ and watch. Navigation moves into the lower gear button and a native modal
 `dialog` sheet; desktop uses the same original navigation nodes as tabs. The
 sheet supports downward handle dragging, cancellation, Escape, outside taps,
 focus return, reduced motion, and releases modal inertness before changing view.
-A 72-tooth crown surrounds three fixed menu lines. A shared fixed-step spring drive moves the drawer and crown with an 8:1 reduction, retaining progress and momentum when reversed; a 1.5× simulation rate shortens both directions without changing their path. Opening and closing use the
+A 72-tooth crown surrounds three fixed menu lines. A shared fixed-step spring drive moves the drawer and crown with an 8:1 reduction, retaining progress and momentum when reversed; a 1.5× simulation rate shortens both directions without changing their path. Both visuals interpolate the last two physics steps at the display timestamp, preventing whole-step jitter at 60/90/120 Hz. The first animation frame establishes the clock, so modal setup time cannot cause a starting jump. Dragging begins from the rendered pose and resumes without stale interpolation state. Opening and closing use the
 selected quiet watch feedback and sound preference. There is no idle gear loop.
 
 Header and modal share the visible viewport's origin, width and height, converted

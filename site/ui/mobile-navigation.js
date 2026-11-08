@@ -1,4 +1,4 @@
-import {createMenuDrive,stepMenuDrive} from './menu-drive.js';
+import {createMenuDrive,stepMenuDrive,sampleMenuDrive} from './menu-drive.js';
 export function initMobileNavigation(){
  const root=document.documentElement,dialog=document.getElementById('mobile-navigation');
  const nav=document.querySelector('.lesson-tools'),button=document.querySelector('.mobile-menu-open');
@@ -18,7 +18,7 @@ export function initMobileNavigation(){
  const scale=()=>Number(root.style.getPropertyValue('--interface-scale'))||1;
  const feedback=kind=>document.dispatchEvent(new CustomEvent('mechanism:feedback',{detail:{kind,source:'watch'}}));
  function paint(){
-  const q=drive.position;dialog.style.setProperty('--menu-progress',q);
+  const q=drag?drive.position:sampleMenuDrive(drive);dialog.style.setProperty('--menu-progress',q);
   sheet.style.transform=`translate3d(0,${(1-q)*travel}px,0)`;
   // Carriage travel is reduced 8:1 before reaching the 24px fine-tooth ring.
   const angle=q*travel/24/8*180/Math.PI;
@@ -32,7 +32,7 @@ export function initMobileNavigation(){
   if(gesture&&heading.hasPointerCapture(gesture.id))heading.releasePointerCapture(gesture.id);
  }
  function finish(){
-  cancelAnimationFrame(frame);frame=0;release();drive.position=drive.velocity=drive.target=drive.accumulator=0;paint();
+  cancelAnimationFrame(frame);frame=0;release();drive.position=drive.previous=drive.velocity=drive.target=drive.accumulator=0;paint();
   pendingItem=null;delete root.dataset.menuOpen;if(savedGutter!==null){root.style.scrollbarGutter=savedGutter;savedGutter=null;}button.setAttribute('aria-expanded','false');button.setAttribute('aria-label','Открыть меню');
   if(dialog.open)dialog.close();
   if(dock.parentElement!==dockHome.parentElement)dockHome.after(dock);
@@ -40,7 +40,7 @@ export function initMobileNavigation(){
  }
  function tick(now){
   frame=0;if(!animated()){drive.position=drive.target;drive.velocity=0;}
-  const moving=animated()&&stepMenuDrive(drive,(now-last)/1000,1.5);last=now;paint();
+  const moving=animated()&&stepMenuDrive(drive,last===null?0:(now-last)/1000,1.5);last=now;paint();
   if(!moving&&!drag){
    if(!drive.target){const item=pendingItem;finish();if(item&&!document.hidden)item.click();}
    else if(document.activeElement===dialog)dialog.querySelector('#mobile-menu-title').focus({preventScroll:true});
@@ -50,7 +50,9 @@ export function initMobileNavigation(){
  }
  function wake(){
   if(!animated()){drive.position=drive.target;drive.velocity=0;paint();if(!drive.target){const item=pendingItem;finish();if(item)item.click();}return;}
-  if(!frame){last=performance.now();frame=requestAnimationFrame(tick);}
+  // Start on the display clock: showModal/layout time must not become a
+  // catch-up movement in the first visible animation frame.
+  if(!frame){last=null;frame=requestAnimationFrame(tick);}
  }
  function close({focus=true,immediate=false,quiet=false,item=null}={}){
   if(!dialog.open)return;
@@ -67,7 +69,7 @@ export function initMobileNavigation(){
   root.dataset.menuOpen='open';button.setAttribute('aria-expanded','true');button.setAttribute('aria-label','Закрыть меню');
   if(!dialog.open){
    // Both initial position and scrim are set before the native top layer paints.
-   drive.position=drive.velocity=0;dialog.style.setProperty('--menu-progress',0);
+   drive.position=drive.previous=drive.velocity=drive.accumulator=0;dialog.style.setProperty('--menu-progress',0);
    sheet.style.transform='translate3d(0,var(--mobile-viewport-height,100dvh),0)';sheet.scrollTop=0;
    dialog.append(dock);dialog.showModal();dialog.focus({preventScroll:true});dialog.scrollTop=0;measure();
   }
@@ -89,12 +91,13 @@ export function initMobileNavigation(){
  heading.addEventListener('pointerdown',event=>{
   if(event.target.closest('button')||!event.isPrimary||event.button!==0)return;
   cancelAnimationFrame(frame);frame=0;pendingItem=null;
-  drag={id:event.pointerId,y:event.clientY,base:drive.position,at:performance.now()};drive.velocity=0;
+  drive.position=drive.previous=sampleMenuDrive(drive);drive.velocity=drive.accumulator=0;
+  drag={id:event.pointerId,y:event.clientY,base:drive.position,at:performance.now()};
   heading.setPointerCapture(event.pointerId);
  });
  heading.addEventListener('pointermove',event=>{
   if(event.pointerId!==drag?.id)return;
-  drive.position=Math.max(0,Math.min(1,drag.base-(event.clientY-drag.y)/scale()/Math.max(1,travel)));paint();
+  drive.position=drive.previous=Math.max(0,Math.min(1,drag.base-(event.clientY-drag.y)/scale()/Math.max(1,travel)));paint();
  });
  function end(event,cancel=false){
   if(event.pointerId!==drag?.id)return;const distance=(drag.base-drive.position)*travel*scale(),elapsed=performance.now()-drag.at;

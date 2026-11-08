@@ -1,10 +1,18 @@
 // One constrained transmission drives the drawer and every wheel. Progress is
 // dimensionless; frame rate changes cannot alter the gear ratios or the stop.
-export function createMenuDrive(){return {position:0,velocity:0,target:0,accumulator:0};}
+const step=1/240;
+export function createMenuDrive(){return {position:0,previous:0,velocity:0,target:0,accumulator:0};}
+// Render between the last two fixed steps. Painting the discrete position
+// directly alternates whole steps at display refresh rates such as 60/120 Hz.
+export function sampleMenuDrive(s){
+ if(s.position===s.target&&s.velocity===0)return s.position;
+ return s.previous+(s.position-s.previous)*s.accumulator/step;
+}
 export function stepMenuDrive(s,dt,rate=1){
  s.accumulator+=Math.min(.064,Math.max(0,dt))*rate;
- while(s.accumulator>=1/240){
-  const h=1/240,force=110*(s.target-s.position)-22*s.velocity;
+ while(s.accumulator>=step){
+  s.previous=s.position;
+  const h=step,force=110*(s.target-s.position)-22*s.velocity;
   s.velocity=Math.max(-1.65,Math.min(1.65,s.velocity+force*h));
   s.position+=s.velocity*h;
   if(s.position<=0){s.position=0;s.velocity=Math.max(0,s.velocity);}
