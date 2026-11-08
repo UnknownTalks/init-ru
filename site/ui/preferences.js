@@ -14,7 +14,7 @@ function layout(){
  const root=document.documentElement,width=innerWidth/interfaceScale();
  root.dataset.uiLayout=width<=760?'phone':width<=1100?'tablet':'desktop';
  root.dataset.uiDensity=width<280?'narrow':'normal';
- root.dataset.mobileHeader=String(resolveInterfacePreference(preferences).mobile);
+ const compact=String(width<=1100);if(root.dataset.mobileHeader!==compact)root.dataset.mobileHeader=compact;
 }
 function apply(userInitiated=false,changed=null){
  const root=document.documentElement;

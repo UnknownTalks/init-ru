@@ -80,25 +80,24 @@ export function initClockLayout(pool) {
  });
  const section=name=>name==='read'?document.getElementById('lesson-reader'):document.querySelector('#secondary-views > :not([hidden])');
  const clean=element=>{if(element){element.style.opacity='';element.style.transform='';}};
+ let settleRoute=null;
+ const settleHiddenRoute=()=>{settleRoute?.();settleRoute=null;};
+ addEventListener('pagehide',settleHiddenRoute);document.addEventListener('visibilitychange',()=>{if(document.hidden)settleHiddenRoute();});
  function transition({from,to,commit,complete,valid}){
-  let outgoing=section(from),incoming,committed=false;
-  const apply=()=>{if(!committed){committed=true;commit();incoming=section(to);}};
-  const clear=()=>{clean(outgoing);clean(incoming);};
-  return pool.enqueue({key:'lesson-route',valid,run:async signal=>{
-   // Tab travel takes the outgoing fade's place, keeping the existing total
-   // transition time and the single-animation queue.
-   const moved=await tabs?.move(to,signal);if(signal.aborted)return;
-   if(!moved&&outgoing&&pool.visible(outgoing)){
-    await pool.play(outgoing,[{opacity:1},{opacity:0}],{kind:'exit'},signal);
-    if(signal.aborted)return;outgoing.style.opacity='0';
-   }
-   apply();
-   if(incoming&&pool.visible(incoming)){
-    incoming.style.opacity='0';
-    await pool.play(incoming,[{opacity:0},{opacity:1}],{kind:'enter'},signal);
-   }
-  },finish:()=>{apply();clear();complete();},cancel:clear});
+  const controller=new AbortController(),signal=controller.signal;
+  const travel=tabs?.move(to,signal);
+  // A route is an action, never a queued decorative key stroke. Commit it
+  // synchronously, then animate its visible result in a cancellable channel.
+  commit();const incoming=section(to);
+  if(incoming&&pool.enabled())incoming.style.opacity='0';
+  const settle=()=>{controller.abort();clean(incoming);if(valid())complete();};settleRoute=settle;
+  const finished=Promise.resolve().then(async()=>{
+   await Promise.all([travel,incoming&&pool.visible(incoming)?pool.play(incoming,[{opacity:0},{opacity:1}],{kind:'enter'},signal):null]);
+  }).catch(error=>{if(error?.name!=='AbortError')console.error('Navigation motion:',error);})
+   .finally(()=>{if(!signal.aborted){clean(incoming);if(valid())complete();}if(settleRoute===settle)settleRoute=null;});
+  return {finished,cancel(){controller.abort();clean(incoming);if(settleRoute===settle)settleRoute=null;}};
  }
+
  // Radix keeps ownership of selection, focus and dismissal.
  const seen=new WeakSet();
  new MutationObserver(()=>{

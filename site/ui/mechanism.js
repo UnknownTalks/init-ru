@@ -52,7 +52,7 @@ export function initLessonMechanism({openAgentView}){
  }
  function wake(){if(!frame&&allowed()&&!paused){last=performance.now();frame=requestAnimationFrame(tick);}}
  function park(){s.target=s.transmitted=s.angle;s.velocity=s.gearVelocity=0;s.gear=s.angle;s.accumulator=0;micro=microVelocity=previousVelocity=0;coast=false;}
- function stop(){cancelAnimationFrame(frame);frame=0;ritual=null;gesture=null;park();stress.reset();sound.silence(true);paint();}
+ function stop(){cancelAnimationFrame(frame);frame=0;ritual=null;const held=gesture;gesture=null;if(held?.element.hasPointerCapture(held.id))held.element.releasePointerCapture(held.id);host.classList.remove('is-pressed');park();stress.reset();sound.silence(true);paint();}
  function tick(now){
   frame=0;if(!allowed()||paused){stop();return;}
   const dt=clamp((now-last)/1000,0,.064);last=now;
@@ -94,19 +94,19 @@ export function initLessonMechanism({openAgentView}){
  function begin(e){
   if(ritual||gesture||e.button!==0||!e.isPrimary)return;
   const box=viewportRect(host.querySelector('svg'));
-  gesture={id:e.pointerId,element:e.currentTarget,cx:box.left+box.width/2,cy:box.top+box.height/2,x:e.clientX,y:e.clientY,at:performance.now(),moved:false,base:s.angle,baseMarker:markerOffset,releaseVelocity:0};
+  gesture={id:e.pointerId,element:e.currentTarget,cx:box.left+box.width/2,cy:box.top+box.height/2,x:e.clientX,y:e.clientY,at:performance.now(),moved:false,threshold:e.pointerType==='touch'?8:5,base:s.angle,baseMarker:markerOffset,releaseVelocity:0};
   gesture.previous=pointerAngle(e,gesture);coast=false;s.velocity=0;s.target=s.angle;kind='watch';gesture.element.setPointerCapture(e.pointerId);wake();
  }
  function move(e){
   const g=gesture;if(!g||e.pointerId!==g.id)return;
   const now=performance.now(),angle=pointerAngle(e,g),diff=(angle-g.previous+540)%360-180,dt=Math.max(.004,(now-g.at)/1000);
-  if(Math.hypot(e.clientX-g.x,e.clientY-g.y)>4)g.moved=true;
+  if(Math.hypot(e.clientX-g.x,e.clientY-g.y)>g.threshold)g.moved=true;
   if(g.moved){const precision=e.shiftKey||Math.abs(diff/dt)<25?c.precision:1,resistance=1/(1+Math.abs(diff/dt)/1800),delta=clamp(diff*precision*resistance,-c.maxVelocity*dt,c.maxVelocity*dt);s.angle+=delta;s.target=s.transmitted=s.angle;s.velocity=delta/dt;g.releaseVelocity=g.releaseVelocity*.45+s.velocity*.55;}
   g.previous=angle;g.at=now;wake();
   if(!allowed()){s.gear=s.angle;paint();if(g.moved)sound.tap('watch',1);}
  }
  function end(e,cancel=false){
-  const g=gesture;if(!g||e.pointerId!==g.id)return;gesture=null;suppressClick=performance.now()+500;host.classList.remove('is-pressed');
+  const g=gesture;if(!g||e.pointerId!==g.id)return;gesture=null;suppressClick=g.moved||cancel?performance.now()+500:0;host.classList.remove('is-pressed');
   if(g.element.hasPointerCapture(g.id))g.element.releasePointerCapture(g.id);
   if(cancel){s.angle=g.base;markerOffset=g.baseMarker;park();}
   else if(g.moved){s.velocity=performance.now()-g.at<100?g.releaseVelocity:0;coast=allowed()&&Math.abs(s.velocity)>c.stop;if(!coast){s.velocity=0;s.target+=.35;}}
@@ -118,6 +118,8 @@ export function initLessonMechanism({openAgentView}){
  host.addEventListener('keydown',e=>{if(!['ArrowLeft','ArrowRight'].includes(e.key)||ritual)return;e.preventDefault();input((e.key==='ArrowRight'?1:-1)*(e.shiftKey?c.precision:6));});
  host.addEventListener('pointerenter',()=>host.classList.add('is-hovered'));host.addEventListener('pointerleave',()=>host.classList.remove('is-hovered'));
  host.addEventListener('pointerdown',()=>{suppressClick=0;host.classList.add('is-pressed');});addEventListener('pointerup',()=>host.classList.remove('is-pressed'));
+ for(const event of ['pointercancel','lostpointercapture'])host.addEventListener(event,()=>host.classList.remove('is-pressed'));
+ addEventListener('blur',()=>{if(gesture)end({pointerId:gesture.id},true);host.classList.remove('is-pressed');});
  addEventListener('keydown',e=>{if(e.key==='Escape'&&(gesture||ritual)){if(gesture)end({pointerId:gesture.id},true);ritual=null;park();paint();sound.silence();}});
  function intend(e){if(!e.ctrlKey&&!e.target?.closest?.('input,textarea,select,[contenteditable=true]'))intentUntil=performance.now()+1200;}
  addEventListener('wheel',intend,{passive:true});for(const name of ['touchstart','touchmove','touchend'])addEventListener(name,intend,{passive:true});

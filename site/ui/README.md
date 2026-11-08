@@ -49,7 +49,7 @@ workflow remains manually triggered; nothing is deployed by these commands.
 ## Clock motion
 
 The approved ivory material uses a single motion queue (`motion.js`) for keys,
-tabs, full-page navigation, disclosures and player transitions. Selects fade in immediately so a queued lesson animation cannot leave an invisible modal blocking input.
+disclosures and player transitions. Navigation commits synchronously in its own cancellable animation channel, so a held decorative key cannot block a route. Selects fade in immediately so a queued lesson animation cannot leave an invisible modal blocking input.
 `clock-keys.js` supplies a short 1 px press without spring overshoot or a recessed
 background; `clock-layout.js` coordinates content changes. One moving ivory surface follows the active desktop tab. Press/release takes 135 ms, disclosures 337.5 ms. Navigation and
 disclosures skip the decorative press/release cycle so content responds promptly.
@@ -150,7 +150,7 @@ and watch. Navigation moves into the lower gear button and a native modal
 `dialog` sheet; desktop uses the same original navigation nodes as tabs. The
 sheet supports downward handle dragging, cancellation, Escape, outside taps,
 focus return, reduced motion, and releases modal inertness before changing view.
-Gear movement is coupled by 24 / 14 / 16 teeth. Opening and closing use the
+Gear movement is coupled by 24 / 14 / 16 teeth. A shared fixed-step spring drive moves the drawer, rack and gear train with an 8:1 reduction, retaining progress and momentum when reversed. Opening and closing use the
 selected quiet watch feedback and sound preference. There is no idle gear loop.
 
 Fixed headers never add `visualViewport.offsetTop`: elastic Safari scrolling
@@ -168,3 +168,11 @@ coordinates use registered numbers, converted to lengths at the element, so
 inherited typed lengths cannot apply magnification a second time.
 Selects close on scale/viewport changes, history navigation, backgrounding
 and bfcache lifecycle events to release their native Radix pointer guard.
+
+The compact header breakpoint uses available layout width on both touch and
+mouse devices. It removes the artificial scrollbar gutter; an actual classic
+scrollbar keeps its space during modal scroll lock. The opaque PVD dock isolates
+the gearwork/caption from page text. The same dock remains visible in the modal
+top layer and reverses the same drive instead of starting separate CSS effects.
+A rim/marker tap opens the agent; only a real drag or cancellation suppresses
+its click. Touch dragging starts beyond 8px to tolerate ordinary finger jitter.
